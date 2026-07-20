@@ -1,0 +1,125 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
+
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+:root {
+  --ansim-primary: #0d9488;
+  --ansim-primary-light: #f0fdfa;
+  --ansim-safe: #10b981;
+  --ansim-caution: #f59e0b;
+  --ansim-danger: #ef4444;
+  --ansim-bg: #f8fafc;
+  --ansim-text: #0f172a;
+  --ansim-muted: #475569;
+  --ansim-border: #e2e8f0;
+  --ansim-radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background-color: var(--ansim-bg);
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  font-family:
+    'Pretendard Variable',
+    Pretendard,
+    -apple-system,
+    BlinkMacSystemFont,
+    system-ui,
+    Roboto,
+    'Helvetica Neue',
+    'Segoe UI',
+    'Apple SD Gothic Neo',
+    'Noto Sans KR',
+    'Malgun Gothic',
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+    'Segoe UI Symbol',
+    sans-serif;
+  background-color: var(--ansim-bg);
+  color: var(--ansim-text);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+::selection {
+  background-color: #ccfbf1;
+  color: var(--ansim-text);
+}
+
+@layer components {
+  .ansim-card {
+    @apply overflow-hidden border border-slate-200 bg-white shadow-sm;
+    border-radius: var(--ansim-radius);
+  }
+
+  .ansim-button-primary,
+  .ansim-button-secondary {
+    @apply flex items-center justify-center gap-2 px-6 py-3 font-semibold transition-all active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2;
+    border-radius: var(--ansim-radius);
+  }
+
+  .ansim-button-primary {
+    @apply bg-teal-600 text-white hover:bg-teal-700;
+  }
+
+  .ansim-button-secondary {
+    @apply border border-slate-200 bg-white text-slate-700 hover:bg-slate-50;
+  }
+
+  .ansim-input {
+    @apply w-full border border-slate-200 px-4 py-3 text-slate-950 outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-100;
+    border-radius: var(--ansim-radius);
+  }
+
+  .ansim-page-title {
+    @apply text-2xl font-bold text-slate-950 md:text-3xl;
+  }
+
+  .ansim-page-description {
+    @apply text-slate-600;
+  }
+
+  .ansim-search-field {
+    @apply relative max-w-2xl;
+  }
+
+  .ansim-search-icon {
+    @apply absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400;
+  }
+
+  .ansim-search-input {
+    @apply w-full border-none bg-slate-100 py-4 pl-12 pr-4 text-slate-950 transition-all focus:ring-2 focus:ring-teal-500 focus-visible:outline-none;
+    border-radius: var(--ansim-radius);
+  }
+
+  .ansim-filter-pill {
+    @apply whitespace-nowrap px-5 py-2.5 text-sm font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2;
+    border-radius: 9999px;
+  }
+
+  .ansim-filter-pill-muted {
+    @apply border border-slate-200 bg-white text-slate-600 hover:border-teal-200;
+  }
+}

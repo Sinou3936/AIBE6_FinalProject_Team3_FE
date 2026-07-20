@@ -1,0 +1,65 @@
+import { type ChecklistCategoryId, type ChecklistStatus, type PropertyTradeType } from './domain';
+
+export type ApiErrorBody = {
+  code: string;
+  message: string;
+};
+
+export type ApiResponse<T> = {
+  success: boolean;
+  data: T;
+  error?: ApiErrorBody | null;
+};
+
+export type ApiStatusTone = 'orange' | 'emerald' | 'red' | 'slate';
+
+export type PropertySummaryDto = {
+  id: number;
+  title: string;
+  address: string;
+  tradeType: PropertyTradeType;
+  depositText: string;
+  maintenanceText: string;
+  marketDelta: string;
+  checkSignalCount: number;
+  signalSummary: string;
+  jeonseRatio: string;
+  checklistProgress: number;
+  statusTone: ApiStatusTone;
+  latitude: number;
+  longitude: number;
+};
+
+export type ChecklistItemDto = {
+  id: number;
+  category: ChecklistCategoryId;
+  text: string;
+  status: ChecklistStatus | null;
+};
+
+export type ContractRiskItemDto = {
+  id: number;
+  original: string;
+  severityTone: Extract<ApiStatusTone, 'orange' | 'red'>;
+  simple: string;
+  why: string;
+  question: string;
+  suggestion: string;
+};
+
+export type ContractInfoItemDto = {
+  label: string;
+  value: string;
+};
+
+export type ActivityHistoryItemDto = {
+  title: string;
+  type: string;
+  date: string;
+  status: string;
+};
+
+export type MyPageOverviewDto = {
+  activityHistory: ActivityHistoryItemDto[];
+  bookmarkedProperties: PropertySummaryDto[];
+};

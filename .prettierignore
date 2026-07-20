@@ -1,0 +1,6 @@
+.next
+node_modules
+dist
+package-lock.json
+AGENTS.md
+next-env.d.ts
