@@ -1,6 +1,6 @@
 import { type ApiErrorBody, type ApiResponse } from '../../types/api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '');
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '');
 
 export class ApiError extends Error {
   constructor(
@@ -14,16 +14,21 @@ export class ApiError extends Error {
 }
 
 export function assertApiConfigured() {
+  getApiBaseUrl();
+}
+
+export function getApiBaseUrl(): string {
   if (!API_BASE_URL) {
     throw new ApiError('NEXT_PUBLIC_API_BASE_URL is required when mock data is disabled.', 0);
   }
+
+  return API_BASE_URL;
 }
 
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  assertApiConfigured();
-
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
+    credentials: 'include',
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',

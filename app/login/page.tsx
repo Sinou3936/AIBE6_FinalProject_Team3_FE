@@ -1,0 +1,57 @@
+import Link from 'next/link';
+import { AlertCircle, Shield } from 'lucide-react';
+import { getGoogleLoginUrl, getKakaoLoginUrl } from '../services/auth';
+import { NoticeBox } from '../ui/NoticeBox';
+
+const ERROR_MESSAGES: Record<string, string> = {
+  oauth_login_failed: '로그인에 실패했습니다. 잠시 후 다시 시도해주세요.',
+  session_expired: '로그인 세션을 확인할 수 없습니다. 다시 로그인해주세요.',
+};
+
+type LoginPageProps = {
+  searchParams: Promise<{ error?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const { error } = await searchParams;
+  const errorMessage = error ? (ERROR_MESSAGES[error] ?? '로그인 중 문제가 발생했습니다.') : undefined;
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      <div className="ansim-card w-full max-w-sm p-8">
+        <div className="mb-8 flex flex-col items-center text-center">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-600">
+            <Shield className="h-6 w-6 text-white" />
+          </div>
+          <h1 className="mb-1 text-xl font-bold text-slate-950">안심집 로그인</h1>
+          <p className="text-sm text-slate-600">사회초년생과 대학생을 위한 부동산 계약 안전 도우미</p>
+        </div>
+
+        {errorMessage && (
+          <NoticeBox icon={AlertCircle} iconClassName="text-red-500" className="mb-6 bg-red-50 text-red-600">
+            {errorMessage}
+          </NoticeBox>
+        )}
+
+        <div className="flex flex-col gap-3">
+          <a
+            href={getGoogleLoginUrl()}
+            className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-6 py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+          >
+            구글로 로그인
+          </a>
+          <a
+            href={getKakaoLoginUrl()}
+            className="flex items-center justify-center gap-2 rounded-lg bg-[#FEE500] px-6 py-3 font-semibold text-[#191919] transition-colors hover:bg-[#f5dc00]"
+          >
+            카카오로 로그인
+          </a>
+        </div>
+
+        <Link href="/" className="mt-8 block text-center text-xs text-slate-400 hover:text-slate-600">
+          랜딩 페이지로 돌아가기
+        </Link>
+      </div>
+    </div>
+  );
+}

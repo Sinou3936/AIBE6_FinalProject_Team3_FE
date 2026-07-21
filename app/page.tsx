@@ -27,7 +27,7 @@ export default function Page() {
               줄입니다.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Link href="/home" className="ansim-button-primary px-7 py-4 text-base">
+              <Link href="/login" className="ansim-button-primary px-7 py-4 text-base">
                 내 조건으로 시작하기 <ArrowRight className="h-5 w-5" />
               </Link>
               <Link href="/contract/upload" className="ansim-button-secondary px-7 py-4 text-base">
@@ -92,7 +92,7 @@ export default function Page() {
           <p className="mb-8 text-slate-600">
             위험 조항은 쉬운 설명, 집주인 또는 중개사에게 물어볼 문장, 수정 요청 문구까지 함께 제공합니다.
           </p>
-          <Link href="/home" className="ansim-button-primary mx-auto w-fit px-8 py-4">
+          <Link href="/login" className="ansim-button-primary mx-auto w-fit px-8 py-4">
             서비스 둘러보기 <ArrowRight className="h-5 w-5" />
           </Link>
         </div>
