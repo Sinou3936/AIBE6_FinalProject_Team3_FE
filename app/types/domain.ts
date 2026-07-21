@@ -132,3 +132,20 @@ export type MyPageOverview = {
   activityHistory: ActivityHistoryItem[];
   bookmarkedProperties: PropertySummary[];
 };
+
+export type UserTransactionType = '전세' | '월세' | '매매';
+
+export type UserProfile = {
+  nickname: string;
+  profileImageUrl: string | null;
+  interestRegion: string | null;
+  transactionType: UserTransactionType | null;
+  currentStage: string | null;
+};
+
+export type ProfileUpdateInput = {
+  nickname: string;
+  interestRegion: string;
+  transactionType: UserTransactionType | null;
+  currentStage: string;
+};

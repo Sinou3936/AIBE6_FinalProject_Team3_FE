@@ -1,7 +1,8 @@
+import { Pencil, User } from 'lucide-react';
 import Link from 'next/link';
-import { Bookmark, User } from 'lucide-react';
 import { profileSummaryItems } from '../../data/mypage';
-import { type MyPageOverview } from '../../types/domain';
+import { hasRegisteredProfile } from '../../lib/profile';
+import { type MyPageOverview, type UserProfile } from '../../types/domain';
 import { Badge } from '../../ui/Badge';
 import { InfoRow } from '../../ui/InfoRow';
 import { SummaryCard } from '../../ui/SummaryCard';
@@ -9,9 +10,13 @@ import { SummaryCard } from '../../ui/SummaryCard';
 type MyPageClientProps = {
   overview: MyPageOverview;
   loadError?: string;
+  profile: UserProfile;
+  profileLoadError?: string;
 };
 
-export function MyPageClient({ overview, loadError }: MyPageClientProps) {
+export function MyPageClient({ overview, loadError, profile, profileLoadError }: MyPageClientProps) {
+  const isRegistered = hasRegisteredProfile(profile);
+
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8 md:py-10">
       <div className="mb-8">
@@ -21,26 +26,41 @@ export function MyPageClient({ overview, loadError }: MyPageClientProps) {
 
       <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="ansim-card p-6 lg:col-span-1">
-          <div className="mb-5 flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-100">
-              <User className="h-7 w-7 text-teal-700" />
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-teal-100">
+                <User className="h-7 w-7 text-teal-700" />
+              </div>
+              <div>
+                <p className="font-bold text-slate-950">{profile.nickname || '이름 미설정'}님</p>
+                <p className="text-sm text-slate-500">
+                  {[profile.currentStage, profile.interestRegion].filter(Boolean).join(' · ') ||
+                    '프로필 정보를 등록해 주세요'}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="font-bold text-slate-950">김안심님</p>
-              <p className="text-sm text-slate-500">사회초년생 · 서울 관악구 관심</p>
-            </div>
+            <Link
+              href="/mypage/profile"
+              className="flex shrink-0 items-center gap-1 text-sm font-bold text-teal-700 hover:text-teal-800"
+            >
+              <Pencil className="h-4 w-4" />
+              {isRegistered ? '프로필 수정' : '프로필 등록'}
+            </Link>
           </div>
+
+          {profileLoadError && <p className="mb-3 text-sm text-red-600">{profileLoadError}</p>}
+
           <div className="space-y-3 text-sm">
             <InfoRow
               label="관심 거래"
-              value="전세 / 반전세"
+              value={profile.transactionType ?? '미설정'}
               className="border-b-0 py-0"
               labelClassName="text-slate-500"
               valueClassName="font-bold"
             />
             <InfoRow
-              label="예산"
-              value="보증금 2억원 이하"
+              label="관심 지역"
+              value={profile.interestRegion ?? '미설정'}
               className="border-b-0 py-0"
               labelClassName="text-slate-500"
               valueClassName="font-bold"
@@ -83,36 +103,6 @@ export function MyPageClient({ overview, loadError }: MyPageClientProps) {
               </div>
             ))}
           </div>
-        </div>
-
-        <div className="ansim-card p-6">
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-950">북마크한 매물</h2>
-            <Link href="/properties" className="text-sm font-bold text-teal-700">
-              매물 보기
-            </Link>
-          </div>
-          <div className="space-y-3">
-            {loadError && <p className="text-sm text-red-600">{loadError}</p>}
-            {overview.bookmarkedProperties.map((property) => (
-              <Link
-                key={property.id}
-                href={`/properties/${property.id}`}
-                className="flex items-center gap-3 rounded-xl border border-slate-100 p-4 transition hover:border-teal-200"
-              >
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-50">
-                  <Bookmark className="h-4 w-4 text-orange-500" fill="currentColor" />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{property.title}</p>
-                  <p className="mt-1 text-xs text-slate-500">{property.deposit}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
-          <p className="mt-5 text-xs leading-relaxed text-slate-400">
-            북마크는 매물을 다시 비교하고 현장 체크리스트로 이어가기 위한 MVP 기능입니다.
-          </p>
         </div>
       </div>
     </div>
