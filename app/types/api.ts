@@ -63,3 +63,9 @@ export type MyPageOverviewDto = {
   activityHistory: ActivityHistoryItemDto[];
   bookmarkedProperties: PropertySummaryDto[];
 };
+
+export type MeResponseDto = {
+  userId: number;
+  email: string | null;
+  role: string;
+};
