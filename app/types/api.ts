@@ -68,6 +68,7 @@ export type MeResponseDto = {
   userId: number;
   email: string | null;
   nickname: string;
+  profileImageUrl: string | null;
   role: string;
 };
 

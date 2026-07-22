@@ -38,7 +38,7 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
                 )}
               </div>
               <div>
-                <p className="font-bold text-slate-950">{profile.nickname || '이름 미설정'}님</p>
+                <p className="font-bold text-slate-950">{profile.nickname || nickname}</p>
                 <p className="text-sm text-slate-500">
                   {[profile.currentStage].filter(Boolean).join(' · ') || '프로필 정보를 등록해 주세요'}
                 </p>
