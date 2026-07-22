@@ -68,5 +68,38 @@ export type MeResponseDto = {
   userId: number;
   email: string | null;
   nickname: string;
+  profileImageUrl: string | null;
   role: string;
+};
+
+export type UserTransactionTypeDto = 'JEONSE' | 'WOLSE';
+
+export type UserProfileDto = {
+  id: number;
+  email: string | null;
+  nickname: string;
+  profileImageUrl: string | null;
+  status: string;
+  interestRegion: string | null;
+  transactionType: UserTransactionTypeDto | null;
+  currentStage: string | null;
+};
+
+export type ProfileUpdateRequestDto = {
+  nickname?: string;
+  profileImageUrl?: string;
+  interestRegion?: string;
+  transactionType?: UserTransactionTypeDto;
+  currentStage?: string;
+};
+
+export type ProfileRegisterRequestDto = {
+  nickname?: string;
+  interestRegion: string;
+  transactionType: UserTransactionTypeDto;
+  currentStage?: string;
+};
+
+export type NicknameCheckResponseDto = {
+  available: boolean;
 };

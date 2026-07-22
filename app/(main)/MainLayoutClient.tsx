@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { Bell, Home, LogOut, Menu, User, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Bell, Home, LogOut, Menu, User, X } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import { navItems } from '../data/navigation';
 import { cn } from '../lib/cn';
 import { logout } from '../services/auth';
@@ -11,9 +11,10 @@ import { logout } from '../services/auth';
 type MainLayoutClientProps = {
   children: ReactNode;
   nickname: string;
+  profileImageUrl: string | null;
 };
 
-export default function MainLayoutClient({ children, nickname }: MainLayoutClientProps) {
+export default function MainLayoutClient({ children, nickname, profileImageUrl }: MainLayoutClientProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -37,7 +38,7 @@ export default function MainLayoutClient({ children, nickname }: MainLayoutClien
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600">
                 <Home className="h-5 w-5 text-white" />
               </div>
-              <span className="text-xl font-bold tracking-tight text-slate-950">안심집</span>
+              <span className="text-xl font-bold tracking-tight text-slate-950">알고계약</span>
             </Link>
 
             <nav className="flex items-center gap-1">
@@ -68,8 +69,13 @@ export default function MainLayoutClient({ children, nickname }: MainLayoutClien
               className="flex items-center gap-2 rounded-full border border-slate-200 p-1 pl-3 transition-colors hover:bg-slate-50"
             >
               <span className="text-sm font-medium text-slate-700">{nickname}님</span>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200">
-                <User className="h-5 w-5 text-slate-500" />
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200">
+                {profileImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profileImageUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-5 w-5 text-slate-500" />
+                )}
               </div>
             </Link>
             <button
