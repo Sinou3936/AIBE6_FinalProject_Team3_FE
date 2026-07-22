@@ -4,7 +4,9 @@ import { getCurrentUser } from '../../services/auth';
 export async function GET(request: NextRequest) {
   const error = request.nextUrl.searchParams.get('error');
   if (error) {
-    return NextResponse.redirect(new URL(`/login?error=${error}`, request.url));
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('error', error);
+    return NextResponse.redirect(loginUrl);
   }
 
   try {

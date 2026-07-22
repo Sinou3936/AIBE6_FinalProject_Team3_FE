@@ -9,9 +9,10 @@ import { SummaryCard } from '../../ui/SummaryCard';
 type MyPageClientProps = {
   overview: MyPageOverview;
   loadError?: string;
+  nickname: string;
 };
 
-export function MyPageClient({ overview, loadError }: MyPageClientProps) {
+export function MyPageClient({ overview, loadError, nickname }: MyPageClientProps) {
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8 md:py-10">
       <div className="mb-8">
@@ -26,7 +27,7 @@ export function MyPageClient({ overview, loadError }: MyPageClientProps) {
               <User className="h-7 w-7 text-teal-700" />
             </div>
             <div>
-              <p className="font-bold text-slate-950">김안심님</p>
+              <p className="font-bold text-slate-950">{nickname}님</p>
               <p className="text-sm text-slate-500">사회초년생 · 서울 관악구 관심</p>
             </div>
           </div>
