@@ -10,11 +10,12 @@ import { SummaryCard } from '../../ui/SummaryCard';
 type MyPageClientProps = {
   overview: MyPageOverview;
   loadError?: string;
+  nickname: string;
   profile: UserProfile;
   profileLoadError?: string;
 };
 
-export function MyPageClient({ overview, loadError, profile, profileLoadError }: MyPageClientProps) {
+export function MyPageClient({ overview, loadError, nickname, profile, profileLoadError }: MyPageClientProps) {
   const isRegistered = hasRegisteredProfile(profile);
 
   return (

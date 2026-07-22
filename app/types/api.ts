@@ -67,6 +67,7 @@ export type MyPageOverviewDto = {
 export type MeResponseDto = {
   userId: number;
   email: string | null;
+  nickname: string;
   role: string;
 };
 
