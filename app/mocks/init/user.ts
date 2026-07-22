@@ -8,5 +8,5 @@ export const initUserProfileDto: UserProfileDto = {
   status: 'ACTIVE',
   interestRegion: '서울 관악구',
   transactionType: 'WOLSE',
-  currentStage: '사회초년생',
+  currentStage: '자취 경험 있음',
 };

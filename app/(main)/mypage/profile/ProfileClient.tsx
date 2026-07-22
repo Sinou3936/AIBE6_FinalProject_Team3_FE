@@ -1,13 +1,13 @@
 'use client';
 
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { regions } from '../../../data/regions_nested';
-import { userTransactionTypeOptions } from '../../../data/user';
+import { userCurrentStageOptions, userTransactionTypeOptions } from '../../../data/user';
 import { ApiError } from '../../../lib/api/http';
-import { registerProfile, updateMyProfile } from '../../../services/user';
+import { checkNicknameAvailability, registerProfile, updateMyProfile } from '../../../services/user';
 import { type ProfileUpdateInput, type UserProfile } from '../../../types/domain';
 import { NoticeBox } from '../../../ui/NoticeBox';
 
@@ -22,9 +22,10 @@ type ProfileClientProps = {
 function toFormValues(profile: UserProfile): ProfileUpdateInput {
   return {
     nickname: profile.nickname,
+    profileImageUrl: profile.profileImageUrl ?? '',
     interestRegion: profile.interestRegion ?? '',
     transactionType: profile.transactionType,
-    currentStage: profile.currentStage ?? '',
+    currentStage: profile.currentStage,
   };
 }
 
@@ -98,6 +99,10 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
   const [eupmyeondong, setEupmyeondong] = useState(initialLocation.eupmyeondong);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string>();
+  const [imagePreviewError, setImagePreviewError] = useState(false);
+  const [nicknameCheckStatus, setNicknameCheckStatus] = useState<
+    'idle' | 'checking' | 'available' | 'duplicate' | 'error'
+  >('idle');
 
   const sigunguOptions = getSigunguOptions(sido);
   const eupmyeondongOptions = getEupmyeondongOptions(sido, sigungu);
@@ -122,6 +127,22 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
     setFormValues((prev) => ({ ...prev, interestRegion: buildInterestRegion(sido, sigungu, nextEupmyeondong) }));
   };
 
+  const handleCheckNickname = async () => {
+    const nickname = formValues.nickname.trim();
+    if (nickname.length < 2) {
+      setNicknameCheckStatus('error');
+      return;
+    }
+
+    setNicknameCheckStatus('checking');
+    try {
+      const available = await checkNicknameAvailability(nickname);
+      setNicknameCheckStatus(available ? 'available' : 'duplicate');
+    } catch {
+      setNicknameCheckStatus('error');
+    }
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -136,6 +157,10 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
     try {
       if (mode === 'register') {
         await registerProfile(formValues);
+        // 프로필 등록 API는 profileImageUrl을 받지 않으므로, 사진을 입력했다면 수정 API로 이어서 저장한다.
+        if (formValues.profileImageUrl.trim()) {
+          await updateMyProfile(formValues);
+        }
       } else {
         await updateMyProfile(formValues);
       }
@@ -178,18 +203,69 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <label className="block">
+            <div>
+              <span className="mb-2 block text-sm font-bold text-slate-700">프로필 사진</span>
+              <div className="flex items-center gap-4">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal-100">
+                  {formValues.profileImageUrl && !imagePreviewError ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={formValues.profileImageUrl}
+                      alt="프로필 사진 미리보기"
+                      className="h-full w-full object-cover"
+                      onError={() => setImagePreviewError(true)}
+                    />
+                  ) : (
+                    <User className="h-8 w-8 text-teal-700" />
+                  )}
+                </div>
+                <input
+                  className="ansim-input flex-1"
+                  type="url"
+                  value={formValues.profileImageUrl}
+                  onChange={(event) => {
+                    setImagePreviewError(false);
+                    setFormValues((prev) => ({ ...prev, profileImageUrl: event.target.value }));
+                  }}
+                  placeholder="https://example.com/avatar.jpg"
+                />
+              </div>
+            </div>
+
+            <div>
               <span className="mb-2 block text-sm font-bold text-slate-700">닉네임</span>
-              <input
-                className="ansim-input"
-                value={formValues.nickname}
-                onChange={(event) => setFormValues((prev) => ({ ...prev, nickname: event.target.value }))}
-                placeholder="2~20자로 입력해 주세요"
-                minLength={2}
-                maxLength={20}
-                required
-              />
-            </label>
+              <div className="flex gap-2">
+                <input
+                  className="ansim-input flex-1"
+                  value={formValues.nickname}
+                  onChange={(event) => {
+                    setNicknameCheckStatus('idle');
+                    setFormValues((prev) => ({ ...prev, nickname: event.target.value }));
+                  }}
+                  placeholder="2~20자로 입력해 주세요"
+                  minLength={2}
+                  maxLength={20}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={handleCheckNickname}
+                  disabled={nicknameCheckStatus === 'checking' || formValues.nickname.trim().length < 2}
+                  className="shrink-0 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                >
+                  {nicknameCheckStatus === 'checking' ? '확인 중...' : '중복확인'}
+                </button>
+              </div>
+              {nicknameCheckStatus === 'available' && (
+                <p className="mt-1.5 text-sm font-bold text-teal-700">사용 가능한 닉네임입니다.</p>
+              )}
+              {nicknameCheckStatus === 'duplicate' && (
+                <p className="mt-1.5 text-sm font-bold text-red-600">이미 사용 중인 닉네임입니다.</p>
+              )}
+              {nicknameCheckStatus === 'error' && (
+                <p className="mt-1.5 text-sm text-red-600">닉네임 확인에 실패했습니다. 다시 시도해 주세요.</p>
+              )}
+            </div>
 
             <div>
               <span className="mb-2 block text-sm font-bold text-slate-700">관심 지역</span>
@@ -275,15 +351,25 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
               </div>
             </div>
 
-            <label className="block">
+            <div>
               <span className="mb-2 block text-sm font-bold text-slate-700">현재 단계</span>
-              <input
-                className="ansim-input"
-                value={formValues.currentStage}
-                onChange={(event) => setFormValues((prev) => ({ ...prev, currentStage: event.target.value }))}
-                placeholder="예: 사회초년생"
-              />
-            </label>
+              <div className="grid grid-cols-2 gap-2">
+                {userCurrentStageOptions.map((stage) => (
+                  <button
+                    key={stage}
+                    type="button"
+                    onClick={() => setFormValues((prev) => ({ ...prev, currentStage: stage }))}
+                    className={`rounded-xl border py-3 text-sm font-bold transition ${
+                      formValues.currentStage === stage
+                        ? 'border-teal-500 bg-teal-50 text-teal-700'
+                        : 'border-slate-200 bg-white text-slate-600'
+                    }`}
+                  >
+                    {stage}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {saveError && <p className="text-sm text-red-600">{saveError}</p>}
 

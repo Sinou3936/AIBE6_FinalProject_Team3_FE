@@ -4,8 +4,18 @@ import { type ProfileUpdateInput, type UserProfile } from '../types/domain';
 
 let mockUserProfileDto = { ...initUserProfileDto };
 
+// 목데이터 환경에서 중복확인 데모용으로 사용 중이라고 가정하는 닉네임 목록
+const reservedMockNicknames = ['관리자', 'admin', 'test'];
+
 export function getMockUserProfile(): UserProfile {
   return mapUserProfileDto(mockUserProfileDto);
+}
+
+export function checkMockNicknameAvailable(nickname: string): boolean {
+  if (nickname === mockUserProfileDto.nickname) {
+    return true;
+  }
+  return !reservedMockNicknames.includes(nickname);
 }
 
 export function registerMockUserProfile(input: ProfileUpdateInput): UserProfile {
@@ -25,6 +35,7 @@ export function updateMockUserProfile(input: ProfileUpdateInput): UserProfile {
   mockUserProfileDto = {
     ...mockUserProfileDto,
     ...(patch.nickname !== undefined && { nickname: patch.nickname }),
+    ...(patch.profileImageUrl !== undefined && { profileImageUrl: patch.profileImageUrl }),
     ...(patch.interestRegion !== undefined && { interestRegion: patch.interestRegion }),
     ...(patch.transactionType !== undefined && { transactionType: patch.transactionType }),
     ...(patch.currentStage !== undefined && { currentStage: patch.currentStage }),

@@ -28,8 +28,13 @@ export function MyPageClient({ overview, loadError, profile, profileLoadError }:
         <div className="ansim-card p-6 lg:col-span-1">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-teal-100">
-                <User className="h-7 w-7 text-teal-700" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal-100">
+                {profile.profileImageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profile.profileImageUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-7 w-7 text-teal-700" />
+                )}
               </div>
               <div>
                 <p className="font-bold text-slate-950">{profile.nickname || '이름 미설정'}님</p>

@@ -97,3 +97,7 @@ export type ProfileRegisterRequestDto = {
   transactionType: UserTransactionTypeDto;
   currentStage?: string;
 };
+
+export type NicknameCheckResponseDto = {
+  available: boolean;
+};
