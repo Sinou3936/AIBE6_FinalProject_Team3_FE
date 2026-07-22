@@ -9,13 +9,11 @@ import { type ProfileUpdateInput, type UserProfile, type UserTransactionType } f
 const transactionTypeDtoToDomain: Record<UserTransactionTypeDto, UserTransactionType> = {
   JEONSE: '전세',
   WOLSE: '월세',
-  MAEMAE: '매매',
 };
 
 const transactionTypeDomainToDto: Record<UserTransactionType, UserTransactionTypeDto> = {
   전세: 'JEONSE',
   월세: 'WOLSE',
-  매매: 'MAEMAE',
 };
 
 export function mapUserProfileDto(dto: UserProfileDto): UserProfile {

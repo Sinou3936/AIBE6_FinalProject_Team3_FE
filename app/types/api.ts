@@ -70,7 +70,7 @@ export type MeResponseDto = {
   role: string;
 };
 
-export type UserTransactionTypeDto = 'JEONSE' | 'WOLSE' | 'MAEMAE';
+export type UserTransactionTypeDto = 'JEONSE' | 'WOLSE';
 
 export type UserProfileDto = {
   id: number;

@@ -4,7 +4,7 @@ import { ArrowLeft, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { regions } from '../../../data/regions';
+import { regions } from '../../../data/regions_nested';
 import { userTransactionTypeOptions } from '../../../data/user';
 import { ApiError } from '../../../lib/api/http';
 import { registerProfile, updateMyProfile } from '../../../services/user';
@@ -28,33 +28,65 @@ function toFormValues(profile: UserProfile): ProfileUpdateInput {
   };
 }
 
-function parseInterestRegion(interestRegion: string | null): { sido: string; sigungu: string } {
+type ParsedLocation = { sido: string; sigungu: string; eupmyeondong: string };
+
+function uniqueNames(items: readonly { name: string }[]): string[] {
+  return Array.from(new Set(items.map((item) => item.name)));
+}
+
+function getSigunguOptions(sido: string): string[] {
+  const item = regions.find((region) => region.name === sido);
+  return item ? uniqueNames(item.sigungu) : [];
+}
+
+function getEupmyeondongOptions(sido: string, sigungu: string): string[] {
+  const sidoItem = regions.find((region) => region.name === sido);
+  const sigunguItem = sidoItem?.sigungu.find((item) => item.name === sigungu);
+  return sigunguItem ? uniqueNames(sigunguItem.eupmyeondong) : [];
+}
+
+function parseInterestRegion(interestRegion: string | null): ParsedLocation {
+  const empty: ParsedLocation = { sido: '', sigungu: '', eupmyeondong: '' };
   if (!interestRegion) {
-    return { sido: '', sigungu: '' };
+    return empty;
   }
 
-  const exactSido = regions.find((item) => interestRegion === item.sido || interestRegion.startsWith(`${item.sido} `));
-  if (exactSido) {
-    const sigunguPart = interestRegion.slice(exactSido.sido.length).trim();
-    const matchedSigungu = exactSido.regions.find((name) => name === sigunguPart);
-    return { sido: exactSido.sido, sigungu: matchedSigungu ?? '' };
+  const matchedSido = regions.find(
+    (item) => interestRegion === item.name || interestRegion.startsWith(`${item.name} `),
+  );
+  if (!matchedSido) {
+    return empty;
   }
 
-  for (const item of regions) {
-    const matchedSigungu = item.regions.find((name) => interestRegion.includes(name));
-    if (matchedSigungu) {
-      return { sido: item.sido, sigungu: matchedSigungu };
+  const rest = interestRegion.slice(matchedSido.name.length).trim();
+  for (const sigunguItem of matchedSido.sigungu) {
+    if (rest === sigunguItem.name || rest.startsWith(`${sigunguItem.name} `)) {
+      const eupPart = rest.slice(sigunguItem.name.length).trim();
+      const matchedEup = sigunguItem.eupmyeondong.find((eup) => eup.name === eupPart);
+      return { sido: matchedSido.name, sigungu: sigunguItem.name, eupmyeondong: matchedEup?.name ?? '' };
+    }
+    // 세종특별자치시처럼 시·군·구명이 시·도명과 동일해 생략된 경우, 나머지를 읍·면·동으로 바로 매칭
+    const matchedEupDirect = sigunguItem.eupmyeondong.find((eup) => eup.name === rest);
+    if (matchedEupDirect) {
+      return { sido: matchedSido.name, sigungu: sigunguItem.name, eupmyeondong: matchedEupDirect.name };
     }
   }
 
-  return { sido: '', sigungu: '' };
+  return { sido: matchedSido.name, sigungu: '', eupmyeondong: '' };
 }
 
-function buildInterestRegion(sido: string, sigungu: string): string {
+function buildInterestRegion(sido: string, sigungu: string, eupmyeondong: string): string {
   if (!sido) {
     return '';
   }
-  return sigungu ? `${sido} ${sigungu}` : sido;
+  const parts = [sido];
+  if (sigungu && sigungu !== sido) {
+    parts.push(sigungu);
+  }
+  if (eupmyeondong) {
+    parts.push(eupmyeondong);
+  }
+  return parts.join(' ');
 }
 
 export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) {
@@ -63,26 +95,31 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
   const initialLocation = parseInterestRegion(profile.interestRegion);
   const [sido, setSido] = useState(initialLocation.sido);
   const [sigungu, setSigungu] = useState(initialLocation.sigungu);
+  const [eupmyeondong, setEupmyeondong] = useState(initialLocation.eupmyeondong);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string>();
 
-  const sigunguOptions = regions.find((item) => item.sido === sido)?.regions ?? [];
+  const sigunguOptions = getSigunguOptions(sido);
+  const eupmyeondongOptions = getEupmyeondongOptions(sido, sigungu);
 
   const title = mode === 'register' ? '프로필 등록' : '프로필 수정';
 
   const handleSidoChange = (nextSido: string) => {
     setSido(nextSido);
     setSigungu('');
-    const nextOptions = regions.find((item) => item.sido === nextSido)?.regions ?? [];
-    setFormValues((prev) => ({
-      ...prev,
-      interestRegion: nextOptions.length === 0 ? buildInterestRegion(nextSido, '') : '',
-    }));
+    setEupmyeondong('');
+    setFormValues((prev) => ({ ...prev, interestRegion: '' }));
   };
 
   const handleSigunguChange = (nextSigungu: string) => {
     setSigungu(nextSigungu);
-    setFormValues((prev) => ({ ...prev, interestRegion: buildInterestRegion(sido, nextSigungu) }));
+    setEupmyeondong('');
+    setFormValues((prev) => ({ ...prev, interestRegion: '' }));
+  };
+
+  const handleEupmyeondongChange = (nextEupmyeondong: string) => {
+    setEupmyeondong(nextEupmyeondong);
+    setFormValues((prev) => ({ ...prev, interestRegion: buildInterestRegion(sido, sigungu, nextEupmyeondong) }));
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -156,7 +193,7 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
 
             <div>
               <span className="mb-2 block text-sm font-bold text-slate-700">관심 지역</span>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <label className="block">
                   <span className="sr-only">시·도</span>
                   <select
@@ -169,8 +206,8 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
                       시·도
                     </option>
                     {regions.map((item) => (
-                      <option key={item.sido} value={item.sido}>
-                        {item.sido}
+                      <option key={item.name} value={item.name}>
+                        {item.name}
                       </option>
                     ))}
                   </select>
@@ -195,12 +232,32 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
                     ))}
                   </select>
                 </label>
+
+                <label className="block">
+                  <span className="sr-only">읍·면·동</span>
+                  <select
+                    className="ansim-input disabled:cursor-not-allowed disabled:opacity-60"
+                    value={eupmyeondong}
+                    onChange={(event) => handleEupmyeondongChange(event.target.value)}
+                    disabled={!sigungu || eupmyeondongOptions.length === 0}
+                    required={eupmyeondongOptions.length > 0}
+                  >
+                    <option value="" disabled>
+                      읍·면·동
+                    </option>
+                    {eupmyeondongOptions.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
             </div>
 
             <div>
               <span className="mb-2 block text-sm font-bold text-slate-700">관심 거래 유형</span>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {userTransactionTypeOptions.map((type) => (
                   <button
                     key={type}

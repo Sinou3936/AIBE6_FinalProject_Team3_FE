@@ -133,7 +133,7 @@ export type MyPageOverview = {
   bookmarkedProperties: PropertySummary[];
 };
 
-export type UserTransactionType = '전세' | '월세' | '매매';
+export type UserTransactionType = '전세' | '월세';
 
 export type UserProfile = {
   nickname: string;
