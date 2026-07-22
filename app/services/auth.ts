@@ -12,3 +12,7 @@ export function getKakaoLoginUrl(): string {
 export async function getCurrentUser(cookieHeader?: string): Promise<MeResponseDto> {
   return requestJson<MeResponseDto>('/auth/me', cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined);
 }
+
+export async function logout(): Promise<void> {
+  await requestJson<void>('/auth/logout', { method: 'POST' });
+}
