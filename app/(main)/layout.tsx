@@ -2,16 +2,26 @@
 
 import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Bell, Home, Menu, User, X } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Bell, Home, LogOut, Menu, User, X } from 'lucide-react';
 import { navItems } from '../data/navigation';
 import { cn } from '../lib/cn';
+import { logout } from '../services/auth';
 
 export default function MainLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const isActive = (path: string) => pathname === path;
+
+  async function handleLogout() {
+    try {
+      await logout();
+    } finally {
+      router.push('/login');
+    }
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -57,6 +67,13 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                 <User className="h-5 w-5 text-slate-500" />
               </div>
             </Link>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1 rounded-full p-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-950"
+            >
+              <LogOut className="h-4 w-4" />
+              로그아웃
+            </button>
           </div>
         </div>
       </header>
@@ -112,6 +129,16 @@ export default function MainLayout({ children }: { children: ReactNode }) {
                 <User className="h-6 w-6" />
                 마이페이지
               </Link>
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="flex items-center gap-3 p-4 text-lg font-medium text-slate-600 hover:bg-slate-50"
+              >
+                <LogOut className="h-6 w-6" />
+                로그아웃
+              </button>
             </nav>
           </div>
         </div>
