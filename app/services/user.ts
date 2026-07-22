@@ -10,12 +10,15 @@ import {
 import { type NicknameCheckResponseDto, type UserProfileDto } from '../types/api';
 import { type ProfileUpdateInput, type UserProfile } from '../types/domain';
 
-export async function getMyProfile(): Promise<UserProfile> {
+export async function getMyProfile(cookieHeader?: string): Promise<UserProfile> {
   if (useMockData) {
     return getMockUserProfile();
   }
 
-  const dto = await requestJson<UserProfileDto>('/users/me');
+  const dto = await requestJson<UserProfileDto>(
+    '/users/me',
+    cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined,
+  );
   return mapUserProfileDto(dto);
 }
 
