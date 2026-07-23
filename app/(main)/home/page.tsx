@@ -1,9 +1,80 @@
+import { cookies } from 'next/headers';
 import { AlertTriangle, ArrowRight, FileSearch, ShieldAlert, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { quickActions, quickActionToneMap } from '../../data/dashboard';
+import { computeHomeSummaryCounts } from '../../lib/homeSummary';
+import { getJeonseRatioDisplay } from '../../lib/jeonseRatio';
+import { getPriorityAction } from '../../lib/priorityAction';
+import { getMyPageOverview } from '../../services/mypage';
+import { getProperties } from '../../services/properties';
+import { getMyProfile } from '../../services/user';
+import { type MyPageOverview, type PropertySummary, type UserProfile } from '../../types/domain';
+import { ChecklistProgressWidget } from '../../ui/ChecklistProgressWidget';
 import { NoticeBox } from '../../ui/NoticeBox';
+import { PriorityActionCard } from '../../ui/PriorityActionCard';
 
-export default function Page() {
+export const dynamic = 'force-dynamic';
+
+const emptyProfile: UserProfile = {
+  nickname: '',
+  profileImageUrl: null,
+  interestRegion: null,
+  transactionType: null,
+  currentStage: null,
+};
+
+const emptyOverview: MyPageOverview = {
+  activityHistory: [],
+  bookmarkedProperties: [],
+};
+
+export default async function Page() {
+  const cookieHeader = (await cookies()).toString();
+
+  let profile = emptyProfile;
+  try {
+    profile = await getMyProfile(cookieHeader);
+  } catch {
+    // 프로필을 불러오지 못하면 개인화 우선순위 카드는 미등록 상태 기준으로 표시
+  }
+
+  let properties: PropertySummary[] = [];
+  try {
+    properties = await getProperties();
+  } catch {
+    // 매물 목록을 불러오지 못하면 요약/알림/매물 기준 정보는 빈 상태로 표시
+  }
+
+  let overview = emptyOverview;
+  try {
+    overview = await getMyPageOverview(cookieHeader);
+  } catch {
+    // 활동 이력을 불러오지 못하면 분석한 특약사항 카운트는 0으로 표시
+  }
+
+  // TODO: 백엔드에 hasProperty/hasChecklist 전용 필드(또는 API)가 추가되면 이 파생 계산을 실제 값으로 교체하세요.
+  // 지금은 매물 목록/매물별 체크리스트 진행률(checklist)로 근사합니다.
+  const hasProperty = properties.length > 0;
+  const hasChecklist = properties.some((property) => property.checklist > 0);
+  const primaryProperty = properties[0];
+
+  const priorityAction = getPriorityAction({
+    currentStage: profile.currentStage,
+    hasProperty,
+    hasChecklist,
+    propertyTitle: primaryProperty?.title,
+  });
+
+  const summaryCounts = computeHomeSummaryCounts(properties, overview.activityHistory);
+  const signalProperties = properties.filter((property) => property.checkSignalCount > 0);
+  const specialTermsAlerts = overview.activityHistory.filter((item) => item.type === '특약사항 분석');
+
+  // TODO: 체크리스트 항목별 확인/주의 개수는 체크리스트 저장 API가 추가되면 실제 값으로 교체하세요.
+  // 아직 항목별 진행 상태가 저장되지 않아 레이아웃 확인용 임시 값을 사용합니다.
+  const mockChecklistTotal = 20;
+  const mockChecklistChecked = 12;
+  const mockChecklistCaution = 3;
+
   return (
     <div className="container mx-auto max-w-5xl px-4 py-6 md:py-10">
       <div className="mb-8">
@@ -12,6 +83,8 @@ export default function Page() {
           매물 가격, 보증금 안전성, 현장 확인, 특약사항 분석을 순서대로 점검하세요.
         </p>
       </div>
+
+      <PriorityActionCard action={priorityAction} />
 
       <div className="mb-10 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
         {quickActions.map((action) => (
@@ -34,16 +107,16 @@ export default function Page() {
       <div className="ansim-card mb-10 bg-white p-6">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-950">요약 정보</h2>
-          <Link href="/properties" className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-950">
+          <Link href="/mypage" className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-950">
             전체보기 <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {[
-            ['관심 매물', '3개'],
-            ['확인 필요 신호', '2개'],
-            ['진행 중 체크리스트', '1개'],
-            ['분석한 특약사항', '1건'],
+            ['관심 매물', `${summaryCounts.interestedPropertyCount}개`],
+            ['확인 필요 신호', `${summaryCounts.signalsToCheckCount}개`],
+            ['진행 중 체크리스트', `${summaryCounts.activeChecklistCount}개`],
+            ['분석한 특약사항', `${summaryCounts.analyzedSpecialTermsCount}건`],
           ].map(([label, value]) => (
             <div key={label} className="rounded-xl bg-slate-50 p-4 text-center">
               <p className="mb-1 text-sm text-slate-500">{label}</p>
@@ -53,56 +126,92 @@ export default function Page() {
         </div>
       </div>
 
+      {hasChecklist && (
+        <ChecklistProgressWidget
+          checkedCount={mockChecklistChecked}
+          totalCount={mockChecklistTotal}
+          cautionCount={mockChecklistCaution}
+        />
+      )}
+
       <div className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
           <h2 className="text-lg font-bold text-slate-950">중요 알림</h2>
-          <div className="flex items-start gap-4 rounded-xl border border-orange-100 bg-orange-50 p-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100">
-              <AlertTriangle className="h-5 w-5 text-orange-600" />
-            </div>
-            <div>
-              <p className="mb-1 font-bold text-orange-950">시세 대비 가격 확인 필요</p>
-              <p className="text-sm leading-relaxed text-orange-800">
-                관심 매물 1개가 주변 실거래가보다 높게 등록되어 있습니다. 가격 산정 근거를 다시 확인하세요.
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-4 rounded-xl border border-red-100 bg-red-50 p-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
-              <FileSearch className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <p className="mb-1 font-bold text-red-950">특약사항 확인 필요</p>
-              <p className="text-sm leading-relaxed text-red-800">
-                보증금 반환 조건과 중도 해지 조항에서 다시 물어봐야 할 문구가 발견되었습니다.
-              </p>
-            </div>
-          </div>
+          {signalProperties.length === 0 && specialTermsAlerts.length === 0 && (
+            <div className="ansim-card p-4 text-sm text-slate-500">확인이 필요한 알림이 없습니다.</div>
+          )}
+          {signalProperties.map((property) => (
+            <Link
+              key={property.id}
+              href={`/properties/${property.id}`}
+              className="flex items-start gap-4 rounded-xl border border-orange-100 bg-orange-50 p-4 transition hover:bg-orange-100/60"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100">
+                <AlertTriangle className="h-5 w-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="mb-1 font-bold text-orange-950">
+                  {property.title} 확인 필요 신호 {property.checkSignalCount}개
+                </p>
+                <p className="text-sm leading-relaxed text-orange-800">{property.signalSummary}</p>
+              </div>
+            </Link>
+          ))}
+          {specialTermsAlerts.map((item) => (
+            <Link
+              key={`${item.title}-${item.type}`}
+              href="/mypage"
+              className="flex items-start gap-4 rounded-xl border border-red-100 bg-red-50 p-4 transition hover:bg-red-100/60"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                <FileSearch className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <p className="mb-1 font-bold text-red-950">{item.title} 특약사항 확인 필요</p>
+                <p className="text-sm leading-relaxed text-red-800">{item.status}</p>
+              </div>
+            </Link>
+          ))}
         </div>
 
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-950">매물 기준 정보</h2>
-          <div className="ansim-card p-4">
-            <div className="mb-3 flex items-center gap-3">
-              <div className="rounded-lg bg-teal-50 p-2">
-                <TrendingUp className="h-4 w-4 text-teal-600" />
-              </div>
-              <span className="text-sm font-bold text-slate-950">관심 지역 시세</span>
+          {!primaryProperty && (
+            <div className="ansim-card p-4 text-sm text-slate-500">
+              등록된 매물이 없어 시세 정보를 표시할 수 없습니다. 매물을 등록해보세요.
             </div>
-            <p className="mb-1 text-xs text-slate-500">서울 관악구 신림동</p>
-            <p className="text-lg font-bold text-slate-950">평균 전세 1.6억</p>
-            <p className="mt-2 text-[10px] text-slate-400">최근 6개월 실거래가 기준</p>
-          </div>
-          <div className="ansim-card p-4">
-            <div className="mb-3 flex items-center gap-3">
-              <div className="rounded-lg bg-orange-50 p-2">
-                <ShieldAlert className="h-4 w-4 text-orange-600" />
+          )}
+          {primaryProperty && (
+            <>
+              <div className="ansim-card p-4">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="rounded-lg bg-teal-50 p-2">
+                    <TrendingUp className="h-4 w-4 text-teal-600" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-950">관심 지역 시세</span>
+                </div>
+                <p className="mb-1 text-xs text-slate-500">{profile.interestRegion ?? primaryProperty.address}</p>
+                <p className="text-lg font-bold text-slate-950">{primaryProperty.deposit}</p>
+                <p className="mt-2 text-[10px] text-slate-400">등록한 관심 매물 기준</p>
               </div>
-              <span className="text-sm font-bold text-slate-950">보증금 안전성</span>
-            </div>
-            <p className="text-sm font-medium text-slate-800">전세가율 82%</p>
-            <p className="mt-1 text-xs font-bold text-orange-600">수치와 이유를 확인하세요</p>
-          </div>
+              <div className="ansim-card p-4">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="rounded-lg bg-orange-50 p-2">
+                    <ShieldAlert className="h-4 w-4 text-orange-600" />
+                  </div>
+                  <span className="text-sm font-bold text-slate-950">보증금 안전성</span>
+                </div>
+                <p className="text-sm font-medium text-slate-800">
+                  전세가율 {getJeonseRatioDisplay(primaryProperty.type, primaryProperty.jeonseRatio)}
+                </p>
+                <p className="mt-1 text-xs font-bold text-orange-600">
+                  {primaryProperty.type === '월세'
+                    ? '월세 매물은 전세가율을 계산하지 않습니다'
+                    : '수치와 이유를 확인하세요'}
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
