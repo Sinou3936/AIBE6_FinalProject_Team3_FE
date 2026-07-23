@@ -33,14 +33,19 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   const response = await fetch(`${getApiBaseUrl()}${path}`, { ...init, credentials: 'include', headers });
 
   if (response.status === 401 && path !== REFRESH_PATH) {
-    const retried = await retryAfterRefresh<T>(path, init, headers);
-    if (retried) {
-      return retried;
+    const outcome = await retryAfterRefresh<T>(path, init, headers);
+    if (outcome.attempted) {
+      return outcome.value;
     }
   }
 
   return parseOrThrow<T>(response);
 }
+
+// "재시도를 안 했다"와 "재시도해서 정상적으로 falsy 값(void/null/false/0/'')을 받았다"를 구분해야 한다.
+// retryAfterRefresh가 T | null을 돌려주면 두 경우가 구분이 안 돼서, void를 반환하는
+// /auth/logout 같은 엔드포인트가 재시도에 성공해도 실패로 오인될 수 있다.
+type RetryOutcome<T> = { attempted: true; value: T } | { attempted: false };
 
 // HeadersInit은 plain object/배열/Headers 인스턴스 중 뭐든 될 수 있는데, {...init?.headers}로
 // 스프레드하면 Headers 인스턴스나 배열은 조용히 빈 객체가 되어 헤더가 통째로 사라진다.
@@ -58,20 +63,30 @@ function normalizeHeaders(initHeaders?: HeadersInit): Headers {
 
 /**
  * 서버 컴포넌트에서 명시적으로 넘겨준 Cookie 헤더에 refresh_token 값이 있을 때만 재시도한다.
- * credentials:'include'로 브라우저가 자동 첨부하는(향후 클라이언트 사이드) 호출은 httpOnly라
- * JS로 쿠키 값을 읽을 수 없어 여기서 재시도 대상이 아니다 — 그런 요청은 페이지 이동 시점에
- * proxy.ts가 이미 처리한다.
+ * credentials:'include'로 브라우저가 자동 첨부하는 호출은 httpOnly라 JS로 쿠키 값을 읽을 수 없어
+ * 여기서는 재시도 대상이 아니다.
+ *
+ * 지금 requestJson을 클라이언트 컴포넌트에서 직접 호출하는 유일한 사례는 `logout()`
+ * (`MainLayoutClient.tsx`)인데, `POST /auth/logout`은 SecurityConfig에서 permitAll이고
+ * 컨트롤러도 인증 여부를 확인하지 않으므로 이 경로는 애초에 401을 받을 일이 없다 — 그래서 지금
+ * 당장 이 한계가 실제로 발목을 잡는 곳은 없다. 다만 앞으로 인증이 필요한 엔드포인트를 클라이언트
+ * 컴포넌트에서 직접 호출하게 되면(예: 체크리스트 토글), 그 호출은 이 재시도도 proxy.ts(페이지
+ * 이동 시점에만 동작)도 커버하지 못한다 — 그때는 클라이언트 사이드 401 처리 정책을 먼저 정해야 한다.
  */
-async function retryAfterRefresh<T>(path: string, init: RequestInit | undefined, headers: Headers): Promise<T | null> {
+async function retryAfterRefresh<T>(
+  path: string,
+  init: RequestInit | undefined,
+  headers: Headers,
+): Promise<RetryOutcome<T>> {
   const cookieHeader = headers.get('Cookie');
   const refreshToken = extractCookieValue(cookieHeader, REFRESH_TOKEN_COOKIE);
   if (!refreshToken) {
-    return null;
+    return { attempted: false };
   }
 
   const newCookies = await refreshSession(refreshToken);
   if (!newCookies) {
-    return null;
+    return { attempted: false };
   }
 
   const retryHeaders = new Headers(headers);
@@ -82,7 +97,8 @@ async function retryAfterRefresh<T>(path: string, init: RequestInit | undefined,
     credentials: 'include',
     headers: retryHeaders,
   });
-  return parseOrThrow<T>(retryResponse);
+  const value = await parseOrThrow<T>(retryResponse);
+  return { attempted: true, value };
 }
 
 async function parseOrThrow<T>(response: Response): Promise<T> {
