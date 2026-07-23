@@ -6,7 +6,7 @@ This file provides guidance to AI coding agents (Claude Code, Codex, Cursor, etc
 
 ```bash
 npm install
-npm run dev            # dev server at http://localhost:3000
+npm run dev            # dev server at http://app.localhost:3000 (see Environment below)
 npm run build           # production build + type check
 npm run lint             # ESLint
 npm run format:check     # Prettier check
@@ -19,12 +19,14 @@ npm run start             # run the production build
 Copy `.env.example` to `.env.local`:
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api
+NEXT_PUBLIC_API_BASE_URL=http://api.localhost:8080
 NEXT_PUBLIC_USE_MOCK_DATA=false
 NEXT_PUBLIC_KAKAO_MAP_APP_KEY=your_kakao_javascript_key
 ```
 
 `NEXT_PUBLIC_USE_MOCK_DATA=true` runs the app against `app/mocks/init` instead of the Spring Boot API — useful when the backend isn't running locally.
+
+`api.localhost`/`app.localhost` mirror the planned production topology (custom subdomains + a shared cookie `Domain`, see backend README) so cross-subdomain auth cookies behave the same locally as in prod. Chrome/Firefox resolve any `*.localhost` subdomain to `127.0.0.1` automatically — no hosts-file edits needed. Access the app at `http://app.localhost:3000`, not `http://localhost:3000`, or the auth cookies (scoped to `.localhost`) won't be visible to the frontend origin. Backend endpoint paths never carry an `/api` prefix (team convention) — `NEXT_PUBLIC_API_BASE_URL` must be just the origin.
 
 ## Architecture
 

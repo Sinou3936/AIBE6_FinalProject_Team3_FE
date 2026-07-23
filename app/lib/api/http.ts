@@ -2,6 +2,9 @@ import { type ApiErrorBody, type ApiResponse } from '../../types/api';
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '');
 
+const REFRESH_TOKEN_COOKIE = 'refresh_token';
+const REFRESH_PATH = '/auth/refresh';
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -26,16 +29,63 @@ export function getApiBaseUrl(): string {
 }
 
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+  const headers = normalizeHeaders(init?.headers);
+  const response = await fetch(`${getApiBaseUrl()}${path}`, { ...init, credentials: 'include', headers });
+
+  if (response.status === 401 && path !== REFRESH_PATH) {
+    const retried = await retryAfterRefresh<T>(path, init, headers);
+    if (retried) {
+      return retried;
+    }
+  }
+
+  return parseOrThrow<T>(response);
+}
+
+// HeadersInit은 plain object/배열/Headers 인스턴스 중 뭐든 될 수 있는데, {...init?.headers}로
+// 스프레드하면 Headers 인스턴스나 배열은 조용히 빈 객체가 되어 헤더가 통째로 사라진다.
+// new Headers(...)로 정규화해야 어떤 형태로 들어와도 안전하게 병합/조회할 수 있다.
+function normalizeHeaders(initHeaders?: HeadersInit): Headers {
+  const headers = new Headers(initHeaders);
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
+  }
+  if (!headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  return headers;
+}
+
+/**
+ * 서버 컴포넌트에서 명시적으로 넘겨준 Cookie 헤더에 refresh_token 값이 있을 때만 재시도한다.
+ * credentials:'include'로 브라우저가 자동 첨부하는(향후 클라이언트 사이드) 호출은 httpOnly라
+ * JS로 쿠키 값을 읽을 수 없어 여기서 재시도 대상이 아니다 — 그런 요청은 페이지 이동 시점에
+ * proxy.ts가 이미 처리한다.
+ */
+async function retryAfterRefresh<T>(path: string, init: RequestInit | undefined, headers: Headers): Promise<T | null> {
+  const cookieHeader = headers.get('Cookie');
+  const refreshToken = extractCookieValue(cookieHeader, REFRESH_TOKEN_COOKIE);
+  if (!refreshToken) {
+    return null;
+  }
+
+  const newCookies = await refreshSession(refreshToken);
+  if (!newCookies) {
+    return null;
+  }
+
+  const retryHeaders = new Headers(headers);
+  retryHeaders.set('Cookie', mergeCookieHeader(cookieHeader, newCookies));
+
+  const retryResponse = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...init?.headers,
-    },
+    headers: retryHeaders,
   });
+  return parseOrThrow<T>(retryResponse);
+}
 
+async function parseOrThrow<T>(response: Response): Promise<T> {
   const body = await readApiResponse<T>(response);
 
   if (!response.ok) {
@@ -47,6 +97,71 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
   }
 
   return body.data;
+}
+
+/**
+ * Access Token 쿠키가 만료(브라우저가 자동 삭제)된 상태에서 Refresh Token으로 세션을 갱신한다.
+ * 백엔드는 응답 바디 대신 Set-Cookie 헤더로 새 access_token/refresh_token을 내려주므로,
+ * requestJson(바디만 반환) 대신 raw fetch로 응답 헤더를 그대로 반환한다 — 호출부(middleware,
+ * retryAfterRefresh)가 이 값을 그대로 브라우저 응답/재시도 요청에 실어 보내야 실제로 반영된다.
+ */
+export async function refreshSession(refreshTokenCookieValue: string): Promise<string[] | null> {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}${REFRESH_PATH}`, {
+      method: 'POST',
+      headers: { Cookie: `${REFRESH_TOKEN_COOKIE}=${refreshTokenCookieValue}` },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    // 미들웨어/Node 런타임에서는 지원되지만, 런타임에 따라 없을 수 있으니 안전하게 호출한다.
+    const setCookies = response.headers.getSetCookie?.() ?? [];
+    return setCookies.length > 0 ? setCookies : null;
+  } catch {
+    return null;
+  }
+}
+
+export function extractCookieValue(cookieHeader: string | null | undefined, name: string): string | undefined {
+  if (!cookieHeader) {
+    return undefined;
+  }
+
+  for (const pair of cookieHeader.split(';')) {
+    const separatorIndex = pair.indexOf('=');
+    if (separatorIndex > 0 && pair.slice(0, separatorIndex).trim() === name) {
+      return pair.slice(separatorIndex + 1).trim();
+    }
+  }
+
+  return undefined;
+}
+
+// Set-Cookie 문자열 배열("access_token=xxx; Path=/; HttpOnly; ...")에서 name=value 쌍만 뽑아,
+// 기존 Cookie 헤더에 병합한다(같은 이름이면 새 값으로 덮어씀).
+export function mergeCookieHeader(existingCookieHeader: string | null | undefined, newSetCookies: string[]): string {
+  const cookies = new Map<string, string>();
+
+  for (const pair of existingCookieHeader?.split(';') ?? []) {
+    const separatorIndex = pair.indexOf('=');
+    if (separatorIndex > 0) {
+      cookies.set(pair.slice(0, separatorIndex).trim(), pair.slice(separatorIndex + 1).trim());
+    }
+  }
+
+  for (const setCookie of newSetCookies) {
+    const pair = setCookie.split(';')[0] ?? '';
+    const separatorIndex = pair.indexOf('=');
+    if (separatorIndex > 0) {
+      cookies.set(pair.slice(0, separatorIndex).trim(), pair.slice(separatorIndex + 1).trim());
+    }
+  }
+
+  return Array.from(cookies.entries())
+    .map(([name, value]) => `${name}=${value}`)
+    .join('; ');
 }
 
 async function readApiResponse<T>(response: Response): Promise<ApiResponse<T>> {

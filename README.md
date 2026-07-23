@@ -36,7 +36,7 @@ NEXT_PUBLIC_KAKAO_MAP_APP_KEY=your_kakao_javascript_key
 백엔드 API 주소와 mock 사용 여부는 다음 환경변수로 설정합니다.
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+NEXT_PUBLIC_API_BASE_URL=http://api.localhost:8080
 NEXT_PUBLIC_USE_MOCK_DATA=false
 ```
 
@@ -56,7 +56,9 @@ type ApiResponse<T> = {
 };
 ```
 
-개발 서버 기본 주소는 `http://localhost:3000`입니다.
+개발 서버 자체는 `http://localhost:3000`에서도 뜨지만, 인증 쿠키(`Domain=.localhost`)가 보이려면
+**`http://app.localhost:3000`** 으로 접속해야 합니다 (Chrome/Firefox가 `*.localhost`를 자동으로
+`127.0.0.1`로 해석합니다 — hosts 파일 수정 불필요). 자세한 내용은 backend README 참고.
 
 ## Scripts
 

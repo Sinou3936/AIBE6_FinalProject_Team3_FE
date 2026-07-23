@@ -45,7 +45,7 @@ page.tsx -> services -> repositories -> mocks/init -> mapper -> domain -> compon
 ## 환경변수
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
+NEXT_PUBLIC_API_BASE_URL=http://api.localhost:8080
 NEXT_PUBLIC_USE_MOCK_DATA=false
 NEXT_PUBLIC_KAKAO_MAP_APP_KEY=your_kakao_javascript_key
 ```
