@@ -19,12 +19,14 @@ npm run start             # run the production build
 Copy `.env.example` to `.env.local`:
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
 NEXT_PUBLIC_USE_MOCK_DATA=false
 NEXT_PUBLIC_KAKAO_MAP_APP_KEY=your_kakao_javascript_key
 ```
 
 `NEXT_PUBLIC_USE_MOCK_DATA=true` runs the app against `app/mocks/init` instead of the Spring Boot API — useful when the backend isn't running locally.
+
+Backend endpoint paths never carry an `/api` prefix (team convention) — `NEXT_PUBLIC_API_BASE_URL` must be just the origin.
 
 ## Architecture
 
