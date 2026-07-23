@@ -108,6 +108,8 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
   const eupmyeondongOptions = getEupmyeondongOptions(sido, sigungu);
 
   const title = mode === 'register' ? '프로필 등록' : '프로필 수정';
+  const isNicknameUnchanged = mode === 'edit' && formValues.nickname.trim() === profile.nickname;
+  const isNicknameCheckRequired = !isNicknameUnchanged && nicknameCheckStatus !== 'available';
 
   const handleSidoChange = (nextSido: string) => {
     setSido(nextSido);
@@ -148,6 +150,11 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
 
     if (!formValues.transactionType) {
       setSaveError('관심 거래 유형을 선택해 주세요.');
+      return;
+    }
+
+    if (isNicknameCheckRequired) {
+      setSaveError('닉네임 중복 확인을 먼저 진행해 주세요.');
       return;
     }
 
@@ -375,7 +382,7 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
 
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || isNicknameCheckRequired}
               className="ansim-button-primary w-full py-4 text-base disabled:opacity-60"
             >
               {isSaving ? '저장 중...' : mode === 'register' ? '프로필 등록하기' : '프로필 저장하기'}
