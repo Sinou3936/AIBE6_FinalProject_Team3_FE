@@ -103,6 +103,7 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
   const [nicknameCheckStatus, setNicknameCheckStatus] = useState<
     'idle' | 'checking' | 'available' | 'duplicate' | 'error'
   >('idle');
+  const [nicknameRequiredError, setNicknameRequiredError] = useState(false);
 
   const sigunguOptions = getSigunguOptions(sido);
   const eupmyeondongOptions = getEupmyeondongOptions(sido, sigungu);
@@ -137,6 +138,7 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
     }
 
     setNicknameCheckStatus('checking');
+    setNicknameRequiredError(false);
     try {
       const available = await checkNicknameAvailability(nickname);
       setNicknameCheckStatus(available ? 'available' : 'duplicate');
@@ -154,7 +156,7 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
     }
 
     if (isNicknameCheckRequired) {
-      setSaveError('닉네임 중복 확인을 먼저 진행해 주세요.');
+      setNicknameRequiredError(true);
       return;
     }
 
@@ -247,6 +249,7 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
                   value={formValues.nickname}
                   onChange={(event) => {
                     setNicknameCheckStatus('idle');
+                    setNicknameRequiredError(false);
                     setFormValues((prev) => ({ ...prev, nickname: event.target.value }));
                   }}
                   placeholder="2~20자로 입력해 주세요"
@@ -271,6 +274,9 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
               )}
               {nicknameCheckStatus === 'error' && (
                 <p className="mt-1.5 text-sm text-red-600">닉네임 확인에 실패했습니다. 다시 시도해 주세요.</p>
+              )}
+              {nicknameRequiredError && nicknameCheckStatus === 'idle' && (
+                <p className="mt-1.5 text-sm font-bold text-red-600">닉네임 중복 확인을 먼저 진행해 주세요.</p>
               )}
             </div>
 
@@ -382,7 +388,7 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
 
             <button
               type="submit"
-              disabled={isSaving || isNicknameCheckRequired}
+              disabled={isSaving}
               className="ansim-button-primary w-full py-4 text-base disabled:opacity-60"
             >
               {isSaving ? '저장 중...' : mode === 'register' ? '프로필 등록하기' : '프로필 저장하기'}
