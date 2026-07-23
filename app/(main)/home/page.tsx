@@ -1,9 +1,8 @@
+import { AlertTriangle, ArrowRight, FileSearch } from 'lucide-react';
 import { cookies } from 'next/headers';
-import { AlertTriangle, ArrowRight, FileSearch, ShieldAlert, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { quickActions, quickActionToneMap } from '../../data/dashboard';
 import { computeHomeSummaryCounts } from '../../lib/homeSummary';
-import { getJeonseRatioDisplay } from '../../lib/jeonseRatio';
 import { getPriorityAction } from '../../lib/priorityAction';
 import { getMyPageOverview } from '../../services/mypage';
 import { getProperties } from '../../services/properties';
@@ -136,9 +135,9 @@ export default async function Page() {
 
       <div className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <h2 className="text-lg font-bold text-slate-950">중요 알림</h2>
+          <h2 className="text-lg font-bold text-slate-950">중요 확인사항</h2>
           {signalProperties.length === 0 && specialTermsAlerts.length === 0 && (
-            <div className="ansim-card p-4 text-sm text-slate-500">확인이 필요한 알림이 없습니다.</div>
+            <div className="ansim-card p-4 text-sm text-slate-500">확인이 필요한 사항이 없습니다.</div>
           )}
           {signalProperties.map((property) => (
             <Link
@@ -172,46 +171,6 @@ export default async function Page() {
               </div>
             </Link>
           ))}
-        </div>
-
-        <div className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-950">매물 기준 정보</h2>
-          {!primaryProperty && (
-            <div className="ansim-card p-4 text-sm text-slate-500">
-              등록된 매물이 없어 시세 정보를 표시할 수 없습니다. 매물을 등록해보세요.
-            </div>
-          )}
-          {primaryProperty && (
-            <>
-              <div className="ansim-card p-4">
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="rounded-lg bg-teal-50 p-2">
-                    <TrendingUp className="h-4 w-4 text-teal-600" />
-                  </div>
-                  <span className="text-sm font-bold text-slate-950">관심 지역 시세</span>
-                </div>
-                <p className="mb-1 text-xs text-slate-500">{profile.interestRegion ?? primaryProperty.address}</p>
-                <p className="text-lg font-bold text-slate-950">{primaryProperty.deposit}</p>
-                <p className="mt-2 text-[10px] text-slate-400">등록한 관심 매물 기준</p>
-              </div>
-              <div className="ansim-card p-4">
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="rounded-lg bg-orange-50 p-2">
-                    <ShieldAlert className="h-4 w-4 text-orange-600" />
-                  </div>
-                  <span className="text-sm font-bold text-slate-950">보증금 안전성</span>
-                </div>
-                <p className="text-sm font-medium text-slate-800">
-                  전세가율 {getJeonseRatioDisplay(primaryProperty.type, primaryProperty.jeonseRatio)}
-                </p>
-                <p className="mt-1 text-xs font-bold text-orange-600">
-                  {primaryProperty.type === '월세'
-                    ? '월세 매물은 전세가율을 계산하지 않습니다'
-                    : '수치와 이유를 확인하세요'}
-                </p>
-              </div>
-            </>
-          )}
         </div>
       </div>
 
