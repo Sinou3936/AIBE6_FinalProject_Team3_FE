@@ -67,14 +67,17 @@ function normalizeHeaders(initHeaders?: HeadersInit): Headers {
  * 여기서는 재시도 대상이 아니다.
  *
  * 지금 requestJson을 클라이언트 컴포넌트에서 직접 호출하는 사례는 `logout()`(`MainLayoutClient.tsx`),
- * `login()`(`LoginFormClient.tsx`), `signup()`(`SignupFormClient.tsx`) 세 곳인데, 셋 다
- * `POST /auth/{logout,login,signup}`으로 SecurityConfig에서 permitAll이고 컨트롤러도 인증 여부를
- * 확인하지 않는 엔드포인트다. login/signup이 401을 반환하는 경우는 "자격 증명이 틀림"이지 "Access
- * Token 만료"가 아니라서 애초에 재시도 대상이 아니고, logout도 인증 없이 항상 성공하므로 이 경로들은
- * 애초에 이 재시도 로직이 다루는 401(만료된 Access Token)을 받을 일이 없다 — 그래서 지금 당장 이
- * 한계가 실제로 발목을 잡는 곳은 없다. 다만 앞으로 인증이 필요한 엔드포인트를 클라이언트 컴포넌트에서
- * 직접 호출하게 되면(예: 체크리스트 토글), 그 호출은 이 재시도도 proxy.ts(페이지 이동 시점에만 동작)도
- * 커버하지 못한다 — 그때는 클라이언트 사이드 401 처리 정책을 먼저 정해야 한다.
+ * `login()`(`LoginFormClient.tsx`), `signup()`(`SignupFormClient.tsx`), `updatePassword()`
+ * (`PasswordUpdateFormClient.tsx`) 네 곳이다. 앞의 셋은 `POST /auth/{logout,login,signup}`으로
+ * permitAll이고 인증 여부를 아예 안 보므로, 401이 나도 "자격 증명이 틀림"(login)이지 "Access Token
+ * 만료"가 아니라 이 재시도 로직이 다루는 케이스를 받을 일이 없다.
+ *
+ * `updatePassword()`(`PATCH /auth/password`)는 다르다 — 인증이 필요한 엔드포인트라 페이지에 머무는
+ * 동안 Access Token이 만료되면 실제로 이 401을 받는다. 이 함수(재시도)도 proxy.ts(페이지 이동
+ * 시점에만 동작)도 이 케이스를 커버하지 못하므로, 대신 `PasswordUpdateFormClient`가 응답의
+ * `error.code === 'COMMON_401'`을 직접 감지해 `/login?error=session_expired`로 보낸다 — 인증이
+ * 필요한 다른 클라이언트 사이드 호출(예: 체크리스트 토글)도 새로 추가할 땐 같은 패턴을 따르거나,
+ * 반복된다면 그때 가서 이 지점에 공통 처리로 끌어올릴 것.
  */
 async function retryAfterRefresh<T>(
   path: string,

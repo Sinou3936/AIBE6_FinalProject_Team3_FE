@@ -43,3 +43,16 @@ export async function login(input: LocalLoginInput): Promise<MeResponseDto> {
     body: JSON.stringify(input),
   });
 }
+
+export type PasswordUpdateInput = {
+  // 구글/카카오 전용 계정이 처음 비밀번호를 설정하는 경우엔 비교할 기존 비밀번호가 없으므로 생략한다.
+  currentPassword?: string;
+  newPassword: string;
+};
+
+export async function updatePassword(input: PasswordUpdateInput): Promise<void> {
+  await requestJson<void>('/auth/password', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  });
+}

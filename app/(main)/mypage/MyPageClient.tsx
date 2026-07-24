@@ -33,11 +33,6 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
     }
   }
 
-  function handlePasswordChangeClick() {
-    // TODO: OAuth(Google/Kakao)만 지원하는 동안은 로컬 비밀번호 개념이 없어 동작이 없음.
-    // 비밀번호 인증 지원이 확정되면 실제 라우트/모달로 연결하세요.
-  }
-
   function handleWithdrawClick() {
     // TODO: 회원 탈퇴 확인 모달 연동 (백엔드 탈퇴 API 확정 후 진행)
   }
@@ -101,14 +96,13 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
         <div className="ansim-card p-6">
           <p className="mb-3 text-sm font-bold text-slate-950">계정 관리</p>
           <div className="space-y-1">
-            <button
-              type="button"
-              onClick={handlePasswordChangeClick}
+            <Link
+              href="/mypage/password"
               className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
             >
               <Lock className="h-4 w-4 text-slate-400" />
               비밀번호 변경
-            </button>
+            </Link>
             <button
               type="button"
               onClick={handleLogout}
