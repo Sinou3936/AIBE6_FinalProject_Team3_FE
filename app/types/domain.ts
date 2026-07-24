@@ -1,6 +1,7 @@
 import { type LucideIcon } from 'lucide-react';
 
-export type PropertyTradeType = '전세' | '월세' | '반전세';
+// 서비스 대상 거래유형은 전세/월세만 지원한다 (반전세/매매는 스코프 밖 — 기획서 "대상 범위" 참고).
+export type PropertyTradeType = '전세' | '월세';
 
 export type PropertyLocation = {
   latitude: number;

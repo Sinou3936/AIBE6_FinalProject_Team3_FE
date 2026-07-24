@@ -37,7 +37,7 @@ export const initPropertySummaryDtos: PropertySummaryDto[] = [
     id: 3,
     title: '낙성대역 풀옵션 오피스텔',
     address: '서울 관악구 낙성대동 1627-1',
-    tradeType: '반전세',
+    tradeType: '월세',
     depositText: '보증금 8,000 / 월세 25',
     maintenanceText: '관리비 12만원',
     marketDelta: '+21%',

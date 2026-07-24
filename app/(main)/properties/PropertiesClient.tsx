@@ -20,9 +20,10 @@ import { NoticeBox } from '../../ui/NoticeBox';
 type PropertiesClientProps = {
   properties: PropertySummary[];
   loadError?: string;
+  notice?: string;
 };
 
-export function PropertiesClient({ properties, loadError }: PropertiesClientProps) {
+export function PropertiesClient({ properties, loadError, notice }: PropertiesClientProps) {
   const [query, setQuery] = useState('');
   const [selectedType, setSelectedType] = useState('전체');
 
@@ -71,7 +72,7 @@ export function PropertiesClient({ properties, loadError }: PropertiesClientProp
 
       <div className="container mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
-          {['전체', '전세', '월세', '반전세'].map((type) => (
+          {['전체', '전세', '월세'].map((type) => (
             <button
               key={type}
               onClick={() => setSelectedType(type)}
@@ -84,6 +85,12 @@ export function PropertiesClient({ properties, loadError }: PropertiesClientProp
             </button>
           ))}
         </div>
+
+        {notice && (
+          <div className="ansim-card mb-4 border-teal-100 bg-teal-50 p-4 text-sm text-teal-700">
+            매물이 등록됐어요. {notice}
+          </div>
+        )}
 
         {loadError && <div className="ansim-card border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>}
 

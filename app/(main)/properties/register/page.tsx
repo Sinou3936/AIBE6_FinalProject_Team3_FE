@@ -67,7 +67,11 @@ export default function Page() {
         area: areaNumber,
         description: description.trim().length > 0 ? description.trim() : null,
       });
-      router.push(`/properties/${response.propertyId}`);
+      // 매물 상세(/properties/{id})는 아직 실제 API 응답 형태에 안 맞춰져 있어 별도 이슈로 미뤄뒀다.
+      // 그래서 등록 성공 후에는 상세가 아닌 목록으로 돌려보내고, 시세조회 관련 안내(notice)는
+      // 쿼리로 넘겨 목록 화면에서 보여준다.
+      const noticeParam = response.notice ? `?notice=${encodeURIComponent(response.notice)}` : '';
+      router.push(`/properties${noticeParam}`);
     } catch {
       setError('매물 등록에 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
@@ -120,6 +124,11 @@ export default function Page() {
                   </button>
                 ))}
               </div>
+              {propertyType === 'DETACHED_HOUSE' && (
+                <p className="mt-2 text-xs text-slate-500">
+                  단독/다가구는 국토부 실거래가의 지번 정보가 일부 비공개라 위치·시세 매칭 정확도가 낮을 수 있어요.
+                </p>
+              )}
             </div>
 
             <div>
