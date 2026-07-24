@@ -10,12 +10,15 @@ import {
 } from '../types/api';
 import { type PropertySummary } from '../types/domain';
 
-export async function getProperties(): Promise<PropertySummary[]> {
+export async function getProperties(cookieHeader?: string): Promise<PropertySummary[]> {
   if (useMockData) {
     return getMockProperties();
   }
 
-  const dtos = await requestJson<PropertyListItemDto[]>('/properties');
+  const dtos = await requestJson<PropertyListItemDto[]>(
+    '/properties',
+    cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined,
+  );
   return dtos.map(mapPropertyListItemDto);
 }
 
