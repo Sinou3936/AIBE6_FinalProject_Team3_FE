@@ -30,25 +30,30 @@ const emptyOverview: MyPageOverview = {
 export default async function Page() {
   const cookieHeader = (await cookies()).toString();
 
+  let loadError: string | undefined;
+
   let profile = emptyProfile;
   try {
     profile = await getMyProfile(cookieHeader);
   } catch {
-    // 프로필을 불러오지 못하면 개인화 우선순위 카드는 미등록 상태 기준으로 표시
+    // 실패 시 개인화 우선순위 카드는 미등록 상태 기준으로 표시하고, 아래 배너로 실패 사실을 알린다.
+    loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
   let properties: PropertySummary[] = [];
   try {
     properties = await getProperties();
   } catch {
-    // 매물 목록을 불러오지 못하면 요약/알림/매물 기준 정보는 빈 상태로 표시
+    // 실패 시 요약/알림/매물 기준 정보는 빈 상태로 표시하고, 아래 배너로 실패 사실을 알린다.
+    loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
   let overview = emptyOverview;
   try {
     overview = await getMyPageOverview(cookieHeader);
   } catch {
-    // 활동 이력을 불러오지 못하면 분석한 특약사항 카운트는 0으로 표시
+    // 실패 시 분석한 특약사항 카운트는 0으로 표시하고, 아래 배너로 실패 사실을 알린다.
+    loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
   // TODO: 백엔드에 hasProperty/hasChecklist 전용 필드(또는 API)가 추가되면 이 파생 계산을 실제 값으로 교체하세요.
@@ -82,6 +87,10 @@ export default async function Page() {
           매물 가격, 보증금 안전성, 현장 확인, 특약사항 분석을 순서대로 점검하세요.
         </p>
       </div>
+
+      {loadError && (
+        <div className="ansim-card mb-8 border-red-100 bg-red-50 p-4 text-sm text-red-700">{loadError}</div>
+      )}
 
       <PriorityActionCard action={priorityAction} />
 
