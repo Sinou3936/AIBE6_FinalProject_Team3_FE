@@ -3,7 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ApiError } from '../lib/api/http';
+import { hasRegisteredProfile } from '../lib/profile';
 import { login } from '../services/auth';
+import { getMyProfile } from '../services/user';
 
 export function LoginFormClient() {
   const router = useRouter();
@@ -20,7 +22,19 @@ export function LoginFormClient() {
 
     try {
       await login({ email, password });
-      router.push('/home');
+
+      // OAuth 콜백(app/oauth/callback/route.ts)과 동일한 기준: 프로필 미등록이면 등록 화면으로.
+      let destination = '/home';
+      try {
+        const profile = await getMyProfile();
+        if (!hasRegisteredProfile(profile)) {
+          destination = '/mypage/profile';
+        }
+      } catch {
+        // 프로필 조회에 실패해도 로그인 자체는 성공했으므로 홈으로 보낸다.
+      }
+
+      router.push(destination);
       router.refresh();
     } catch (submitError) {
       setError(

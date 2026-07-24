@@ -29,6 +29,7 @@ export function mapUserProfileDto(dto: UserProfileDto): UserProfile {
     interestRegion: dto.interestRegion,
     transactionType: dto.transactionType ? transactionTypeDtoToDomain[dto.transactionType] : null,
     currentStage: toUserCurrentStage(dto.currentStage),
+    hasPassword: dto.hasPassword,
   };
 }
 

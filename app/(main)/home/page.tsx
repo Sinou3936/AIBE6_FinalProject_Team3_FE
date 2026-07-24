@@ -20,6 +20,7 @@ const emptyProfile: UserProfile = {
   interestRegion: null,
   transactionType: null,
   currentStage: null,
+  hasPassword: false,
 };
 
 const emptyOverview: MyPageOverview = {

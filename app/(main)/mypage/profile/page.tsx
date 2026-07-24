@@ -12,6 +12,7 @@ const emptyProfile: UserProfile = {
   interestRegion: null,
   transactionType: null,
   currentStage: null,
+  hasPassword: false,
 };
 
 export default async function Page() {

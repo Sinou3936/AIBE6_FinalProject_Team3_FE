@@ -101,7 +101,7 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
               className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
             >
               <Lock className="h-4 w-4 text-slate-400" />
-              비밀번호 변경
+              {profile.hasPassword ? '비밀번호 변경' : '비밀번호 설정'}
             </Link>
             <button
               type="button"

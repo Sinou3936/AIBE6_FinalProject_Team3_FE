@@ -146,6 +146,7 @@ export type UserProfile = {
   interestRegion: string | null;
   transactionType: UserTransactionType | null;
   currentStage: UserCurrentStage | null;
+  hasPassword: boolean;
 };
 
 export type ProfileUpdateInput = {

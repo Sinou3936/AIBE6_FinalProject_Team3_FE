@@ -4,8 +4,13 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ApiError } from '../../../lib/api/http';
 import { updatePassword } from '../../../services/auth';
+import { Modal } from '../../../ui/Modal';
 
-export function PasswordUpdateFormClient() {
+type PasswordUpdateFormClientProps = {
+  hasPassword: boolean;
+};
+
+export function PasswordUpdateFormClient({ hasPassword }: PasswordUpdateFormClientProps) {
   const router = useRouter();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -38,49 +43,66 @@ export function PasswordUpdateFormClient() {
       setError(
         submitError instanceof ApiError
           ? submitError.message
-          : '비밀번호 변경에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+          : `비밀번호 ${hasPassword ? '변경' : '설정'}에 실패했습니다. 잠시 후 다시 시도해 주세요.`,
       );
     } finally {
       setIsSaving(false);
     }
   };
 
+  const handleConfirm = () => {
+    router.push('/mypage');
+    router.refresh();
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-bold text-slate-700">현재 비밀번호</span>
-        <input
-          className="ansim-input w-full"
-          type="password"
-          value={currentPassword}
-          onChange={(event) => setCurrentPassword(event.target.value)}
-          placeholder="설정한 적이 없다면 비워두세요"
-          autoComplete="current-password"
-        />
-      </label>
-      <label className="block">
-        <span className="mb-1.5 block text-sm font-bold text-slate-700">새 비밀번호</span>
-        <input
-          className="ansim-input w-full"
-          type="password"
-          value={newPassword}
-          onChange={(event) => setNewPassword(event.target.value)}
-          placeholder="영문, 숫자 포함 8~72자"
-          autoComplete="new-password"
-          minLength={8}
-          maxLength={72}
-          pattern="(?=.*[A-Za-z])(?=.*\d)[\x21-\x7E]{8,72}"
-          title="영문과 숫자를 포함한 8~72자의 영문/숫자/기호를 입력해 주세요. 공백은 사용할 수 없습니다."
-          required
-        />
-      </label>
+    <>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {hasPassword && (
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-bold text-slate-700">현재 비밀번호</span>
+            <input
+              className="ansim-input w-full"
+              type="password"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </label>
+        )}
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-bold text-slate-700">새 비밀번호</span>
+          <input
+            className="ansim-input w-full"
+            type="password"
+            value={newPassword}
+            onChange={(event) => setNewPassword(event.target.value)}
+            placeholder="영문, 숫자 포함 8~72자"
+            autoComplete="new-password"
+            minLength={8}
+            maxLength={72}
+            pattern="(?=.*[A-Za-z])(?=.*\d)[\x21-\x7E]{8,72}"
+            title="영문과 숫자를 포함한 8~72자의 영문/숫자/기호를 입력해 주세요. 공백은 사용할 수 없습니다."
+            required
+          />
+        </label>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {success && <p className="text-sm font-bold text-teal-700">비밀번호가 변경되었습니다.</p>}
+        {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <button type="submit" disabled={isSaving} className="ansim-button-primary w-full py-3 disabled:opacity-60">
-        {isSaving ? '변경 중...' : '비밀번호 변경'}
-      </button>
-    </form>
+        <button type="submit" disabled={isSaving} className="ansim-button-primary w-full py-3 disabled:opacity-60">
+          {isSaving ? `${hasPassword ? '변경' : '설정'} 중...` : `비밀번호 ${hasPassword ? '변경' : '설정'}`}
+        </button>
+      </form>
+
+      <Modal open={success} onClose={() => setSuccess(false)}>
+        <p className="mb-4 text-sm font-bold text-teal-700">
+          비밀번호가 {hasPassword ? '변경' : '설정'}되었습니다.
+        </p>
+        <button type="button" onClick={handleConfirm} className="ansim-button-primary w-full py-3">
+          확인
+        </button>
+      </Modal>
+    </>
   );
 }
