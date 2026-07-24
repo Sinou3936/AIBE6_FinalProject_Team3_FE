@@ -23,7 +23,7 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
   const router = useRouter();
   const isRegistered = hasRegisteredProfile(profile);
   const properties = overview.bookmarkedProperties;
-  const signalCount = properties.reduce((sum, property) => sum + property.checkSignalCount, 0);
+  const signalCount = properties.reduce((sum, property) => sum + (property.checkSignalCount ?? 0), 0);
 
   async function handleLogout() {
     try {
@@ -137,7 +137,9 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
           등록 매물 {properties.length}개 · 확인 필요 신호 {signalCount}개
         </p>
 
-        {loadError && <div className="ansim-card mb-4 border-red-100 bg-red-50 p-4 text-sm text-red-700">{loadError}</div>}
+        {loadError && (
+          <div className="ansim-card mb-4 border-red-100 bg-red-50 p-4 text-sm text-red-700">{loadError}</div>
+        )}
 
         {!loadError && properties.length === 0 && (
           <div className="ansim-card p-6 text-center text-sm text-slate-500">

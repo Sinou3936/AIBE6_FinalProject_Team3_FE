@@ -64,7 +64,7 @@ export default async function Page({ searchParams }: HomePageProps) {
   // TODO: 백엔드에 hasProperty/hasChecklist 전용 필드(또는 API)가 추가되면 이 파생 계산을 실제 값으로 교체하세요.
   // 지금은 매물 목록/매물별 체크리스트 진행률(checklist)로 근사합니다.
   const hasProperty = properties.length > 0;
-  const hasChecklist = properties.some((property) => property.checklist > 0);
+  const hasChecklist = properties.some((property) => (property.checklist ?? 0) > 0);
   const primaryProperty = properties[0];
 
   const priorityAction = getPriorityAction({
@@ -75,7 +75,7 @@ export default async function Page({ searchParams }: HomePageProps) {
   });
 
   const summaryCounts = computeHomeSummaryCounts(properties, overview.activityHistory);
-  const signalProperties = properties.filter((property) => property.checkSignalCount > 0);
+  const signalProperties = properties.filter((property) => (property.checkSignalCount ?? 0) > 0);
   const specialTermsAlerts = overview.activityHistory.filter((item) => item.type === '특약사항 분석');
 
   // TODO: 체크리스트 항목별 확인/주의 개수는 체크리스트 저장 API가 추가되면 실제 값으로 교체하세요.
