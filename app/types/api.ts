@@ -103,3 +103,56 @@ export type ProfileRegisterRequestDto = {
 export type NicknameCheckResponseDto = {
   available: boolean;
 };
+
+// --- Property CRUD (실제 백엔드 응답 형태. PropertySummaryDto는 아직 없는 기능(신호/전세가율/
+// 체크리스트 등)까지 포함한 목업 전용 타입이라 분리해서 둔다) ---
+
+export type PropertyTypeDto = 'OFFICETEL' | 'MULTI_FAMILY' | 'DETACHED_HOUSE';
+export type PropertyTransactionTypeDto = 'JEONSE' | 'MONTHLY_RENT';
+export type PropertyStatusDto = 'ACTIVE' | 'DELETED';
+
+export type CreatePropertyRequestDto = {
+  address: string;
+  propertyType: PropertyTypeDto;
+  transactionType: PropertyTransactionTypeDto;
+  deposit: number;
+  monthlyRent?: number | null;
+  area: number;
+  description?: string | null;
+};
+
+export type PropertyAddressDto = {
+  roadAddress: string | null;
+  jibunAddress: string | null;
+  latitude: number;
+  longitude: number;
+};
+
+export type MarketComparisonDto = {
+  status: 'UNAVAILABLE' | 'AVAILABLE';
+  referencePrice: number | null;
+  differenceRate: number | null;
+  sampleCount: number | null;
+  referenceDate: string | null;
+};
+
+export type CreatePropertyResponseDto = {
+  propertyId: number;
+  status: PropertyStatusDto;
+  address: PropertyAddressDto;
+  marketComparison: MarketComparisonDto;
+  notice: string | null;
+};
+
+export type PropertyListItemDto = {
+  propertyId: number;
+  propertyType: PropertyTypeDto;
+  transactionType: PropertyTransactionTypeDto;
+  deposit: number;
+  monthlyRent: number | null;
+  area: number;
+  roadAddress: string | null;
+  jibunAddress: string | null;
+  status: PropertyStatusDto;
+  createdAt: string;
+};

@@ -13,12 +13,14 @@ export type PropertySummary = {
   address: string;
   type: PropertyTradeType;
   deposit: string;
-  maintenance: string;
-  marketDelta: string;
-  checkSignalCount: number;
-  signalSummary: string;
-  jeonseRatio: string;
-  checklist: number;
+  // 아래 필드들은 기능4(허위매물 신호)/기능5(전세가율)/기능2(체크리스트)가 아직 백엔드에 없어서
+  // 실제 API로 받아온 매물은 undefined다. mock 데이터는 계속 값을 채워서 내려준다.
+  maintenance?: string;
+  marketDelta?: string;
+  checkSignalCount?: number;
+  signalSummary?: string;
+  jeonseRatio?: string;
+  checklist?: number;
   statusColor: string;
   location: PropertyLocation;
 };

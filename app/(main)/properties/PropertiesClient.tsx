@@ -102,8 +102,16 @@ export function PropertiesClient({ properties, loadError }: PropertiesClientProp
                 <div className="flex-1">
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     <Badge className="bg-teal-50 text-teal-700">{property.type}</Badge>
-                    <Badge className={property.statusColor}>확인 필요 신호 {property.checkSignalCount}개</Badge>
-                    <Badge className="bg-slate-100 text-slate-600">전세가율 {property.jeonseRatio}</Badge>
+                    {property.checkSignalCount !== undefined ? (
+                      <Badge className={property.statusColor}>확인 필요 신호 {property.checkSignalCount}개</Badge>
+                    ) : (
+                      <Badge className="bg-slate-100 text-slate-500">신호 확인 준비 중</Badge>
+                    )}
+                    {property.jeonseRatio !== undefined ? (
+                      <Badge className="bg-slate-100 text-slate-600">전세가율 {property.jeonseRatio}</Badge>
+                    ) : (
+                      <Badge className="bg-slate-100 text-slate-500">전세가율 준비 중</Badge>
+                    )}
                   </div>
                   <h2 className="mb-2 text-xl font-bold text-slate-950 group-hover:text-teal-700">{property.title}</h2>
                   <p className="mb-4 flex items-center gap-1 text-sm text-slate-500">
@@ -113,24 +121,36 @@ export function PropertiesClient({ properties, loadError }: PropertiesClientProp
                     <div className="rounded-xl bg-slate-50 p-4">
                       <p className="mb-1 text-xs text-slate-400">가격</p>
                       <p className="font-bold text-slate-950">{property.deposit}</p>
-                      <p className="mt-1 text-xs text-slate-500">{property.maintenance}</p>
+                      <p className="mt-1 text-xs text-slate-500">{property.maintenance ?? '관리비 정보 없음'}</p>
                     </div>
                     <div className="rounded-xl bg-slate-50 p-4">
                       <p className="mb-1 text-xs text-slate-400">시세 대비</p>
-                      <p
-                        className={cn(
-                          'font-bold',
-                          property.marketDelta.startsWith('+') ? 'text-orange-600' : 'text-emerald-600',
-                        )}
-                      >
-                        {property.marketDelta}
+                      {property.marketDelta !== undefined ? (
+                        <p
+                          className={cn(
+                            'font-bold',
+                            property.marketDelta.startsWith('+') ? 'text-orange-600' : 'text-emerald-600',
+                          )}
+                        >
+                          {property.marketDelta}
+                        </p>
+                      ) : (
+                        <p className="font-bold text-slate-400">준비 중</p>
+                      )}
+                      <p className="mt-1 text-xs text-slate-500">
+                        {property.marketDelta !== undefined ? '최근 실거래가 기준' : '실거래가 연동 예정'}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">최근 실거래가 기준</p>
                     </div>
                     <div className="rounded-xl bg-slate-50 p-4">
                       <p className="mb-1 text-xs text-slate-400">체크리스트</p>
-                      <p className="font-bold text-slate-950">{property.checklist}% 완료</p>
-                      <p className="mt-1 text-xs text-slate-500">방문 확인 진행률</p>
+                      {property.checklist !== undefined ? (
+                        <p className="font-bold text-slate-950">{property.checklist}% 완료</p>
+                      ) : (
+                        <p className="font-bold text-slate-400">준비 중</p>
+                      )}
+                      <p className="mt-1 text-xs text-slate-500">
+                        {property.checklist !== undefined ? '방문 확인 진행률' : '체크리스트 연동 예정'}
+                      </p>
                     </div>
                   </div>
                 </div>
