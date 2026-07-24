@@ -45,6 +45,7 @@ export type ChecklistItemDto = {
   checked: boolean;
   issueFound: boolean;
   value: string | null;
+  userNote: string | null;
 };
 
 export type ChecklistDto = {
@@ -55,9 +56,9 @@ export type ChecklistDto = {
   items: ChecklistItemDto[];
 };
 
-// PATCH 요청 바디 — Backend가 아직 미구현이라 이 저장소가 제안하는 계약.
-// checked만 바뀌는 CHECK 타입 문항은 { checked }, 값 입력이 필요한 나머지 타입은 { value }만 보낸다.
-export type ChecklistItemUpdateRequestDto = { checked: boolean } | { value: string };
+// PATCH 요청 바디. checked만 바뀌는 CHECK 타입 문항은 { checked }, 값 입력이 필요한 YES_NO/DATE/
+// DOCUMENT_REQUEST는 { value }, CHECK 타입을 "미흡"으로 표시(+메모)할 때는 { userNote }만 보낸다.
+export type ChecklistItemUpdateRequestDto = { checked: boolean } | { value: string } | { userNote: string };
 
 export type ContractRiskItemDto = {
   id: number;

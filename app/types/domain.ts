@@ -92,6 +92,7 @@ export type ChecklistItem = {
   checked: boolean;
   issueFound: boolean;
   value: string | null;
+  userNote: string | null;
 };
 
 // Backend의 status(NOT_STARTED/IN_PROGRESS/COMPLETED)는 FE가 items로부터 직접 계산하는

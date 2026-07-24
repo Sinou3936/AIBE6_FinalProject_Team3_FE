@@ -11,6 +11,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 2,
@@ -22,6 +23,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 3,
@@ -33,6 +35,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 4,
@@ -44,6 +47,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 5,
@@ -55,6 +59,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 6,
@@ -66,6 +71,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 7,
@@ -77,6 +83,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 8,
@@ -88,6 +95,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 9,
@@ -99,6 +107,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 10,
@@ -110,6 +119,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 11,
@@ -121,6 +131,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 12,
@@ -132,6 +143,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 13,
@@ -143,6 +155,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 14,
@@ -154,6 +167,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 15,
@@ -165,6 +179,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 16,
@@ -176,6 +191,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 17,
@@ -187,6 +203,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 18,
@@ -198,6 +215,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 19,
@@ -209,6 +227,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 20,
@@ -220,6 +239,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 21,
@@ -231,6 +251,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 22,
@@ -242,6 +263,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
   {
     id: 23,
@@ -253,5 +275,6 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     checked: false,
     issueFound: false,
     value: null,
+    userNote: null,
   },
 ];

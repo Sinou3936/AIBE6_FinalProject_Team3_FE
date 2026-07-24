@@ -53,8 +53,12 @@ export function ChecklistClient({ propertyId, checklist, loadError }: ChecklistC
     }
   }
 
-  const handleCheckToggle = (item: ChecklistItem) => {
-    void applyUpdate(item, { checked: !item.checked }, { checked: !item.checked });
+  const handleComplete = (item: ChecklistItem) => {
+    void applyUpdate(item, { checked: true, userNote: null }, { checked: true });
+  };
+
+  const handleMarkInsufficient = (item: ChecklistItem, note: string) => {
+    void applyUpdate(item, { checked: true, userNote: note }, { userNote: note });
   };
 
   const handleAnswer = (item: ChecklistItem, value: string) => {
@@ -127,17 +131,42 @@ export function ChecklistClient({ propertyId, checklist, loadError }: ChecklistC
               {item.guideText && <p className="mb-3 text-xs text-slate-500">{item.guideText}</p>}
 
               {item.itemType === 'check' && (
-                <button
-                  onClick={() => handleCheckToggle(item)}
-                  className={cn(
-                    'w-full rounded-lg border px-3 py-2 text-sm font-bold transition',
-                    item.checked
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                      : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50',
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleComplete(item)}
+                      className={cn(
+                        'rounded-lg border px-3 py-2 text-sm font-bold transition',
+                        item.checked && item.userNote === null
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50',
+                      )}
+                    >
+                      완료
+                    </button>
+                    <button
+                      onClick={() => handleMarkInsufficient(item, item.userNote ?? '')}
+                      className={cn(
+                        'rounded-lg border px-3 py-2 text-sm font-bold transition',
+                        item.userNote !== null
+                          ? 'border-orange-200 bg-orange-50 text-orange-700'
+                          : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50',
+                      )}
+                    >
+                      미흡
+                    </button>
+                  </div>
+                  {item.userNote !== null && (
+                    <textarea
+                      key={item.id}
+                      defaultValue={item.userNote}
+                      onBlur={(event) => handleMarkInsufficient(item, event.target.value)}
+                      placeholder="어떤 점이 미흡했나요? (선택)"
+                      rows={2}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    />
                   )}
-                >
-                  {item.checked ? '확인 완료' : '확인하기'}
-                </button>
+                </div>
               )}
 
               {item.itemType === 'yesNo' && (

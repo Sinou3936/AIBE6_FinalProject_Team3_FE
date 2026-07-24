@@ -46,6 +46,7 @@ export function mapChecklistItemDto(dto: ChecklistItemDto): ChecklistItem {
     checked: dto.checked,
     issueFound: dto.issueFound,
     value: dto.value,
+    userNote: dto.userNote,
   };
 }
 

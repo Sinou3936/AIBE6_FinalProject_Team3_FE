@@ -24,7 +24,10 @@ export function updateMockChecklistItem(itemId: number, request: ChecklistItemUp
       return item;
     }
     if ('checked' in request) {
-      return { ...item, checked: request.checked };
+      return { ...item, checked: request.checked, userNote: null, issueFound: false };
+    }
+    if ('userNote' in request) {
+      return { ...item, checked: true, userNote: request.userNote, issueFound: true };
     }
     return { ...item, value: request.value, checked: true };
   });
