@@ -18,3 +18,28 @@ export async function getCurrentUser(cookieHeader?: string): Promise<MeResponseD
 export async function logout(): Promise<void> {
   await requestJson<void>('/auth/logout', { method: 'POST' });
 }
+
+export type LocalSignupInput = {
+  email: string;
+  password: string;
+  nickname: string;
+};
+
+export type LocalLoginInput = {
+  email: string;
+  password: string;
+};
+
+export async function signup(input: LocalSignupInput): Promise<MeResponseDto> {
+  return requestJson<MeResponseDto>('/auth/signup', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export async function login(input: LocalLoginInput): Promise<MeResponseDto> {
+  return requestJson<MeResponseDto>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}

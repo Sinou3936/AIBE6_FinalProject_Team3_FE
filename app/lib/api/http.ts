@@ -66,12 +66,15 @@ function normalizeHeaders(initHeaders?: HeadersInit): Headers {
  * credentials:'include'로 브라우저가 자동 첨부하는 호출은 httpOnly라 JS로 쿠키 값을 읽을 수 없어
  * 여기서는 재시도 대상이 아니다.
  *
- * 지금 requestJson을 클라이언트 컴포넌트에서 직접 호출하는 유일한 사례는 `logout()`
- * (`MainLayoutClient.tsx`)인데, `POST /auth/logout`은 SecurityConfig에서 permitAll이고
- * 컨트롤러도 인증 여부를 확인하지 않으므로 이 경로는 애초에 401을 받을 일이 없다 — 그래서 지금
- * 당장 이 한계가 실제로 발목을 잡는 곳은 없다. 다만 앞으로 인증이 필요한 엔드포인트를 클라이언트
- * 컴포넌트에서 직접 호출하게 되면(예: 체크리스트 토글), 그 호출은 이 재시도도 proxy.ts(페이지
- * 이동 시점에만 동작)도 커버하지 못한다 — 그때는 클라이언트 사이드 401 처리 정책을 먼저 정해야 한다.
+ * 지금 requestJson을 클라이언트 컴포넌트에서 직접 호출하는 사례는 `logout()`(`MainLayoutClient.tsx`),
+ * `login()`(`LoginFormClient.tsx`), `signup()`(`SignupFormClient.tsx`) 세 곳인데, 셋 다
+ * `POST /auth/{logout,login,signup}`으로 SecurityConfig에서 permitAll이고 컨트롤러도 인증 여부를
+ * 확인하지 않는 엔드포인트다. login/signup이 401을 반환하는 경우는 "자격 증명이 틀림"이지 "Access
+ * Token 만료"가 아니라서 애초에 재시도 대상이 아니고, logout도 인증 없이 항상 성공하므로 이 경로들은
+ * 애초에 이 재시도 로직이 다루는 401(만료된 Access Token)을 받을 일이 없다 — 그래서 지금 당장 이
+ * 한계가 실제로 발목을 잡는 곳은 없다. 다만 앞으로 인증이 필요한 엔드포인트를 클라이언트 컴포넌트에서
+ * 직접 호출하게 되면(예: 체크리스트 토글), 그 호출은 이 재시도도 proxy.ts(페이지 이동 시점에만 동작)도
+ * 커버하지 못한다 — 그때는 클라이언트 사이드 401 처리 정책을 먼저 정해야 한다.
  */
 async function retryAfterRefresh<T>(
   path: string,
