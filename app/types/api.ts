@@ -83,6 +83,7 @@ export type UserProfileDto = {
   interestRegion: string | null;
   transactionType: UserTransactionTypeDto | null;
   currentStage: string | null;
+  hasPassword: boolean;
 };
 
 export type ProfileUpdateRequestDto = {

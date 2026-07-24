@@ -21,7 +21,8 @@ export function SignupFormClient() {
 
     try {
       await signup({ email, password, nickname });
-      router.push('/home');
+      // 방금 가입한 계정은 프로필을 등록한 적이 없으므로 곧장 등록 화면으로 보낸다.
+      router.push('/mypage/profile');
       router.refresh();
     } catch (submitError) {
       setError(
