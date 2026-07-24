@@ -1,14 +1,19 @@
 import { useMockData } from '../config/dataSource';
 import { requestJson } from '../lib/api/http';
-import { mapPropertyListItemDto, mapPropertySummaryDto } from '../mappers/property';
+import {
+  mapPropertyDetailResponseDto,
+  mapPropertyListItemDto,
+  mapPropertySummaryToMockDetail,
+} from '../mappers/property';
 import { getMockProperties, getMockPropertyById } from '../repositories/propertyRepository';
 import {
   type CreatePropertyRequestDto,
   type CreatePropertyResponseDto,
+  type PropertyDetailResponseDto,
   type PropertyListItemDto,
-  type PropertySummaryDto,
+  type UpdatePropertyRequestDto,
 } from '../types/api';
-import { type PropertySummary } from '../types/domain';
+import { type PropertyDetail, type PropertySummary } from '../types/domain';
 
 export async function getProperties(cookieHeader?: string): Promise<PropertySummary[]> {
   if (useMockData) {
@@ -22,15 +27,17 @@ export async function getProperties(cookieHeader?: string): Promise<PropertySumm
   return dtos.map(mapPropertyListItemDto);
 }
 
-// 상세조회는 아직 mock 전용이다: 실제 GET /properties/{id} 응답에는 기능4/5/체크리스트 관련 필드가
-// 없어서 PropertyDetailClient(지도/차트 포함)가 기대하는 형태와 맞지 않는다. 별도 이슈에서 연결한다.
-export async function getPropertyById(id: number): Promise<PropertySummary | undefined> {
+export async function getPropertyById(id: number, cookieHeader?: string): Promise<PropertyDetail | undefined> {
   if (useMockData) {
-    return getMockPropertyById(id);
+    const property = getMockPropertyById(id);
+    return property ? mapPropertySummaryToMockDetail(property) : undefined;
   }
 
-  const dto = await requestJson<PropertySummaryDto>(`/properties/${id}`);
-  return mapPropertySummaryDto(dto);
+  const dto = await requestJson<PropertyDetailResponseDto>(
+    `/properties/${id}`,
+    cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined,
+  );
+  return mapPropertyDetailResponseDto(dto);
 }
 
 export async function createProperty(request: CreatePropertyRequestDto): Promise<CreatePropertyResponseDto> {
@@ -59,4 +66,28 @@ export async function createProperty(request: CreatePropertyRequestDto): Promise
     method: 'POST',
     body: JSON.stringify(request),
   });
+}
+
+export async function updateProperty(id: number, request: UpdatePropertyRequestDto): Promise<PropertyDetail> {
+  if (useMockData) {
+    const property = getMockPropertyById(id);
+    if (!property) {
+      throw new Error('매물을 찾을 수 없습니다.');
+    }
+    return mapPropertySummaryToMockDetail(property);
+  }
+
+  const dto = await requestJson<PropertyDetailResponseDto>(`/properties/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(request),
+  });
+  return mapPropertyDetailResponseDto(dto);
+}
+
+export async function deleteProperty(id: number): Promise<void> {
+  if (useMockData) {
+    return;
+  }
+
+  await requestJson<void>(`/properties/${id}`, { method: 'DELETE' });
 }

@@ -157,3 +157,36 @@ export type PropertyListItemDto = {
   status: PropertyStatusDto;
   createdAt: string;
 };
+
+export type PropertyDetailAddressDto = {
+  roadAddress: string | null;
+  jibunAddress: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+// GET /properties/{id} 응답. 목록과 달리 설명/이미지/전체 주소/시세비교까지 포함한다.
+export type PropertyDetailResponseDto = {
+  propertyId: number;
+  propertyType: PropertyTypeDto;
+  transactionType: PropertyTransactionTypeDto;
+  deposit: number;
+  monthlyRent: number | null;
+  area: number;
+  description: string | null;
+  address: PropertyDetailAddressDto;
+  imageUrls: string[];
+  marketComparison: MarketComparisonDto;
+  status: PropertyStatusDto;
+  createdAt: string;
+  updatedAt: string;
+};
+
+// PATCH /properties/{id} 요청. 주소/매물유형/거래유형은 등록 시 확정값이라 수정 대상에서 제외된다
+// (변경하려면 재등록 필요 - BE PropertyUpdateRequest 주석 참고).
+export type UpdatePropertyRequestDto = {
+  deposit: number;
+  monthlyRent?: number | null;
+  area: number;
+  description?: string | null;
+};

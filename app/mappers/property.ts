@@ -1,6 +1,8 @@
-import { type PropertyTradeType, type PropertySummary } from '../types/domain';
+import { priceData } from '../data/property-detail';
+import { type PropertyDetail, type PropertyTradeType, type PropertySummary } from '../types/domain';
 import {
   type ApiStatusTone,
+  type PropertyDetailResponseDto,
   type PropertyListItemDto,
   type PropertySummaryDto,
   type PropertyTransactionTypeDto,
@@ -89,5 +91,73 @@ export function mapPropertyListItemDto(dto: PropertyListItemDto): PropertySummar
     deposit: formatDepositText(dto.transactionType, dto.deposit, dto.monthlyRent),
     statusColor: propertyStatusColorMap.slate,
     location: { latitude: 0, longitude: 0 },
+  };
+}
+
+// "2026-07-24T10:26:13.9" -> "2026.07.24"
+function formatDateText(isoDateTime: string): string {
+  const date = new Date(isoDateTime);
+  if (Number.isNaN(date.getTime())) {
+    return isoDateTime;
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}.${month}.${day}`;
+}
+
+function formatMarketDelta(differenceRate: number): string {
+  const percent = Math.round(differenceRate * 100);
+  return percent >= 0 ? `+${percent}%` : `${percent}%`;
+}
+
+/**
+ * 실제 GET /properties/{id} 응답(PropertyDetailResponseDto) -> PropertyDetail 변환.
+ * marketComparison은 국토부 실거래가 연동 전까지 BE가 항상 UNAVAILABLE을 내려주므로
+ * marketDelta는 사실상 항상 undefined지만, AVAILABLE로 바뀔 미래를 대비해 분기는 남겨둔다.
+ * 신호(기능4)/전세가율(기능5)/체크리스트(기능2)/관리비는 아직 API 자체가 없어 항상 undefined.
+ */
+export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): PropertyDetail {
+  return {
+    id: dto.propertyId,
+    title: `${propertyTypeLabelMap[dto.propertyType]} 매물`,
+    address: dto.address.roadAddress ?? dto.address.jibunAddress ?? '주소 정보 없음',
+    type: propertyTransactionTypeLabelMap[dto.transactionType],
+    deposit: formatDepositText(dto.transactionType, dto.deposit, dto.monthlyRent),
+    depositAmount: dto.deposit,
+    monthlyRentAmount: dto.monthlyRent,
+    area: dto.area,
+    description: dto.description ?? undefined,
+    imageUrls: dto.imageUrls,
+    marketDelta:
+      dto.marketComparison.status === 'AVAILABLE' && dto.marketComparison.differenceRate !== null
+        ? formatMarketDelta(dto.marketComparison.differenceRate)
+        : undefined,
+    statusColor: propertyStatusColorMap.slate,
+    location: {
+      latitude: dto.address.latitude ?? 0,
+      longitude: dto.address.longitude ?? 0,
+    },
+    createdAt: formatDateText(dto.createdAt),
+  };
+}
+
+const detailMockImageUrls = [
+  'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1000',
+  'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&q=80&w=500',
+  'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=500',
+];
+
+/**
+ * mock 저장소는 PropertySummary(목록과 동일한 목업 타입)까지만 가지고 있어, 상세 화면 전용
+ * 필드(설명/이미지/등록일)는 실제 API가 없으니 데모용 값으로 채워 PropertyDetail 형태로 맞춘다.
+ * DTO를 다시 파싱하는 매퍼가 아니라 목업 호환용 어댑터라는 점에서 위 함수들과 성격이 다르다.
+ */
+export function mapPropertySummaryToMockDetail(property: PropertySummary): PropertyDetail {
+  return {
+    ...property,
+    imageUrls: detailMockImageUrls,
+    description: '깨끗하고 채광이 좋은 매물입니다. 역과 가까워 통근이 편리해요.',
+    priceHistory: priceData,
   };
 }
