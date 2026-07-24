@@ -40,14 +40,14 @@ export default async function Page() {
   try {
     overview = await getMyPageOverview(cookieHeader);
   } catch {
-    loadError = '마이페이지 정보를 불러오지 못했습니다. API 설정을 확인해 주세요.';
+    loadError = '마이페이지 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
   try {
     const cookieHeader = (await headers()).get('cookie') ?? undefined;
     profile = await getMyProfile(cookieHeader);
   } catch {
-    profileLoadError = '프로필 정보를 불러오지 못했습니다. API 설정을 확인해 주세요.';
+    profileLoadError = '프로필 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
   return (
