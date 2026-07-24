@@ -154,3 +154,17 @@ export type ProfileUpdateInput = {
   transactionType: UserTransactionType | null;
   currentStage: UserCurrentStage | null;
 };
+
+export type HomeSummaryCounts = {
+  interestedPropertyCount: number;
+  signalsToCheckCount: number;
+  activeChecklistCount: number;
+  analyzedSpecialTermsCount: number;
+};
+
+export type PriorityAction = {
+  title: string;
+  description: string;
+  ctaLabel: string;
+  ctaHref: string;
+};

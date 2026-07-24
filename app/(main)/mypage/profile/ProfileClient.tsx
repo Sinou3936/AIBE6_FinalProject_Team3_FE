@@ -103,11 +103,14 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
   const [nicknameCheckStatus, setNicknameCheckStatus] = useState<
     'idle' | 'checking' | 'available' | 'duplicate' | 'error'
   >('idle');
+  const [nicknameRequiredError, setNicknameRequiredError] = useState(false);
 
   const sigunguOptions = getSigunguOptions(sido);
   const eupmyeondongOptions = getEupmyeondongOptions(sido, sigungu);
 
   const title = mode === 'register' ? '프로필 등록' : '프로필 수정';
+  const isNicknameUnchanged = mode === 'edit' && formValues.nickname.trim() === profile.nickname;
+  const isNicknameCheckRequired = !isNicknameUnchanged && nicknameCheckStatus !== 'available';
 
   const handleSidoChange = (nextSido: string) => {
     setSido(nextSido);
@@ -135,6 +138,7 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
     }
 
     setNicknameCheckStatus('checking');
+    setNicknameRequiredError(false);
     try {
       const available = await checkNicknameAvailability(nickname);
       setNicknameCheckStatus(available ? 'available' : 'duplicate');
@@ -148,6 +152,11 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
 
     if (!formValues.transactionType) {
       setSaveError('관심 거래 유형을 선택해 주세요.');
+      return;
+    }
+
+    if (isNicknameCheckRequired) {
+      setNicknameRequiredError(true);
       return;
     }
 
@@ -240,6 +249,7 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
                   value={formValues.nickname}
                   onChange={(event) => {
                     setNicknameCheckStatus('idle');
+                    setNicknameRequiredError(false);
                     setFormValues((prev) => ({ ...prev, nickname: event.target.value }));
                   }}
                   placeholder="2~20자로 입력해 주세요"
@@ -264,6 +274,9 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
               )}
               {nicknameCheckStatus === 'error' && (
                 <p className="mt-1.5 text-sm text-red-600">닉네임 확인에 실패했습니다. 다시 시도해 주세요.</p>
+              )}
+              {nicknameRequiredError && nicknameCheckStatus === 'idle' && (
+                <p className="mt-1.5 text-sm font-bold text-red-600">닉네임 중복 확인을 먼저 진행해 주세요.</p>
               )}
             </div>
 

@@ -1,11 +1,15 @@
-import { Pencil, User } from 'lucide-react';
+'use client';
+
+import { Lock, LogOut, Pencil, Plus, User, UserX } from 'lucide-react';
 import Link from 'next/link';
-import { profileSummaryItems } from '../../data/mypage';
+import { useRouter } from 'next/navigation';
+import { ENABLE_ANALYSIS_HISTORY } from '../../config/features';
 import { hasRegisteredProfile } from '../../lib/profile';
+import { logout } from '../../services/auth';
 import { type MyPageOverview, type UserProfile } from '../../types/domain';
 import { Badge } from '../../ui/Badge';
 import { InfoRow } from '../../ui/InfoRow';
-import { SummaryCard } from '../../ui/SummaryCard';
+import { PropertyListItem } from '../../ui/PropertyListItem';
 
 type MyPageClientProps = {
   overview: MyPageOverview;
@@ -16,7 +20,27 @@ type MyPageClientProps = {
 };
 
 export function MyPageClient({ overview, loadError, nickname, profile, profileLoadError }: MyPageClientProps) {
+  const router = useRouter();
   const isRegistered = hasRegisteredProfile(profile);
+  const properties = overview.bookmarkedProperties;
+  const signalCount = properties.reduce((sum, property) => sum + property.checkSignalCount, 0);
+
+  async function handleLogout() {
+    try {
+      await logout();
+    } finally {
+      router.push('/login');
+    }
+  }
+
+  function handlePasswordChangeClick() {
+    // TODO: OAuth(Google/Kakao)만 지원하는 동안은 로컬 비밀번호 개념이 없어 동작이 없음.
+    // 비밀번호 인증 지원이 확정되면 실제 라우트/모달로 연결하세요.
+  }
+
+  function handleWithdrawClick() {
+    // TODO: 회원 탈퇴 확인 모달 연동 (백엔드 탈퇴 API 확정 후 진행)
+  }
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-8 md:py-10">
@@ -25,9 +49,9 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
         <p className="ansim-page-description">프로필, 관심 매물, 최근 확인 이력을 한 곳에서 확인합니다.</p>
       </div>
 
-      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="ansim-card p-6 lg:col-span-1">
-          <div className="mb-5 flex items-start justify-between gap-4">
+      <div className="mb-8 grid grid-cols-1 gap-3 md:grid-cols-[1.3fr_1fr]">
+        <div className="ansim-card p-6">
+          <div className="mb-4 flex items-start justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal-100">
                 {profile.profileImageUrl ? (
@@ -38,10 +62,11 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
                 )}
               </div>
               <div>
-                <p className="font-bold text-slate-950">{profile.nickname || nickname}</p>
-                <p className="text-sm text-slate-500">
-                  {[profile.currentStage].filter(Boolean).join(' · ') || '프로필 정보를 등록해 주세요'}
-                </p>
+                <div className="mb-1 flex items-center gap-2">
+                  <p className="font-bold text-slate-950">{profile.nickname || nickname}</p>
+                  {profile.currentStage && <Badge className="bg-teal-50 text-teal-700">{profile.currentStage}</Badge>}
+                </div>
+                {!profile.currentStage && <p className="text-sm text-slate-500">프로필 정보를 등록해 주세요</p>}
               </div>
             </div>
             <Link
@@ -49,67 +74,123 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
               className="flex shrink-0 items-center gap-1 text-sm font-bold text-teal-700 hover:text-teal-800"
             >
               <Pencil className="h-4 w-4" />
-              {isRegistered ? '프로필 수정' : '프로필 등록'}
+              {isRegistered ? '수정' : '등록'}
             </Link>
           </div>
 
           {profileLoadError && <p className="mb-3 text-sm text-red-600">{profileLoadError}</p>}
 
-          <div className="space-y-3 text-sm">
+          <div className="space-y-1 border-t border-slate-100 pt-4 text-sm">
             <InfoRow
               label="관심 거래"
               value={profile.transactionType ?? '미설정'}
-              className="border-b-0 py-0"
+              className="border-b-0 py-1"
               labelClassName="text-slate-500"
               valueClassName="font-bold"
             />
             <InfoRow
               label="관심 지역"
               value={profile.interestRegion ?? '미설정'}
-              className="border-b-0 py-0"
+              className="border-b-0 py-1"
               labelClassName="text-slate-500"
               valueClassName="font-bold"
             />
-            <InfoRow
-              label="중점 확인"
-              value="보증금 안전성"
-              className="border-b-0 py-0"
-              labelClassName="text-slate-500"
-              valueClassName="font-bold text-teal-700"
-            />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 lg:col-span-2 md:grid-cols-4">
-          {profileSummaryItems.map(({ icon, label, value }) => (
-            <SummaryCard key={label} icon={icon} label={label} value={value} valueClassName="text-2xl" />
-          ))}
+        <div className="ansim-card p-6">
+          <p className="mb-3 text-sm font-bold text-slate-950">계정 관리</p>
+          <div className="space-y-1">
+            <button
+              type="button"
+              onClick={handlePasswordChangeClick}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <Lock className="h-4 w-4 text-slate-400" />
+              비밀번호 변경
+            </button>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <LogOut className="h-4 w-4 text-slate-400" />
+              로그아웃
+            </button>
+            <button
+              type="button"
+              onClick={handleWithdrawClick}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+            >
+              <UserX className="h-4 w-4 text-red-500" />
+              회원 탈퇴
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="ansim-card p-6">
-          <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-950">최근 이력</h2>
-            <button className="text-sm font-bold text-teal-700">전체보기</button>
+      <div className="mb-8">
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-950">등록 매물</h2>
+          <Link
+            href="/properties/register"
+            className="flex items-center gap-1 text-sm font-bold text-teal-700 hover:text-teal-800"
+          >
+            <Plus className="h-4 w-4" /> 매물 등록
+          </Link>
+        </div>
+        <p className="mb-4 text-sm text-slate-500">
+          등록 매물 {properties.length}개 · 확인 필요 신호 {signalCount}개
+        </p>
+
+        {loadError && <div className="ansim-card mb-4 border-red-100 bg-red-50 p-4 text-sm text-red-700">{loadError}</div>}
+
+        {!loadError && properties.length === 0 && (
+          <div className="ansim-card p-6 text-center text-sm text-slate-500">
+            <p className="mb-4">아직 등록한 매물이 없어요</p>
+            <Link href="/properties/register" className="ansim-button-primary inline-flex w-fit px-5 py-3">
+              <Plus className="h-4 w-4" /> 매물 등록하기
+            </Link>
           </div>
-          <div className="space-y-3">
-            {loadError && <p className="text-sm text-red-600">{loadError}</p>}
-            {overview.activityHistory.map((item) => (
-              <div key={`${item.title}-${item.type}`} className="rounded-xl border border-slate-100 p-4">
-                <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="font-bold text-slate-950">{item.title}</p>
-                  <Badge className="shrink-0 bg-slate-100 text-slate-600">{item.type}</Badge>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">{item.date}</span>
-                  <span className="font-bold text-orange-600">{item.status}</span>
-                </div>
-              </div>
+        )}
+
+        {properties.length > 0 && (
+          <div className="space-y-4">
+            {properties.map((property) => (
+              <PropertyListItem key={property.id} property={property} />
             ))}
           </div>
-        </div>
+        )}
       </div>
+
+      {ENABLE_ANALYSIS_HISTORY && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="ansim-card p-6">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-950">최근 이력</h2>
+              <button className="text-sm font-bold text-teal-700">전체보기</button>
+            </div>
+            <div className="space-y-3">
+              {loadError ? (
+                <p className="text-sm text-slate-500">이 기능은 준비 중입니다.</p>
+              ) : (
+                overview.activityHistory.map((item) => (
+                  <div key={`${item.title}-${item.type}`} className="rounded-xl border border-slate-100 p-4">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <p className="font-bold text-slate-950">{item.title}</p>
+                      <Badge className="shrink-0 bg-slate-100 text-slate-600">{item.type}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-400">{item.date}</span>
+                      <span className="font-bold text-orange-600">{item.status}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

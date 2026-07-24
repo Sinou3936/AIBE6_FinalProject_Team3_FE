@@ -22,7 +22,7 @@ export default async function Page() {
     const cookieHeader = (await headers()).get('cookie') ?? undefined;
     profile = await getMyProfile(cookieHeader);
   } catch {
-    loadError = '프로필 정보를 불러오지 못했습니다. API 설정을 확인해 주세요.';
+    loadError = '프로필 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
   const mode = hasRegisteredProfile(profile) ? 'edit' : 'register';
