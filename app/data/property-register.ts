@@ -1,20 +1,17 @@
-import { Building2, CheckCircle2, MapPin, ShieldAlert } from 'lucide-react';
-import { type FeatureCardData, type PropertyTradeType } from '../types/domain';
+import { Building2, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { type FeatureCardData } from '../types/domain';
+import { type PropertyTransactionTypeDto, type PropertyTypeDto } from '../types/api';
 
-export const tradeTypeOptions = ['전세', '월세', '반전세'] as const satisfies readonly PropertyTradeType[];
-
-export const propertyBasicFields: Array<{
-  label: string;
-  placeholder: string;
-  icon?: FeatureCardData['icon'];
-}> = [
-  { label: '매물 제목', placeholder: '예: 신림역 도보권 원룸 전세' },
-  { label: '주소', placeholder: '도로명 또는 지번 주소', icon: MapPin },
+// 백엔드가 실제로 지원하는 매물유형/거래유형만 옵션으로 노출한다 (반전세/매매는 서비스 대상 아님).
+export const propertyTypeOptions: Array<{ value: PropertyTypeDto; label: string }> = [
+  { value: 'OFFICETEL', label: '오피스텔' },
+  { value: 'MULTI_FAMILY', label: '연립다세대' },
+  { value: 'DETACHED_HOUSE', label: '단독/다가구' },
 ];
 
-export const propertyPriceFields = [
-  { label: '보증금', placeholder: '예: 18000만원' },
-  { label: '월세', placeholder: '예: 0만원' },
+export const propertyTransactionTypeOptions: Array<{ value: PropertyTransactionTypeDto; label: string }> = [
+  { value: 'JEONSE', label: '전세' },
+  { value: 'MONTHLY_RENT', label: '월세' },
 ];
 
 export const propertyRegisterFeatureCards: FeatureCardData[] = [
