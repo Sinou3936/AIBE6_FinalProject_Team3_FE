@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowRight, FileSearch } from 'lucide-react';
+import { AlertTriangle, ArrowRight, FileSearch, Link2 } from 'lucide-react';
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 import { quickActions, quickActionToneMap } from '../../data/dashboard';
@@ -20,6 +20,7 @@ const emptyProfile: UserProfile = {
   interestRegion: null,
   transactionType: null,
   currentStage: null,
+  hasPassword: false,
 };
 
 const emptyOverview: MyPageOverview = {
@@ -27,7 +28,12 @@ const emptyOverview: MyPageOverview = {
   bookmarkedProperties: [],
 };
 
-export default async function Page() {
+type HomePageProps = {
+  searchParams: Promise<{ notice?: string }>;
+};
+
+export default async function Page({ searchParams }: HomePageProps) {
+  const { notice } = await searchParams;
   const cookieHeader = (await cookies()).toString();
 
   let loadError: string | undefined;
@@ -87,6 +93,13 @@ export default async function Page() {
           매물 가격, 보증금 안전성, 현장 확인, 특약사항 분석을 순서대로 점검하세요.
         </p>
       </div>
+
+      {notice === 'account_linked' && (
+        <div className="ansim-card mb-8 flex items-start gap-2 border-teal-100 bg-teal-50 p-4 text-sm text-teal-800">
+          <Link2 className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
+          <span>이미 가입되어 있던 계정과 자동으로 연결되었어요.</span>
+        </div>
+      )}
 
       {loadError && (
         <div className="ansim-card mb-8 border-red-100 bg-red-50 p-4 text-sm text-red-700">{loadError}</div>
