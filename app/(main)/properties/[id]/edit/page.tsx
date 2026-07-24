@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
-import { getPropertyById } from '../../../services/properties';
-import { type PropertyDetail } from '../../../types/domain';
-import { PropertyDetailClient } from './PropertyDetailClient';
+import { getPropertyById } from '../../../../services/properties';
+import { type PropertyDetail } from '../../../../types/domain';
+import { PropertyEditClient } from './PropertyEditClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,5 +22,5 @@ export default async function Page({ params }: PageProps) {
     loadError = '매물 정보를 불러오지 못했습니다. API 설정을 확인해 주세요.';
   }
 
-  return <PropertyDetailClient property={property} loadError={loadError} />;
+  return <PropertyEditClient propertyId={Number(id)} property={property} loadError={loadError} />;
 }
