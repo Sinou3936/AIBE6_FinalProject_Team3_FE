@@ -1,4 +1,4 @@
-import { type ChecklistCategoryId, type ChecklistStatus, type PropertyTradeType } from './domain';
+import { type PropertyTradeType } from './domain';
 
 export type ApiErrorBody = {
   code: string;
@@ -30,12 +30,34 @@ export type PropertySummaryDto = {
   longitude: number;
 };
 
+export type ChecklistItemTypeDto = 'CHECK' | 'YES_NO' | 'DATE' | 'DOCUMENT_REQUEST';
+export type ChecklistImportanceDto = 'REQUIRED' | 'GENERAL';
+export type ChecklistCategoryDto = 'INDOOR' | 'NOISE' | 'SAFETY' | 'DOCUMENTS' | 'AREA';
+export type ChecklistStatusDto = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+
 export type ChecklistItemDto = {
   id: number;
-  category: ChecklistCategoryId;
-  text: string;
-  status: ChecklistStatus | null;
+  category: ChecklistCategoryDto;
+  content: string;
+  guideText: string | null;
+  importance: ChecklistImportanceDto;
+  itemType: ChecklistItemTypeDto;
+  checked: boolean;
+  issueFound: boolean;
+  value: string | null;
 };
+
+export type ChecklistDto = {
+  id: number;
+  propertyId: number;
+  templateVersion: number;
+  status: ChecklistStatusDto;
+  items: ChecklistItemDto[];
+};
+
+// PATCH 요청 바디 — Backend가 아직 미구현이라 이 저장소가 제안하는 계약.
+// checked만 바뀌는 CHECK 타입 문항은 { checked }, 값 입력이 필요한 나머지 타입은 { value }만 보낸다.
+export type ChecklistItemUpdateRequestDto = { checked: boolean } | { value: string };
 
 export type ContractRiskItemDto = {
   id: number;
