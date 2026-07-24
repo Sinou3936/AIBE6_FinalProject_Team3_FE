@@ -34,7 +34,7 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl }
       <header className="sticky top-0 z-40 hidden w-full border-b border-slate-200 bg-white md:block">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/home" className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600">
                 <Home className="h-5 w-5 text-white" />
               </div>
@@ -91,7 +91,7 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl }
 
       <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white md:hidden">
         <div className="flex h-14 items-center justify-between px-4">
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/home" className="flex items-center gap-2">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600">
               <Home className="h-4 w-4 text-white" />
             </div>

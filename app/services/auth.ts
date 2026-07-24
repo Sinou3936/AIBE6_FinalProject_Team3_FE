@@ -1,6 +1,8 @@
 import { getApiBaseUrl, requestJson } from '../lib/api/http';
 import { type MeResponseDto } from '../types/api';
 
+export { refreshSession } from '../lib/api/http';
+
 export function getGoogleLoginUrl(): string {
   return `${getApiBaseUrl()}/oauth2/authorization/google`;
 }
