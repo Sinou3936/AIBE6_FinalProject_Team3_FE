@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { AlertCircle, Shield } from 'lucide-react';
 import { getGoogleLoginUrl, getKakaoLoginUrl } from '../services/auth';
 import { NoticeBox } from '../ui/NoticeBox';
+import { LoginFormClient } from './LoginFormClient';
 
 const ERROR_MESSAGES: Record<string, string> = {
   oauth_login_failed: '로그인에 실패했습니다. 잠시 후 다시 시도해주세요.',
@@ -33,6 +34,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </NoticeBox>
         )}
 
+        <LoginFormClient />
+
+        <div className="my-6 flex items-center gap-3 text-xs text-slate-400">
+          <div className="h-px flex-1 bg-slate-200" />
+          또는
+          <div className="h-px flex-1 bg-slate-200" />
+        </div>
+
         <div className="flex flex-col gap-3">
           <a
             href={getGoogleLoginUrl()}
@@ -48,7 +57,14 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </a>
         </div>
 
-        <Link href="/" className="mt-8 block text-center text-xs text-slate-400 hover:text-slate-600">
+        <p className="mt-6 text-center text-sm text-slate-600">
+          아직 계정이 없으신가요?{' '}
+          <Link href="/signup" className="font-bold text-teal-700 hover:text-teal-800">
+            이메일로 회원가입
+          </Link>
+        </p>
+
+        <Link href="/" className="mt-6 block text-center text-xs text-slate-400 hover:text-slate-600">
           랜딩 페이지로 돌아가기
         </Link>
       </div>
