@@ -24,7 +24,7 @@ export const quickActions: QuickAction[] = [
     tone: 'orange',
   },
   {
-    to: '/properties/1/checklist',
+    to: '/checklists',
     icon: CheckCircle2,
     title: '현장 체크리스트',
     description: '매물 유형에 맞춘 방문 확인 항목을 기록합니다.',
