@@ -4,26 +4,34 @@ import { useState } from 'react';
 import { ArrowLeft, Info } from 'lucide-react';
 import Link from 'next/link';
 import { checklistCategories as categories } from '../../../../data/checklist';
-import { calculateChecklistSummary } from '../../../../lib/checklistSummary';
+import { type ChecklistSummary } from '../../../../lib/checklistSummary';
 import { cn } from '../../../../lib/cn';
-import { updateChecklistItem } from '../../../../services/checklist';
+import { getChecklistResult, updateChecklistItem } from '../../../../services/checklist';
 import { type ChecklistItemUpdateRequestDto } from '../../../../types/api';
 import { type Checklist, type ChecklistItem } from '../../../../types/domain';
 import { NoticeBox } from '../../../../ui/NoticeBox';
 
+const EMPTY_SUMMARY: ChecklistSummary = {
+  progressPercent: 0,
+  missingRequiredCount: 0,
+  cautionCount: 0,
+  hasStarted: false,
+};
+
 type ChecklistClientProps = {
   propertyId: number;
   checklist?: Checklist;
+  initialSummary?: ChecklistSummary;
   loadError?: string;
 };
 
-export function ChecklistClient({ propertyId, checklist, loadError }: ChecklistClientProps) {
+export function ChecklistClient({ propertyId, checklist, initialSummary, loadError }: ChecklistClientProps) {
   const [items, setItems] = useState<ChecklistItem[]>(checklist?.items ?? []);
+  const [summary, setSummary] = useState<ChecklistSummary>(initialSummary ?? EMPTY_SUMMARY);
   const [activeCategory, setActiveCategory] = useState(categories[0].id);
   const [itemErrors, setItemErrors] = useState<Record<number, string>>({});
 
   const checklistId = checklist?.id;
-  const summary = calculateChecklistSummary(items);
   const activeItems = items.filter((item) => item.category === activeCategory);
 
   async function applyUpdate(
@@ -47,6 +55,12 @@ export function ChecklistClient({ propertyId, checklist, loadError }: ChecklistC
     try {
       const updated = await updateChecklistItem(checklistId, item.id, request);
       setItems((currentItems) => currentItems.map((current) => (current.id === item.id ? updated : current)));
+
+      try {
+        setSummary(await getChecklistResult(checklistId));
+      } catch {
+        // 결과 재조회 실패는 문항 저장 자체와는 무관하므로 조용히 무시한다 (다음 변경 때 다시 시도됨).
+      }
     } catch {
       setItems((currentItems) => currentItems.map((current) => (current.id === item.id ? item : current)));
       setItemErrors((current) => ({ ...current, [item.id]: '저장하지 못했어요. 다시 시도해 주세요.' }));
@@ -101,7 +115,9 @@ export function ChecklistClient({ propertyId, checklist, loadError }: ChecklistC
             </div>
           </div>
           <p className="mt-3 text-center text-xs text-slate-500">
-            {summary.hasStarted ? `필수 확인 누락 ${summary.missingRequiredCount}개` : '체크리스트를 시작해보세요'}
+            {summary.hasStarted
+              ? `필수 확인 누락 ${summary.missingRequiredCount}개`
+              : (summary.message ?? '체크리스트를 시작해보세요')}
           </p>
         </div>
 
