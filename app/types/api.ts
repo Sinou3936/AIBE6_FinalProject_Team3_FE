@@ -56,6 +56,17 @@ export type ChecklistDto = {
   items: ChecklistItemDto[];
 };
 
+// GET /checklists/{checklistId}/result 응답. Backend가 @JsonInclude(NON_NULL)이라
+// message는 NOT_STARTED일 때만 오고, 그 외에는 필드 자체가 응답에서 빠진다.
+export type ChecklistResultDto = {
+  status: ChecklistStatusDto;
+  checkedCount: number;
+  totalCount: number;
+  requiredMissingCount: number;
+  issueCount: number;
+  message?: string;
+};
+
 // PATCH 요청 바디. checked만 바뀌는 CHECK 타입 문항은 { checked }, 값 입력이 필요한 YES_NO/DATE/
 // DOCUMENT_REQUEST는 { value }, CHECK 타입을 "미흡"으로 표시(+메모)할 때는 { userNote }만 보낸다.
 export type ChecklistItemUpdateRequestDto = { checked: boolean } | { value: string } | { userNote: string };
