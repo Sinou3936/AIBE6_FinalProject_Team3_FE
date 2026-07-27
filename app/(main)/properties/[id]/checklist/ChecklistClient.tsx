@@ -8,7 +8,7 @@ import { type ChecklistSummary } from '../../../../lib/checklistSummary';
 import { cn } from '../../../../lib/cn';
 import { getChecklistResult, updateChecklistItem } from '../../../../services/checklist';
 import { type ChecklistItemUpdateRequestDto } from '../../../../types/api';
-import { type Checklist, type ChecklistItem } from '../../../../types/domain';
+import { type Checklist, type ChecklistItem, type PropertyDetail } from '../../../../types/domain';
 import { NoticeBox } from '../../../../ui/NoticeBox';
 
 const EMPTY_SUMMARY: ChecklistSummary = {
@@ -23,9 +23,10 @@ type ChecklistClientProps = {
   checklist?: Checklist;
   initialSummary?: ChecklistSummary;
   loadError?: string;
+  property?: PropertyDetail;
 };
 
-export function ChecklistClient({ propertyId, checklist, initialSummary, loadError }: ChecklistClientProps) {
+export function ChecklistClient({ propertyId, checklist, initialSummary, loadError, property }: ChecklistClientProps) {
   const [items, setItems] = useState<ChecklistItem[]>(checklist?.items ?? []);
   const [summary, setSummary] = useState<ChecklistSummary>(initialSummary ?? EMPTY_SUMMARY);
   const [activeCategory, setActiveCategory] = useState(categories[0].id);
@@ -87,7 +88,14 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
             <Link href={`/properties/${propertyId}`} className="-ml-2 p-2 text-slate-500 hover:text-slate-950">
               <ArrowLeft className="h-6 w-6" />
             </Link>
-            <h1 className="text-lg font-bold text-slate-950">현장 체크리스트</h1>
+            <div>
+              <h1 className="text-lg font-bold text-slate-950">현장 체크리스트</h1>
+              {property && (
+                <p className="text-xs text-slate-500">
+                  {property.type} · {property.title} · {property.address}
+                </p>
+              )}
+            </div>
           </div>
         </div>
         <div className="h-1 w-full bg-slate-100">
