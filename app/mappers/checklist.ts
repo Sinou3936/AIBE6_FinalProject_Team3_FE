@@ -4,6 +4,7 @@ import {
   type ChecklistImportanceDto,
   type ChecklistItemDto,
   type ChecklistItemTypeDto,
+  type ChecklistResultDto,
 } from '../types/api';
 import {
   type Checklist,
@@ -12,6 +13,7 @@ import {
   type ChecklistItem,
   type ChecklistItemType,
 } from '../types/domain';
+import { type ChecklistSummary } from '../lib/checklistSummary';
 
 // Backend enum은 JSON에 대문자로 내려온다(예: "INDOOR"). 기존 화면 코드(카테고리 탭 아이콘 등)는
 // 소문자를 쓰고 있어서 그 쪽을 고치는 대신 여기서만 변환한다.
@@ -55,5 +57,17 @@ export function mapChecklistDto(dto: ChecklistDto): Checklist {
     id: dto.id,
     propertyId: dto.propertyId,
     items: dto.items.map(mapChecklistItemDto),
+  };
+}
+
+export function mapChecklistResultDto(dto: ChecklistResultDto): ChecklistSummary {
+  const progressPercent = dto.totalCount > 0 ? Math.round((dto.checkedCount / dto.totalCount) * 100) : 0;
+
+  return {
+    progressPercent,
+    missingRequiredCount: dto.requiredMissingCount,
+    cautionCount: dto.issueCount,
+    hasStarted: dto.status !== 'NOT_STARTED',
+    message: dto.message,
   };
 }
