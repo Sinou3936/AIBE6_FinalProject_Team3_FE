@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
 import Link from 'next/link';
 import { checklistCategories as categories } from '../../../../data/checklist';
 import { type ChecklistSummary } from '../../../../lib/checklistSummary';
@@ -249,6 +249,15 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
             </div>
           ))}
         </div>
+
+        {summary.hasStarted && summary.missingRequiredCount === 0 && (
+          <Link
+            href="/contract/upload"
+            className="ansim-button-primary mt-6 flex items-center justify-center gap-2 px-5 py-3"
+          >
+            다음 단계: 특약사항 분석하기 <ArrowRight className="h-4 w-4" />
+          </Link>
+        )}
 
         <NoticeBox icon={Info} iconClassName="text-slate-400" className="mt-6">
           체크리스트 결과는 점수나 안전 등급이 아닙니다. 확인한 항목과 주의가 필요한 항목을 정리하는 참고용 기록이며,
