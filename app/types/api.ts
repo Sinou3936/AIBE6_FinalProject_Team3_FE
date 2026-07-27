@@ -71,6 +71,17 @@ export type ChecklistResultDto = {
 // DOCUMENT_REQUEST는 { value }, CHECK 타입을 "미흡"으로 표시(+메모)할 때는 { userNote }만 보낸다.
 export type ChecklistItemUpdateRequestDto = { checked: boolean } | { value: string } | { userNote: string };
 
+// GET /checklists 응답 원소 하나. checklistId는 아직 시작 안 한 매물이면 null.
+export type ChecklistOverviewDto = {
+  propertyId: number;
+  checklistId: number | null;
+  roadAddress: string | null;
+  jibunAddress: string | null;
+  propertyType: PropertyTypeDto;
+  transactionType: PropertyTransactionTypeDto;
+  status: ChecklistStatusDto;
+};
+
 export type ContractRiskItemDto = {
   id: number;
   original: string;

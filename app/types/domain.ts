@@ -103,6 +103,17 @@ export type Checklist = {
   items: ChecklistItem[];
 };
 
+export type ChecklistOverviewStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+
+export type ChecklistOverview = {
+  propertyId: number;
+  checklistId: number | null;
+  address: string;
+  propertyTitle: string;
+  tradeType: PropertyTradeType;
+  status: ChecklistOverviewStatus;
+};
+
 export type ContractRiskItem = {
   id: number;
   original: string;

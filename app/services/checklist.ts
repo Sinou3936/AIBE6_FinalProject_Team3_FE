@@ -1,15 +1,21 @@
 import { useMockData } from '../config/dataSource';
 import { ApiError, requestJson } from '../lib/api/http';
 import { type ChecklistSummary } from '../lib/checklistSummary';
-import { mapChecklistDto, mapChecklistItemDto, mapChecklistResultDto } from '../mappers/checklist';
-import { getMockChecklist, getMockChecklistResult, updateMockChecklistItem } from '../repositories/checklistRepository';
+import { mapChecklistDto, mapChecklistItemDto, mapChecklistOverviewDto, mapChecklistResultDto } from '../mappers/checklist';
+import {
+  getMockChecklist,
+  getMockChecklistOverviews,
+  getMockChecklistResult,
+  updateMockChecklistItem,
+} from '../repositories/checklistRepository';
 import {
   type ChecklistDto,
   type ChecklistItemDto,
   type ChecklistItemUpdateRequestDto,
+  type ChecklistOverviewDto,
   type ChecklistResultDto,
 } from '../types/api';
-import { type Checklist, type ChecklistItem } from '../types/domain';
+import { type Checklist, type ChecklistItem, type ChecklistOverview } from '../types/domain';
 
 export async function createOrGetChecklist(propertyId: number, cookieHeader?: string): Promise<Checklist> {
   if (useMockData) {
@@ -62,4 +68,16 @@ export async function updateChecklistItem(
     body: JSON.stringify(request),
   });
   return mapChecklistItemDto(dto);
+}
+
+export async function getMyChecklistOverviews(cookieHeader?: string): Promise<ChecklistOverview[]> {
+  if (useMockData) {
+    return getMockChecklistOverviews();
+  }
+
+  const dtos = await requestJson<ChecklistOverviewDto[]>(
+    '/checklists',
+    cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined,
+  );
+  return dtos.map(mapChecklistOverviewDto);
 }
