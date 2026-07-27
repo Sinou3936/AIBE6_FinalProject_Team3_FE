@@ -56,3 +56,9 @@ export async function updatePassword(input: PasswordUpdateInput): Promise<void> 
     body: JSON.stringify(input),
   });
 }
+
+// 개발 편의용 "관리자로 로그인" 버튼 전용. 백엔드가 DEV_LOGIN_ENABLED=false(기본값)면 404를
+// 반환하므로, 이 함수 자체는 운영에서 호출돼도 아무 계정에도 로그인시키지 못한다.
+export async function devLogin(): Promise<MeResponseDto> {
+  return requestJson<MeResponseDto>('/auth/dev-login', { method: 'POST' });
+}

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, CheckCircle2, Shield } from 'lucide-react';
 import { landingFeatures, landingSummaryItems } from './data/landing';
+import { DevLoginButton } from './DevLoginButton';
 import { getCurrentUser } from './services/auth';
 import { Badge } from './ui/Badge';
 import { FeatureCard } from './ui/FeatureCard';
@@ -109,6 +110,10 @@ export default async function Page() {
           </Link>
         </div>
       </section>
+
+      <div className="pb-6 text-center">
+        <DevLoginButton />
+      </div>
     </div>
   );
 }

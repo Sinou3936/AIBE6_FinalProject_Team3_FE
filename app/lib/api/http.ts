@@ -90,13 +90,13 @@ async function retryAfterRefresh<T>(
     return { attempted: false };
   }
 
-  const newCookies = await refreshSession(refreshToken);
-  if (!newCookies) {
+  const outcome = await refreshSession(refreshToken);
+  if (outcome.status !== 'success') {
     return { attempted: false };
   }
 
   const retryHeaders = new Headers(headers);
-  retryHeaders.set('Cookie', mergeCookieHeader(cookieHeader, newCookies));
+  retryHeaders.set('Cookie', mergeCookieHeader(cookieHeader, outcome.cookies));
 
   const retryResponse = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
@@ -121,29 +121,39 @@ async function parseOrThrow<T>(response: Response): Promise<T> {
   return body.data;
 }
 
+// 'rejected'는 백엔드가 실제로 응답해서 이 Refresh Token을 거부한 경우(만료/무효 등)이고,
+// 'unreachable'은 요청 자체가 실패해(네트워크 오류, 백엔드 일시 다운 등) 토큰 상태를 알 수 없는
+// 경우다 — 호출부가 "무효 토큰이니 쿠키를 지워도 된다"와 "일시 장애라 쿠키는 그대로 둬야 한다"를
+// 구분하려면 이 둘을 뭉뚱그리면 안 된다.
+export type RefreshSessionOutcome =
+  | { status: 'success'; cookies: string[] }
+  | { status: 'rejected' }
+  | { status: 'unreachable' };
+
 /**
  * Access Token 쿠키가 만료(브라우저가 자동 삭제)된 상태에서 Refresh Token으로 세션을 갱신한다.
  * 백엔드는 응답 바디 대신 Set-Cookie 헤더로 새 access_token/refresh_token을 내려주므로,
  * requestJson(바디만 반환) 대신 raw fetch로 응답 헤더를 그대로 반환한다 — 호출부(middleware,
  * retryAfterRefresh)가 이 값을 그대로 브라우저 응답/재시도 요청에 실어 보내야 실제로 반영된다.
  */
-export async function refreshSession(refreshTokenCookieValue: string): Promise<string[] | null> {
+export async function refreshSession(refreshTokenCookieValue: string): Promise<RefreshSessionOutcome> {
+  let response: Response;
   try {
-    const response = await fetch(`${getApiBaseUrl()}${REFRESH_PATH}`, {
+    response = await fetch(`${getApiBaseUrl()}${REFRESH_PATH}`, {
       method: 'POST',
       headers: { Cookie: `${REFRESH_TOKEN_COOKIE}=${refreshTokenCookieValue}` },
     });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    // 미들웨어/Node 런타임에서는 지원되지만, 런타임에 따라 없을 수 있으니 안전하게 호출한다.
-    const setCookies = response.headers.getSetCookie?.() ?? [];
-    return setCookies.length > 0 ? setCookies : null;
   } catch {
-    return null;
+    return { status: 'unreachable' };
   }
+
+  if (!response.ok) {
+    return { status: 'rejected' };
+  }
+
+  // 미들웨어/Node 런타임에서는 지원되지만, 런타임에 따라 없을 수 있으니 안전하게 호출한다.
+  const setCookies = response.headers.getSetCookie?.() ?? [];
+  return setCookies.length > 0 ? { status: 'success', cookies: setCookies } : { status: 'rejected' };
 }
 
 export function extractCookieValue(cookieHeader: string | null | undefined, name: string): string | undefined {
