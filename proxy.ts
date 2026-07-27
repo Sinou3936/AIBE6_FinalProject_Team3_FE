@@ -37,7 +37,15 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  return NextResponse.redirect(new URL('/login', request.url));
+  // refreshToken이 있었는데도 갱신에 실패했다면(DB 초기화 등으로 더 이상 유효하지 않은 경우) 그
+  // 쿠키를 지우지 않으면 브라우저가 계속 들고 있다가 보호 페이지에 접근할 때마다 이 흐름을 반복해
+  // 백엔드에 매번 "유효하지 않은 Refresh Token입니다" 요청을 만든다.
+  const response = NextResponse.redirect(new URL('/login', request.url));
+  if (refreshToken) {
+    response.cookies.delete(ACCESS_TOKEN_COOKIE);
+    response.cookies.delete(REFRESH_TOKEN_COOKIE);
+  }
+  return response;
 }
 
 export const config = {
