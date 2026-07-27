@@ -1,8 +1,14 @@
 import { useMockData } from '../config/dataSource';
-import { requestJson } from '../lib/api/http';
-import { mapChecklistDto, mapChecklistItemDto } from '../mappers/checklist';
-import { getMockChecklist, updateMockChecklistItem } from '../repositories/checklistRepository';
-import { type ChecklistDto, type ChecklistItemDto, type ChecklistItemUpdateRequestDto } from '../types/api';
+import { ApiError, requestJson } from '../lib/api/http';
+import { type ChecklistSummary } from '../lib/checklistSummary';
+import { mapChecklistDto, mapChecklistItemDto, mapChecklistResultDto } from '../mappers/checklist';
+import { getMockChecklist, getMockChecklistResult, updateMockChecklistItem } from '../repositories/checklistRepository';
+import {
+  type ChecklistDto,
+  type ChecklistItemDto,
+  type ChecklistItemUpdateRequestDto,
+  type ChecklistResultDto,
+} from '../types/api';
 import { type Checklist, type ChecklistItem } from '../types/domain';
 
 export async function createOrGetChecklist(propertyId: number): Promise<Checklist> {
@@ -10,8 +16,25 @@ export async function createOrGetChecklist(propertyId: number): Promise<Checklis
     return getMockChecklist(propertyId);
   }
 
-  const dto = await requestJson<ChecklistDto>(`/properties/${propertyId}/checklists`, { method: 'POST' });
-  return mapChecklistDto(dto);
+  try {
+    const dto = await requestJson<ChecklistDto>(`/properties/${propertyId}/checklists`, { method: 'GET' });
+    return mapChecklistDto(dto);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      const dto = await requestJson<ChecklistDto>(`/properties/${propertyId}/checklists`, { method: 'POST' });
+      return mapChecklistDto(dto);
+    }
+    throw error;
+  }
+}
+
+export async function getChecklistResult(checklistId: number): Promise<ChecklistSummary> {
+  if (useMockData) {
+    return getMockChecklistResult();
+  }
+
+  const dto = await requestJson<ChecklistResultDto>(`/checklists/${checklistId}/result`);
+  return mapChecklistResultDto(dto);
 }
 
 export async function updateChecklistItem(
