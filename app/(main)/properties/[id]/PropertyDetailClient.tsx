@@ -9,6 +9,8 @@ import {
   ArrowLeft,
   Building2,
   Calendar,
+  CheckCircle2,
+  Flag,
   Heart,
   ImageOff,
   Maximize,
@@ -23,6 +25,7 @@ import { type PropertyDetail } from '../../../types/domain';
 import { Badge } from '../../../ui/Badge';
 import { KakaoMap } from '../../../ui/KakaoMap';
 import { NoticeBox } from '../../../ui/NoticeBox';
+import { PropertyReportModal } from './PropertyReportModal';
 
 type PropertyDetailClientProps = {
   property?: PropertyDetail;
@@ -33,6 +36,8 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   if (loadError || !property) {
     return (
@@ -283,6 +288,15 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
                   {deleteError}
                 </NoticeBox>
               )}
+              {reportSuccess && (
+                <NoticeBox
+                  icon={CheckCircle2}
+                  iconClassName="text-emerald-600"
+                  className="mb-4 bg-emerald-50 text-emerald-700"
+                >
+                  신고가 접수됐어요. 검토 후 반영할게요.
+                </NoticeBox>
+              )}
               <div className="space-y-2">
                 <Link
                   href={`/properties/${property.id}/edit`}
@@ -290,6 +304,16 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
                 >
                   <Pencil className="h-4 w-4" /> 매물 정보 수정
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReportSuccess(false);
+                    setIsReportModalOpen(true);
+                  }}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  <Flag className="h-4 w-4" /> 매물 신고
+                </button>
                 <button
                   type="button"
                   onClick={handleDelete}
@@ -303,6 +327,13 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
           </div>
         </div>
       </div>
+
+      <PropertyReportModal
+        propertyId={property.id}
+        open={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        onSuccess={() => setReportSuccess(true)}
+      />
     </div>
   );
 }

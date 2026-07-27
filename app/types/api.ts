@@ -190,3 +190,21 @@ export type UpdatePropertyRequestDto = {
   area: number;
   description?: string | null;
 };
+
+// POST /properties/{id}/reports. 마켓플레이스식 "타인 매물 신고"가 아니라 본인이 등록한 매물을
+// 본인이 직접 신고하는 자가 플래그 - ETC 선택 시에만 detail이 필수(그 외에는 서버가 null로 강제).
+export type PropertyReportReasonDto = 'ALREADY_CONTRACTED' | 'PRICE_MISMATCH' | 'INFO_MISMATCH' | 'DUPLICATE' | 'ETC';
+
+export type ReportPropertyRequestDto = {
+  reason: PropertyReportReasonDto;
+  detail?: string | null;
+};
+
+export type PropertyReportResponseDto = {
+  reportId: number;
+  propertyId: number;
+  reason: PropertyReportReasonDto;
+  detail: string | null;
+  status: string;
+  createdAt: string;
+};
