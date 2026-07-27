@@ -11,6 +11,8 @@ import {
   type CreatePropertyResponseDto,
   type PropertyDetailResponseDto,
   type PropertyListItemDto,
+  type PropertyReportResponseDto,
+  type ReportPropertyRequestDto,
   type UpdatePropertyRequestDto,
 } from '../types/api';
 import { type PropertyDetail, type PropertySummary } from '../types/domain';
@@ -90,4 +92,24 @@ export async function deleteProperty(id: number): Promise<void> {
   }
 
   await requestJson<void>(`/properties/${id}`, { method: 'DELETE' });
+}
+
+// mock 모드에는 신고 이력을 저장할 저장소가 없어 매번 성공만 반환한다 - 중복신고(409) 같은
+// 에러 케이스는 실제 API 모드에서만 재현 가능하다.
+export async function reportProperty(id: number, request: ReportPropertyRequestDto): Promise<PropertyReportResponseDto> {
+  if (useMockData) {
+    return {
+      reportId: Date.now(),
+      propertyId: id,
+      reason: request.reason,
+      detail: request.reason === 'ETC' ? (request.detail ?? null) : null,
+      status: 'RECEIVED',
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  return requestJson<PropertyReportResponseDto>(`/properties/${id}/reports`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
 }
