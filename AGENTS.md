@@ -47,7 +47,7 @@ Prefer: `확인 필요 신호 N개`, `전세가율 82%`, `시세보다 20% 낮�
 
 ## Current screens
 
-`/` (랜딩) · `/home` · `/properties` · `/properties/register` · `/properties/[id]` · `/checklist` · `/contract/upload` · `/contract/result` · `/mypage`
+`/` (랜딩) · `/home` · `/properties` · `/properties/register` · `/properties/[id]` · `/properties/[id]/checklist` · `/contract/upload` · `/contract/result` · `/mypage`
 
 ## Deeper reference
 

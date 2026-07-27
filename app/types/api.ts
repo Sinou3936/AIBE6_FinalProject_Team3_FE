@@ -1,4 +1,4 @@
-import { type ChecklistCategoryId, type ChecklistStatus, type PropertyTradeType } from './domain';
+import { type PropertyTradeType } from './domain';
 
 export type ApiErrorBody = {
   code: string;
@@ -30,11 +30,56 @@ export type PropertySummaryDto = {
   longitude: number;
 };
 
+export type ChecklistItemTypeDto = 'CHECK' | 'YES_NO' | 'DATE' | 'DOCUMENT_REQUEST';
+export type ChecklistImportanceDto = 'REQUIRED' | 'GENERAL';
+export type ChecklistCategoryDto = 'INDOOR' | 'NOISE' | 'SAFETY' | 'DOCUMENTS' | 'AREA';
+export type ChecklistStatusDto = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+
 export type ChecklistItemDto = {
   id: number;
-  category: ChecklistCategoryId;
-  text: string;
-  status: ChecklistStatus | null;
+  category: ChecklistCategoryDto;
+  content: string;
+  guideText: string | null;
+  importance: ChecklistImportanceDto;
+  itemType: ChecklistItemTypeDto;
+  checked: boolean;
+  issueFound: boolean;
+  value: string | null;
+  userNote: string | null;
+};
+
+export type ChecklistDto = {
+  id: number;
+  propertyId: number;
+  templateVersion: number;
+  status: ChecklistStatusDto;
+  items: ChecklistItemDto[];
+};
+
+// GET /checklists/{checklistId}/result 응답. Backend가 @JsonInclude(NON_NULL)이라
+// message는 NOT_STARTED일 때만 오고, 그 외에는 필드 자체가 응답에서 빠진다.
+export type ChecklistResultDto = {
+  status: ChecklistStatusDto;
+  checkedCount: number;
+  totalCount: number;
+  requiredMissingCount: number;
+  issueCount: number;
+  message?: string;
+};
+
+// PATCH 요청 바디. checked만 바뀌는 CHECK 타입 문항은 { checked }, 값 입력이 필요한 YES_NO/DATE/
+// DOCUMENT_REQUEST는 { value }, CHECK 타입을 "미흡"으로 표시(+메모)할 때는 { userNote }만 보낸다.
+export type ChecklistItemUpdateRequestDto = { checked: boolean } | { value: string } | { userNote: string };
+
+// GET /checklists 응답 원소 하나. checklistId는 아직 시작 안 한 매물이면 null.
+export type ChecklistOverviewDto = {
+  propertyId: number;
+  checklistId: number | null;
+  roadAddress: string | null;
+  jibunAddress: string | null;
+  propertyType: PropertyTypeDto;
+  transactionType: PropertyTransactionTypeDto;
+  status: ChecklistStatusDto;
 };
 
 export type ContractRiskItemDto = {

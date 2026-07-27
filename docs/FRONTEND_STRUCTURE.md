@@ -118,7 +118,7 @@ properties/PropertiesClient    검색/필터 상태 관리
 /properties               매물 목록
 /properties/register      매물 등록
 /properties/[id]          매물 상세
-/checklist                현장 체크리스트
+/properties/[id]/checklist  현장 체크리스트
 /contract/upload          특약사항 입력/업로드
 /contract/result          특약사항 분석 결과
 /mypage                   마이페이지

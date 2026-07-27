@@ -1,16 +1,83 @@
 import { useMockData } from '../config/dataSource';
-import { requestJson } from '../lib/api/http';
-import { mapChecklistItemDto } from '../mappers/checklist';
-import { getMockChecklistTemplate } from '../repositories/checklistRepository';
-import { type ChecklistItemDto } from '../types/api';
-import { type ChecklistItem, type PropertyTradeType } from '../types/domain';
+import { ApiError, requestJson } from '../lib/api/http';
+import { type ChecklistSummary } from '../lib/checklistSummary';
+import { mapChecklistDto, mapChecklistItemDto, mapChecklistOverviewDto, mapChecklistResultDto } from '../mappers/checklist';
+import {
+  getMockChecklist,
+  getMockChecklistOverviews,
+  getMockChecklistResult,
+  updateMockChecklistItem,
+} from '../repositories/checklistRepository';
+import {
+  type ChecklistDto,
+  type ChecklistItemDto,
+  type ChecklistItemUpdateRequestDto,
+  type ChecklistOverviewDto,
+  type ChecklistResultDto,
+} from '../types/api';
+import { type Checklist, type ChecklistItem, type ChecklistOverview } from '../types/domain';
 
-export async function getChecklistTemplate(tradeType?: PropertyTradeType): Promise<ChecklistItem[]> {
+export async function createOrGetChecklist(propertyId: number, cookieHeader?: string): Promise<Checklist> {
   if (useMockData) {
-    return getMockChecklistTemplate();
+    return getMockChecklist(propertyId);
   }
 
-  const searchParams = tradeType ? `?tradeType=${encodeURIComponent(tradeType)}` : '';
-  const dtos = await requestJson<ChecklistItemDto[]>(`/checklists/template${searchParams}`);
-  return dtos.map(mapChecklistItemDto);
+  const authHeaders = cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined;
+
+  try {
+    const dto = await requestJson<ChecklistDto>(`/properties/${propertyId}/checklists`, {
+      method: 'GET',
+      ...authHeaders,
+    });
+    return mapChecklistDto(dto);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) {
+      const dto = await requestJson<ChecklistDto>(`/properties/${propertyId}/checklists`, {
+        method: 'POST',
+        ...authHeaders,
+      });
+      return mapChecklistDto(dto);
+    }
+    throw error;
+  }
+}
+
+export async function getChecklistResult(checklistId: number, cookieHeader?: string): Promise<ChecklistSummary> {
+  if (useMockData) {
+    return getMockChecklistResult();
+  }
+
+  const dto = await requestJson<ChecklistResultDto>(
+    `/checklists/${checklistId}/result`,
+    cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined,
+  );
+  return mapChecklistResultDto(dto);
+}
+
+export async function updateChecklistItem(
+  checklistId: number,
+  itemId: number,
+  request: ChecklistItemUpdateRequestDto,
+): Promise<ChecklistItem> {
+  if (useMockData) {
+    return updateMockChecklistItem(itemId, request);
+  }
+
+  const dto = await requestJson<ChecklistItemDto>(`/checklists/${checklistId}/items/${itemId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(request),
+  });
+  return mapChecklistItemDto(dto);
+}
+
+export async function getMyChecklistOverviews(cookieHeader?: string): Promise<ChecklistOverview[]> {
+  if (useMockData) {
+    return getMockChecklistOverviews();
+  }
+
+  const dtos = await requestJson<ChecklistOverviewDto[]>(
+    '/checklists',
+    cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined,
+  );
+  return dtos.map(mapChecklistOverviewDto);
 }

@@ -73,26 +73,45 @@ export type PropertyRiskSummary = {
 
 export type ChecklistCategoryId = 'indoor' | 'noise' | 'safety' | 'documents' | 'area';
 
-export type ChecklistStatus = 'checked' | 'caution' | 'problem';
-
 export type ChecklistCategory = {
   id: ChecklistCategoryId;
   name: string;
   icon: LucideIcon;
 };
 
+export type ChecklistItemType = 'check' | 'yesNo' | 'date' | 'documentRequest';
+export type ChecklistImportance = 'required' | 'general';
+
 export type ChecklistItem = {
   id: number;
   category: ChecklistCategoryId;
-  text: string;
-  status: ChecklistStatus | null;
+  content: string;
+  guideText: string | null;
+  importance: ChecklistImportance;
+  itemType: ChecklistItemType;
+  checked: boolean;
+  issueFound: boolean;
+  value: string | null;
+  userNote: string | null;
 };
 
-export type ChecklistStatusOption = {
-  status: ChecklistStatus;
-  label: string;
-  icon: LucideIcon;
-  className: string;
+// Backend의 status(NOT_STARTED/IN_PROGRESS/COMPLETED)는 FE가 items로부터 직접 계산하는
+// summary(app/lib/checklistSummary.ts)로 대체되므로 domain 타입엔 보관하지 않는다.
+export type Checklist = {
+  id: number;
+  propertyId: number;
+  items: ChecklistItem[];
+};
+
+export type ChecklistOverviewStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
+
+export type ChecklistOverview = {
+  propertyId: number;
+  checklistId: number | null;
+  address: string;
+  propertyTitle: string;
+  tradeType: PropertyTradeType;
+  status: ChecklistOverviewStatus;
 };
 
 export type ContractRiskItem = {

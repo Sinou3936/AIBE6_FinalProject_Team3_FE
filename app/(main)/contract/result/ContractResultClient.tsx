@@ -249,7 +249,7 @@ export function ContractResultClient({ riskItems, contractInfoItems, loadError }
           )}
 
           <div className="flex flex-col gap-4 pt-6 md:flex-row">
-            <Link href="/checklist" className="ansim-button-primary flex-1 py-4">
+            <Link href="/properties/1/checklist" className="ansim-button-primary flex-1 py-4">
               계약 체크리스트로 이동 <ArrowRight className="h-5 w-5" />
             </Link>
             <button className="ansim-button-secondary flex-1 py-4">전문가 상담 안내받기</button>
