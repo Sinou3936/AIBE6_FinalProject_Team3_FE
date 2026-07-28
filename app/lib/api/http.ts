@@ -28,24 +28,18 @@ export function getApiBaseUrl(): string {
   return API_BASE_URL;
 }
 
+// 401을 받아도 여기서 자체적으로 refresh를 시도하지 않는다 — refresh는 백엔드에서 refresh token을
+// 실제로 회전(rotate)시키는 상태 변경 작업인데, 이 함수는 브라우저로 나가는 최종 응답(Set-Cookie)에
+// 접근할 방법이 없어 회전된 새 토큰을 브라우저 쿠키에 반영할 수 없다. 예전에는 여기서도 자체
+// refresh를 시도해 그 요청 한 번은 성공시켰지만, 회전된 refresh token이 브라우저에 전달되지 않아
+// 브라우저는 이미 무효화된 옛 토큰을 계속 들고 있다가 다음 refresh 시점에 세션이 끊기는 문제가
+// 있었다. refresh는 이제 proxy.ts(미들웨어)에서만 수행한다 — 보호 라우트는 항상 미들웨어를 먼저
+// 거치므로, 이 함수가 호출되는 시점엔 이미 유효한 access token이 쿠키에 있어야 정상이다.
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = normalizeHeaders(init?.headers);
   const response = await fetch(`${getApiBaseUrl()}${path}`, { ...init, credentials: 'include', headers });
-
-  if (response.status === 401 && path !== REFRESH_PATH) {
-    const outcome = await retryAfterRefresh<T>(path, init, headers);
-    if (outcome.attempted) {
-      return outcome.value;
-    }
-  }
-
   return parseOrThrow<T>(response);
 }
-
-// "재시도를 안 했다"와 "재시도해서 정상적으로 falsy 값(void/null/false/0/'')을 받았다"를 구분해야 한다.
-// retryAfterRefresh가 T | null을 돌려주면 두 경우가 구분이 안 돼서, void를 반환하는
-// /auth/logout 같은 엔드포인트가 재시도에 성공해도 실패로 오인될 수 있다.
-type RetryOutcome<T> = { attempted: true; value: T } | { attempted: false };
 
 // HeadersInit은 plain object/배열/Headers 인스턴스 중 뭐든 될 수 있는데, {...init?.headers}로
 // 스프레드하면 Headers 인스턴스나 배열은 조용히 빈 객체가 되어 헤더가 통째로 사라진다.
@@ -61,52 +55,11 @@ function normalizeHeaders(initHeaders?: HeadersInit): Headers {
   return headers;
 }
 
-/**
- * 서버 컴포넌트에서 명시적으로 넘겨준 Cookie 헤더에 refresh_token 값이 있을 때만 재시도한다.
- * credentials:'include'로 브라우저가 자동 첨부하는 호출은 httpOnly라 JS로 쿠키 값을 읽을 수 없어
- * 여기서는 재시도 대상이 아니다.
- *
- * 지금 requestJson을 클라이언트 컴포넌트에서 직접 호출하는 사례는 `logout()`(`MainLayoutClient.tsx`),
- * `login()`(`LoginFormClient.tsx`), `signup()`(`SignupFormClient.tsx`), `updatePassword()`
- * (`PasswordUpdateFormClient.tsx`) 네 곳이다. 앞의 셋은 `POST /auth/{logout,login,signup}`으로
- * permitAll이고 인증 여부를 아예 안 보므로, 401이 나도 "자격 증명이 틀림"(login)이지 "Access Token
- * 만료"가 아니라 이 재시도 로직이 다루는 케이스를 받을 일이 없다.
- *
- * `updatePassword()`(`PATCH /auth/password`)는 다르다 — 인증이 필요한 엔드포인트라 페이지에 머무는
- * 동안 Access Token이 만료되면 실제로 이 401을 받는다. 이 함수(재시도)도 proxy.ts(페이지 이동
- * 시점에만 동작)도 이 케이스를 커버하지 못하므로, 대신 `PasswordUpdateFormClient`가 응답의
- * `error.code === 'COMMON_401'`을 직접 감지해 `/login?error=session_expired`로 보낸다 — 인증이
- * 필요한 다른 클라이언트 사이드 호출(예: 체크리스트 토글)도 새로 추가할 땐 같은 패턴을 따르거나,
- * 반복된다면 그때 가서 이 지점에 공통 처리로 끌어올릴 것.
- */
-async function retryAfterRefresh<T>(
-  path: string,
-  init: RequestInit | undefined,
-  headers: Headers,
-): Promise<RetryOutcome<T>> {
-  const cookieHeader = headers.get('Cookie');
-  const refreshToken = extractCookieValue(cookieHeader, REFRESH_TOKEN_COOKIE);
-  if (!refreshToken) {
-    return { attempted: false };
-  }
-
-  const outcome = await refreshSession(refreshToken);
-  if (outcome.status !== 'success') {
-    return { attempted: false };
-  }
-
-  const retryHeaders = new Headers(headers);
-  retryHeaders.set('Cookie', mergeCookieHeader(cookieHeader, outcome.cookies));
-
-  const retryResponse = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: retryHeaders,
-  });
-  const value = await parseOrThrow<T>(retryResponse);
-  return { attempted: true, value };
-}
-
+// `updatePassword()`(`PATCH /auth/password`)처럼 인증이 필요한 엔드포인트를 클라이언트 컴포넌트에서
+// 직접 호출하는 경우, 페이지에 머무는 동안 Access Token이 만료되면 이 함수가 401을 그대로 던진다.
+// proxy.ts는 페이지 이동 시점에만 동작해 이 케이스를 커버하지 못하므로, 대신 `PasswordUpdateFormClient`가
+// `error.code === 'UNAUTHORIZED'`을 직접 감지해 `/login?error=session_expired`로 보낸다 — 인증이 필요한
+// 다른 클라이언트 사이드 호출을 새로 추가할 땐 같은 패턴을 따를 것.
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const body = await readApiResponse<T>(response);
 
@@ -133,8 +86,8 @@ export type RefreshSessionOutcome =
 /**
  * Access Token 쿠키가 만료(브라우저가 자동 삭제)된 상태에서 Refresh Token으로 세션을 갱신한다.
  * 백엔드는 응답 바디 대신 Set-Cookie 헤더로 새 access_token/refresh_token을 내려주므로,
- * requestJson(바디만 반환) 대신 raw fetch로 응답 헤더를 그대로 반환한다 — 호출부(middleware,
- * retryAfterRefresh)가 이 값을 그대로 브라우저 응답/재시도 요청에 실어 보내야 실제로 반영된다.
+ * requestJson(바디만 반환) 대신 raw fetch로 응답 헤더를 그대로 반환한다 — 호출부(middleware)가
+ * 이 값을 그대로 브라우저 응답에 실어 보내야 실제로 반영된다.
  */
 export async function refreshSession(refreshTokenCookieValue: string): Promise<RefreshSessionOutcome> {
   let response: Response;
@@ -154,21 +107,6 @@ export async function refreshSession(refreshTokenCookieValue: string): Promise<R
   // 미들웨어/Node 런타임에서는 지원되지만, 런타임에 따라 없을 수 있으니 안전하게 호출한다.
   const setCookies = response.headers.getSetCookie?.() ?? [];
   return setCookies.length > 0 ? { status: 'success', cookies: setCookies } : { status: 'rejected' };
-}
-
-export function extractCookieValue(cookieHeader: string | null | undefined, name: string): string | undefined {
-  if (!cookieHeader) {
-    return undefined;
-  }
-
-  for (const pair of cookieHeader.split(';')) {
-    const separatorIndex = pair.indexOf('=');
-    if (separatorIndex > 0 && pair.slice(0, separatorIndex).trim() === name) {
-      return pair.slice(separatorIndex + 1).trim();
-    }
-  }
-
-  return undefined;
 }
 
 // Set-Cookie 문자열 배열("access_token=xxx; Path=/; HttpOnly; ...")에서 name=value 쌍만 뽑아,
