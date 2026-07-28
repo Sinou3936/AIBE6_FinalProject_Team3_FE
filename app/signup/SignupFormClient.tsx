@@ -4,8 +4,13 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ApiError } from '../lib/api/http';
 import { signup } from '../services/auth';
+import { type PasswordPolicyDto } from '../types/api';
 
-export function SignupFormClient() {
+type SignupFormClientProps = {
+  passwordPolicy: PasswordPolicyDto;
+};
+
+export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -60,8 +65,8 @@ export function SignupFormClient() {
           autoComplete="new-password"
           minLength={8}
           maxLength={72}
-          pattern="(?=.*[A-Za-z])(?=.*\d)[\x21-\x7E]{8,72}"
-          title="영문과 숫자를 포함한 8~72자의 영문/숫자/기호를 입력해 주세요. 공백은 사용할 수 없습니다."
+          pattern={passwordPolicy.pattern}
+          title={passwordPolicy.message}
           required
         />
       </label>

@@ -4,13 +4,15 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ApiError } from '../../../lib/api/http';
 import { updatePassword } from '../../../services/auth';
+import { type PasswordPolicyDto } from '../../../types/api';
 import { Modal } from '../../../ui/Modal';
 
 type PasswordUpdateFormClientProps = {
   hasPassword: boolean;
+  passwordPolicy: PasswordPolicyDto;
 };
 
-export function PasswordUpdateFormClient({ hasPassword }: PasswordUpdateFormClientProps) {
+export function PasswordUpdateFormClient({ hasPassword, passwordPolicy }: PasswordUpdateFormClientProps) {
   const router = useRouter();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -82,8 +84,8 @@ export function PasswordUpdateFormClient({ hasPassword }: PasswordUpdateFormClie
             autoComplete="new-password"
             minLength={8}
             maxLength={72}
-            pattern="(?=.*[A-Za-z])(?=.*\d)[\x21-\x7E]{8,72}"
-            title="영문과 숫자를 포함한 8~72자의 영문/숫자/기호를 입력해 주세요. 공백은 사용할 수 없습니다."
+            pattern={passwordPolicy.pattern}
+            title={passwordPolicy.message}
             required
           />
         </label>

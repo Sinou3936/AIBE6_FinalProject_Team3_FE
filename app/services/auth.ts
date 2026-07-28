@@ -1,5 +1,5 @@
 import { getApiBaseUrl, requestJson } from '../lib/api/http';
-import { type MeResponseDto } from '../types/api';
+import { type MeResponseDto, type PasswordPolicyDto } from '../types/api';
 
 export { refreshSession } from '../lib/api/http';
 
@@ -13,6 +13,12 @@ export function getKakaoLoginUrl(): string {
 
 export async function getCurrentUser(cookieHeader?: string): Promise<MeResponseDto> {
   return requestJson<MeResponseDto>('/auth/me', cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined);
+}
+
+// 회원가입/비밀번호 변경 폼의 <input pattern="..."> 값을 여기서 받아온다 — backend
+// PasswordPolicy가 유일한 소스이고, 프론트는 이 값을 하드코딩해두지 않는다.
+export async function getPasswordPolicy(): Promise<PasswordPolicyDto> {
+  return requestJson<PasswordPolicyDto>('/auth/password-policy');
 }
 
 export async function logout(): Promise<void> {
