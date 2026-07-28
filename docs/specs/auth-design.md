@@ -14,7 +14,7 @@ Backend `docs/specs/auth-design.md`와 같은 성격의 **요구사항 명세서
 | `app/signup/page.tsx` + `SignupFormClient.tsx` | 이메일 회원가입 폼 |
 | `app/oauth/callback/route.ts` | 소셜 로그인 성공 후 리다이렉트 목적지(온보딩/홈) 결정 |
 | `app/services/auth.ts` | 로그인/회원가입/로그아웃/비밀번호 변경/`GET /auth/me` 호출 |
-| `app/lib/api/http.ts` | 공통 fetch 래퍼(`requestJson`), 401 감지 후 자동 재발급 재시도, `refreshSession` |
+| `app/lib/api/http.ts` | 공통 fetch 래퍼(`requestJson`), `refreshSession`. **(2026-07-28)** 예전엔 `requestJson`이 401을 감지해 자체적으로 재발급 재시도(`retryAfterRefresh`)까지 했으나, 회전된 refresh token이 브라우저에 반영 안 되는 문제로 제거됨 — refresh는 이제 `proxy.ts`에서만 수행 |
 | `proxy.ts` | Next.js 미들웨어 — 보호된 경로 진입 시 access_token 쿠키 존재 여부 확인, 없으면 refresh 시도 |
 | `app/(main)/layout.tsx` | `GET /auth/me` 호출로 실제 세션 유효성 재확인, 실패 시 `/login?error=session_expired` |
 
@@ -23,7 +23,7 @@ Backend `docs/specs/auth-design.md`와 같은 성격의 **요구사항 명세서
 | 요구사항 | 실제 구현 |
 | --- | --- |
 | 이메일/비밀번호/닉네임 입력 → 가입 요청 | ✅ `SignupFormClient` → `POST /auth/signup` |
-| 비밀번호 정책(8자 이상, 영문+숫자) 검증 | ⚠️ **클라이언트에서도 선제 검증하지만 최종 판단은 아님** — `<input pattern="(?=.*[A-Za-z])(?=.*\d)[\x21-\x7E]{8,72}">`로 브라우저 단에서 막지만, 실제 정책 판단은 백엔드 응답에 위임. FE 정규식이 백엔드 정책과 어긋나면 이중 실패 가능(남은 이슈 4번) |
+| 비밀번호 정책(8자 이상, 영문+숫자) 검증 | ✅ **클라이언트에서도 선제 검증하지만 최종 판단은 아님** — `<input pattern="...">`로 브라우저 단에서 막지만, 실제 정책 판단은 백엔드 응답에 위임. **(2026-07-28)** 정규식은 더 이상 하드코딩이 아니라 `GET /auth/password-policy`(backend `PasswordPolicy`가 유일한 소스)로 런타임에 받아온다 — `signup/page.tsx`/`mypage/password/page.tsx`(Server Component)가 조회해 `SignupFormClient`/`PasswordUpdateFormClient`에 props로 내려줌. 조회 실패 시에만 하드코딩된 폴백 값을 씀(남은 이슈 4번 참고) |
 | 성공 시 온보딩(프로필 등록) 화면으로 이동 | ✅ 가입 성공 시 무조건 `/mypage/profile`로 이동(방금 만든 계정이라 프로필이 없다고 가정) |
 | 실패: 이메일 중복 / 비밀번호 정책 미충족 / 필수값 누락 | ⚠️ 사유별로 구분된 메시지가 아니라, 백엔드가 내려준 `ApiError.message`를 그대로 표시. 필수값 누락은 `required` 속성으로 애초에 제출 자체가 막힘 |
 
@@ -50,16 +50,16 @@ Backend `docs/specs/auth-design.md`와 같은 성격의 **요구사항 명세서
 | --- | --- |
 | Access Token 서명/만료/사용자 상태 검증 | Backend 책임 — FE는 검증 로직 자체가 없음 |
 | 실패 시 접근 제한 | ✅ 2단계로 구현: ① `proxy.ts`가 보호 경로 진입 시 `access_token` 쿠키 존재만 가볍게 확인 ② `(main)/layout.tsx`가 `GET /auth/me` 실제 호출로 최종 확인, 실패 시 `/login?error=session_expired` |
-| 실패 사유 제공 | ⚠️ "토큰 없음/유효하지 않음/만료됨/비활성 사용자"를 FE가 구분해서 보여주지 않고, 전부 동일한 "로그인 세션을 확인할 수 없습니다" 문구로 뭉뚱그려짐(의도적으로 보안상 사유를 상세히 안 밝히는 쪽에 가까움 — 비기능요구사항의 "실패 사유 과다 노출 방지"와는 오히려 부합) |
+| 실패 사유 제공 | ✅ **화면 문구는 의도적으로 통합, 코드 분기는 구분해서 인식.** FE는 전부 동일한 "로그인 세션을 확인할 수 없습니다" 문구로 보여준다 — 토큰이 없든/무효하든/만료됐든 사용자가 취해야 할 행동은 "다시 로그인" 하나뿐이라 문구를 나눠도 실질적 이득이 없고, `AUTH_INVALID_CREDENTIALS`(이메일/비밀번호 오류 통합)와 같은 철학의 연장. **(2026-07-28)** 백엔드가 `ErrorCode.AUTH_TOKEN_MISSING`/`AUTH_TOKEN_INVALID`/`AUTH_TOKEN_EXPIRED`로 사유를 세분화하면서(`fix/auth-access_token&refresh_token` 브랜치, `dev` 머지 대기 중), FE의 "재로그인 필요 여부" 판단 로직(`isSessionInvalidErrorCode`)이 이 네 코드를 전부 인식하도록 갱신했다 — **화면에 보여줄 문구를 나누자는 게 아니라, "재로그인 페이지로 보낼지 말지"를 정확히 판단하려면 새 코드들도 "세션 무효"로 인식해야 하기 때문**(안 그러면 만료/무효 케이스에서 재로그인 유도 자체가 아예 안 걸림 — 아래 "남은 이슈 2번" 참고). 사유별로 다른 문구/로깅이 필요해지면 이 함수 내부만 확장하면 됨 |
 
 ## 토큰 재발급 — 요구사항 대비
 
 | 요구사항 | 실제 구현 |
 | --- | --- |
-| Refresh Token 서명/만료만으로 검증(별도 저장소 조회 없음) | ✅ FE는 그냥 백엔드 `POST /auth/refresh` 응답을 신뢰 — FE 자체 저장소 없음 |
-| 성공 시 새 Access Token 발급 | ✅ `refreshSession()`이 백엔드의 `Set-Cookie` 응답을 그대로 브라우저/재시도 요청에 반영 |
+| Refresh Token 서명/만료만으로 검증(별도 저장소 조회 없음) | Backend 책임 — FE는 검증 방식 자체에 관여하지 않고 `POST /auth/refresh` 응답을 신뢰하기만 함(FE 자체 저장소는 없음). **참고**: 이 요구사항 문구가 원한 "서명/만료만으로 검증"은 실제 Backend 구현과 다르다(DB 조회 방식 — backend `docs/specs/auth-design.md`의 "토큰 재발급" 섹션 참고) — FE 관점에서 ✅로 표시하면 backend 문서와 모순돼 보일 수 있어 판정 없이 서술로만 남김 |
+| 성공 시 새 Access Token 발급 | ✅ `refreshSession()`은 백엔드의 `Set-Cookie` 응답 헤더를 그대로 반환만 하고, 그 결과를 실제로 현재 요청 헤더와 브라우저 응답에 반영하는 건 호출부인 `proxy.ts`다(`mergeCookieHeader`로 이번 요청 헤더에 병합 + `response.headers.append('Set-Cookie', ...)`로 브라우저에도 내려줌) |
 | 실패 시 재발급 안 되고 재로그인 요청 | ✅ `proxy.ts`에서 refresh 실패 시 `/login`으로 리다이렉트 |
-| (사용성) Access Token 만료 시 자동 재발급 시도 | ⚠️ **화면 전환/Server Component 호출까지만 커버됨** — `proxy.ts`(페이지 이동 시)와 `requestJson`의 `retryAfterRefresh`(Server Component가 쿠키를 명시적으로 넘긴 호출)에서만 동작. **브라우저에서 발생하는 클라이언트 사이드 호출은 대상이 아님** — Refresh Token이 httpOnly라 JS가 값을 읽을 수 없어 원천적으로 재시도가 불가능하기 때문. `PasswordUpdateFormClient`만 `error.code === 'COMMON_401'`을 직접 감지해 재로그인으로 유도하는 개별 처리가 있고, 그 외 클라이언트 컴포넌트(예: 체크리스트 항목 토글)는 이 패턴이 없어 세션 도중 Access Token이 만료되면 그냥 일반 에러("저장하지 못했어요")로만 표시됨 (남은 이슈 2번) |
+| (사용성) Access Token 만료 시 자동 재발급 시도 | ⚠️ **화면 전환(`proxy.ts`)에서만 커버됨.** **(2026-07-28 갱신)** 예전엔 `requestJson`에 `retryAfterRefresh`(Server Component가 쿠키를 명시적으로 넘긴 호출용 재시도)가 있었으나, 회전된 refresh token이 브라우저에 실제로 반영되지 않아 다음 refresh 시점에 세션이 끊기는 문제가 있어 **완전히 제거함** — 이제 refresh는 `proxy.ts`(페이지 이동 시) 한 곳에서만 일어난다. **브라우저에서 발생하는 클라이언트 사이드 호출은 여전히 재발급 대상이 아님** — 다만 이건 httpOnly 때문에 "원천적으로 불가능"한 게 아니라 **아직 구현이 안 된 것**이다(정정: 2026-07-28). httpOnly는 JS가 `document.cookie`로 값을 직접 읽거나 쓰는 것만 막을 뿐, `fetch(url, { credentials: 'include' })`가 그 쿠키를 자동으로 실어 보내는 것도, 브라우저가 응답의 `Set-Cookie`를 받아 쿠키 저장소를 갱신하는 것도 막지 않는다 — 이 둘 다 브라우저가 JS 개입 없이 알아서 처리하는 동작이다(JS가 `fetch` 응답에서 `Set-Cookie` 헤더 값 자체를 읽을 수 없는 것과는 별개). 그러니 client component가 직접 `POST /auth/refresh`를 호출해도 기계적으로는 토큰 회전이 반영될 수 있다. `requestJson()`에 이 흐름이 아직 없는 진짜 이유는(아래 "남은 이슈 2번" 참고) 예전 `retryAfterRefresh`가 애초에 Server Component 전용(서버-서버 fetch라 응답의 Set-Cookie가 실제 브라우저에 자동 전달되지 않는 문제가 있었음, 그래서 제거됨)이었고, 순수 클라이언트 컴포넌트용 재시도 흐름은 아직 별도로 만든 적이 없기 때문이다. `PasswordUpdateFormClient`만 `isSessionInvalidErrorCode(error.code)`(`app/lib/api/http.ts`)를 직접 감지해 재로그인으로 유도하는 개별 처리가 있고, 그 외 클라이언트 컴포넌트(예: 체크리스트 항목 토글)는 이 패턴이 없어 세션 도중 Access Token이 만료되면 그냥 일반 에러("저장하지 못했어요")로만 표시됨. **(2026-07-28 수정)** `isSessionInvalidErrorCode`는 `UNAUTHORIZED`/`AUTH_TOKEN_MISSING`/`AUTH_TOKEN_INVALID`/`AUTH_TOKEN_EXPIRED` 네 코드를 전부 인식한다 — 예전엔 `UNAUTHORIZED` 하나만 봤는데, 백엔드가 실패 사유를 세 코드로 분리하면서(`fix/auth-access_token&refresh_token` 브랜치) 그 체크가 실제로 깨져 있었음(아래 "남은 이슈 2번" 참고) |
 
 ## 로그아웃 — 요구사항 대비
 
@@ -95,7 +95,15 @@ Backend `docs/specs/auth-design.md`와 같은 성격의 **요구사항 명세서
 
 ## 남은 이슈 / 확인 필요 총정리
 
-1. **`proxy.ts`의 `matcher`에 `/checklists`(신규 "내 체크리스트 목록" 화면)가 빠져 있음** — `/checklist/:path*`만 등록돼 있고 복수형 경로는 매칭되지 않는다. `(main)/layout.tsx`가 모든 하위 화면에서 이중으로 `GET /auth/me`를 호출해 최종 인증을 확인하기 때문에 실제 보안 구멍은 아니지만, `/checklists`는 미들웨어 단계의 가벼운 쿠키 체크(+조기 refresh)를 건너뛰고 매번 무거운 API 호출로만 인증이 처리된다. 새 보호 라우트를 추가할 때 이 matcher 배열 갱신을 팀 체크리스트에 넣을 필요가 있음
-2. **클라이언트 사이드 호출은 Access Token 자동 재발급 대상이 아님** — httpOnly 쿠키 구조상 근본적 한계. 체크리스트 항목 체크처럼 화면에 오래 머무는 동안 발생하는 호출이 대표 사례이며, 지금은 `PasswordUpdateFormClient`만 `COMMON_401`을 개별적으로 감지해 재로그인 유도하는 패턴을 갖고 있음(코드 주석에 "반복되면 공통 처리로 끌어올릴 것"이라고 이미 명시돼 있음)
-3. **로그인/회원가입 실패 메시지가 백엔드 원문 그대로 노출됨** — "실패 사유를 보안상 과도하게 노출하지 않는다"는 요구사항 충족 여부가 전적으로 백엔드 메시지 내용에 달려 있고, FE 쪽엔 별도 필터링/일반화 로직이 없음
-4. **비밀번호 정책이 FE(정규식)와 Backend 양쪽에 각각 하드코딩돼 있음** — 두 정책이 어긋나면 클라이언트 통과 후 서버에서 거부당하는 이중 실패를 사용자가 겪을 수 있음. 정책이 바뀌면 두 곳을 함께 수정해야 함
+1. ~~`proxy.ts`의 `matcher`에 `/checklists`(신규 "내 체크리스트 목록" 화면)가 빠져 있음~~ — ✅ 2026-07-28 완전히 해결(경로 추가 + 실제 리다이렉트 검증 둘 다 완료):
+   - `matcher`에 `/checklists/:path*` 추가함
+   - **정정 이력**: 최초엔 이 검증을 mock 모드(`NEXT_PUBLIC_USE_MOCK_DATA=true`, `.env.local`)인 채로 해서 `proxy.ts`가 `if (useMockData) return NextResponse.next()`로 통째로 스킵됐고, 그때 관찰한 `/login?error=session_expired`는 `(main)/layout.tsx`의 `GET /auth/me` 폴백 체크가 만든 것이었다(리뷰로 발견) — `proxy.ts`의 matcher 변경 자체는 검증된 적이 없었음
+   - `NEXT_PUBLIC_USE_MOCK_DATA=false`로 임시로 바꿔서 재검증: 미인증 상태로 `/checklists` 접속 시 `proxy.ts`가 정확히 코드대로(쿼리 없는 `/login`) 리다이렉트하는 것을 확인함. 검증 후 `.env.local`은 원래 값(`true`)으로 복구함
+2. **클라이언트 사이드 호출은 Access Token 자동 재발급 대상이 아님** — 체크리스트 항목 체크처럼 화면에 오래 머무는 동안 발생하는 호출이 대표 사례이며, 지금은 `PasswordUpdateFormClient`만 세션 무효 코드를 개별적으로 감지해 재로그인 유도하는 패턴을 갖고 있음(코드 주석에 "반복되면 공통 처리로 끌어올릴 것"이라고 이미 명시돼 있음). **정정(2026-07-28)**: 이전엔 "httpOnly 쿠키 구조상 근본적 한계"라고 적었는데 부정확함 — httpOnly는 JS가 쿠키 값을 직접 읽는 것만 막지, `credentials:'include'` fetch가 쿠키를 자동으로 보내거나 브라우저가 `Set-Cookie` 응답을 자동 반영하는 것까지 막지는 않는다(위 "토큰 재발급" 섹션 참고). 진짜 이유는 **아직 구현이 안 됐다는 것**과, 만들려면 동시에 여러 컴포넌트가 401을 만났을 때 refresh를 한 번만 실행하도록 조율하는 로직(단일 실행 보장) 같은 게 필요해서 손이 좀 가는 작업이라는 것 — "불가능"이 아니라 "아직 안 만들었고 만들려면 신경 쓸 부분이 있다"가 정확한 상태. 지금 당장은 "반복되면 공통 처리로 끌어올린다"는 기존 방향 유지가 합리적이라고 판단, 별도 작업 없이 보류
+   - **✅ 파생 버그 발견 및 수정(2026-07-28)**: 위 감지 로직이 원래 `error.code === 'UNAUTHORIZED'` 하나만 봤는데, 백엔드가 실패 사유를 `AUTH_TOKEN_MISSING`/`AUTH_TOKEN_INVALID`/`AUTH_TOKEN_EXPIRED`로 세분화하면서(`fix/auth-access_token&refresh_token` 브랜치) 실제로는 대부분의 만료/무효 케이스에서 이 체크가 안 걸리게 깨져 있었음 — 즉 비밀번호 변경 화면에 머무는 동안 세션이 끊기면 재로그인 유도 없이 그냥 일반 에러 문구만 보였을 것. `app/lib/api/http.ts`에 `isSessionInvalidErrorCode()`를 추가해 네 코드를 전부 인식하도록 고침(화면 문구 자체는 여전히 통합 — 위 "토큰 검증" 섹션 참고)
+3. ~~로그인/회원가입 실패 메시지가 백엔드 원문 그대로 노출됨~~ — ✅ **의도된 설계로 확인.** 백엔드 `ErrorCode` 메시지는 전부 사용자에게 보여줄 목적으로 이미 다듬어진 한글 문장이고(스택트레이스/내부 예외 노출 경로 없음), 계정 존재 여부 등 민감 정보도 백엔드가 이미 의도적으로 뭉뚱그려 내려줌 — FE가 그대로 표시하는 게 이중 번역 계층 없이 정확한 설계
+4. ~~비밀번호 정책이 FE(정규식)와 Backend 양쪽에 각각 하드코딩돼 있음~~ — ✅ 2026-07-28 완전히 해결. `GET /auth/password-policy`(backend `PasswordPolicy.HTML_INPUT_PATTERN`/`MESSAGE`)를 유일한 소스로 삼도록 바꿈:
+   - backend: `PasswordPolicy`를 public으로 열고, HTML `pattern` 속성용으로 앞뒤 `^`/`$`를 뗀 `HTML_INPUT_PATTERN`을 `PATTERN`에서 파생(별도 유지보수 값 아님). `AuthController`에 `GET /auth/password-policy`(인증 불필요) 추가
+   - frontend: `services/auth.ts`의 `getPasswordPolicy()`가 이 엔드포인트를 호출, `signup/page.tsx`/`mypage/password/page.tsx`(Server Component)가 조회해서 `SignupFormClient`/`PasswordUpdateFormClient`에 props로 전달 — 두 컴포넌트 모두 더 이상 정규식을 하드코딩하지 않음
+   - 조회 실패(백엔드 다운 등 극히 드문 경우)에만 각 page.tsx의 하드코딩된 폴백 값을 씀 — 이 폴백이 실제 정책과 어긋나도 서버가 최종 검증에서 걸러주므로 이중 실패로 이어지지 않음
+   - 브라우저로 직접 확인: `/signup` 접속 시 실제 백엔드 메시지가 렌더링되고, `input.checkValidity()`로 패턴이 실제 동작함을 검증함

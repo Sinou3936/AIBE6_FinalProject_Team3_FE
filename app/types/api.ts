@@ -117,6 +117,12 @@ export type MeResponseDto = {
   role: string;
 };
 
+export type PasswordPolicyDto = {
+  // <input pattern="..."> 속성값으로 그대로 쓸 수 있는 정규식(앞뒤 ^/$ 없음).
+  pattern: string;
+  message: string;
+};
+
 export type UserTransactionTypeDto = 'JEONSE' | 'WOLSE';
 
 export type UserProfileDto = {

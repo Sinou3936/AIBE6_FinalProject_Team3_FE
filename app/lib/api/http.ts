@@ -5,6 +5,22 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/,
 const REFRESH_TOKEN_COOKIE = 'refresh_token';
 const REFRESH_PATH = '/auth/refresh';
 
+// 백엔드가 access token 인증 실패를 401로 내려줄 때 쓰는 코드들. 전부 "지금 로그인 상태가 아니니
+// 다시 로그인해야 한다"는 같은 의미라, 화면에 보여줄 문구는 하나로 통일하되(의도적 선택 —
+// docs/specs/auth-design.md 참고) 재로그인으로 보낼지 판단하는 코드 분기에서는 넷 다 인식해야 한다.
+// UNAUTHORIZED는 하위 호환(백엔드가 아직 세분화 전이거나, /auth/me의 탈퇴 유저 체크처럼 컨트롤러
+// 레벨에서 직접 이 코드를 쓰는 경우)을 위해 남겨둔다.
+const SESSION_INVALID_ERROR_CODES = new Set([
+  'UNAUTHORIZED',
+  'AUTH_TOKEN_MISSING',
+  'AUTH_TOKEN_INVALID',
+  'AUTH_TOKEN_EXPIRED',
+]);
+
+export function isSessionInvalidErrorCode(code: string | null | undefined): boolean {
+  return code != null && SESSION_INVALID_ERROR_CODES.has(code);
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -28,13 +44,20 @@ export function getApiBaseUrl(): string {
   return API_BASE_URL;
 }
 
-// 401을 받아도 여기서 자체적으로 refresh를 시도하지 않는다 — refresh는 백엔드에서 refresh token을
-// 실제로 회전(rotate)시키는 상태 변경 작업인데, 이 함수는 브라우저로 나가는 최종 응답(Set-Cookie)에
-// 접근할 방법이 없어 회전된 새 토큰을 브라우저 쿠키에 반영할 수 없다. 예전에는 여기서도 자체
-// refresh를 시도해 그 요청 한 번은 성공시켰지만, 회전된 refresh token이 브라우저에 전달되지 않아
-// 브라우저는 이미 무효화된 옛 토큰을 계속 들고 있다가 다음 refresh 시점에 세션이 끊기는 문제가
-// 있었다. refresh는 이제 proxy.ts(미들웨어)에서만 수행한다 — 보호 라우트는 항상 미들웨어를 먼저
-// 거치므로, 이 함수가 호출되는 시점엔 이미 유효한 access token이 쿠키에 있어야 정상이다.
+// 401을 받아도 여기서 자체적으로 refresh를 시도하지 않는다 — 예전엔 여기서도 자체 refresh를
+// 시도했지만(retryAfterRefresh), 회전된 새 access/refresh 토큰이 실제 브라우저 쿠키에 반영되지
+// 않아 브라우저가 이미 무효화된 옛 토큰을 계속 들고 있다가 다음 refresh 시점에 세션이 끊기는
+// 문제가 있어 제거했다. 이 함수는 Server Component와 클라이언트 컴포넌트 양쪽에서 호출되는데,
+// Server Component 호출 시엔 이 refresh 응답이 서버-서버 통신 결과일 뿐이라 그 Set-Cookie를 실제
+// 브라우저 응답에 반영하려면 호출부가 명시적으로 헤더를 복사해 자기 응답에 실어야 한다 —
+// requestJson은 임의의 호출 깊이에서 쓰이므로 그 반영을 보장할 방법이 없다(retryAfterRefresh를
+// 없앤 진짜 이유). 참고로 이건 httpOnly라서 원천적으로 불가능한 게 아니다 — 순수 브라우저
+// fetch(credentials:'include')라면 쿠키 송수신이 자동으로 되지만, 여기서는 브라우저가 아니라
+// Node 런타임이 보내는 서버 사이드 fetch라 별개 얘기다. 클라이언트 컴포넌트에서 진짜 브라우저
+// fetch로 재시도하는 것 자체는 구조적으로 막혀 있지 않고 아직 안 만든 것뿐이다 —
+// docs/specs/auth-design.md 참고. refresh는 이제 proxy.ts(미들웨어)에서만 수행한다 — 보호
+// 라우트는 항상 미들웨어를 먼저 거치므로, 이 함수가 호출되는 시점엔 이미 유효한 access token이
+// 쿠키에 있어야 정상이다.
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = normalizeHeaders(init?.headers);
   const response = await fetch(`${getApiBaseUrl()}${path}`, { ...init, credentials: 'include', headers });
@@ -58,8 +81,8 @@ function normalizeHeaders(initHeaders?: HeadersInit): Headers {
 // `updatePassword()`(`PATCH /auth/password`)처럼 인증이 필요한 엔드포인트를 클라이언트 컴포넌트에서
 // 직접 호출하는 경우, 페이지에 머무는 동안 Access Token이 만료되면 이 함수가 401을 그대로 던진다.
 // proxy.ts는 페이지 이동 시점에만 동작해 이 케이스를 커버하지 못하므로, 대신 `PasswordUpdateFormClient`가
-// `error.code === 'UNAUTHORIZED'`을 직접 감지해 `/login?error=session_expired`로 보낸다 — 인증이 필요한
-// 다른 클라이언트 사이드 호출을 새로 추가할 땐 같은 패턴을 따를 것.
+// `isSessionInvalidErrorCode(error.code)`로 직접 감지해 `/login?error=session_expired`로 보낸다 — 인증이
+// 필요한 다른 클라이언트 사이드 호출을 새로 추가할 땐 같은 패턴을 따를 것.
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const body = await readApiResponse<T>(response);
 
