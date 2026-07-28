@@ -5,6 +5,22 @@ export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/,
 const REFRESH_TOKEN_COOKIE = 'refresh_token';
 const REFRESH_PATH = '/auth/refresh';
 
+// 백엔드가 access token 인증 실패를 401로 내려줄 때 쓰는 코드들. 전부 "지금 로그인 상태가 아니니
+// 다시 로그인해야 한다"는 같은 의미라, 화면에 보여줄 문구는 하나로 통일하되(의도적 선택 —
+// docs/specs/auth-design.md 참고) 재로그인으로 보낼지 판단하는 코드 분기에서는 넷 다 인식해야 한다.
+// UNAUTHORIZED는 하위 호환(백엔드가 아직 세분화 전이거나, /auth/me의 탈퇴 유저 체크처럼 컨트롤러
+// 레벨에서 직접 이 코드를 쓰는 경우)을 위해 남겨둔다.
+const SESSION_INVALID_ERROR_CODES = new Set([
+  'UNAUTHORIZED',
+  'AUTH_TOKEN_MISSING',
+  'AUTH_TOKEN_INVALID',
+  'AUTH_TOKEN_EXPIRED',
+]);
+
+export function isSessionInvalidErrorCode(code: string | null | undefined): boolean {
+  return code != null && SESSION_INVALID_ERROR_CODES.has(code);
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -58,8 +74,8 @@ function normalizeHeaders(initHeaders?: HeadersInit): Headers {
 // `updatePassword()`(`PATCH /auth/password`)처럼 인증이 필요한 엔드포인트를 클라이언트 컴포넌트에서
 // 직접 호출하는 경우, 페이지에 머무는 동안 Access Token이 만료되면 이 함수가 401을 그대로 던진다.
 // proxy.ts는 페이지 이동 시점에만 동작해 이 케이스를 커버하지 못하므로, 대신 `PasswordUpdateFormClient`가
-// `error.code === 'UNAUTHORIZED'`을 직접 감지해 `/login?error=session_expired`로 보낸다 — 인증이 필요한
-// 다른 클라이언트 사이드 호출을 새로 추가할 땐 같은 패턴을 따를 것.
+// `isSessionInvalidErrorCode(error.code)`로 직접 감지해 `/login?error=session_expired`로 보낸다 — 인증이
+// 필요한 다른 클라이언트 사이드 호출을 새로 추가할 땐 같은 패턴을 따를 것.
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const body = await readApiResponse<T>(response);
 
