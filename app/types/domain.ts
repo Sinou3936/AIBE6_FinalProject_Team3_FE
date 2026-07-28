@@ -114,15 +114,21 @@ export type ChecklistOverview = {
   status: ChecklistOverviewStatus;
 };
 
-export type ContractRiskItem = {
-  id: number;
-  original: string;
-  level: string;
-  levelColor: string;
-  simple: string;
-  why: string;
+export type ContractClause = {
+  originalText: string;
+  riskFlag: boolean;
+  explanation: string;
   question: string;
-  suggestion: string;
+  suggestedText: string;
+  levelLabel: string;
+  levelColor: string;
+};
+
+export type ContractAnalysisResult = {
+  clauses: ContractClause[];
+  summary: string;
+  aiGeneratedNotice: string;
+  disclaimer: string;
 };
 
 export type ContractSummaryTone = 'orange' | 'slate';
@@ -132,8 +138,6 @@ export type ContractSummaryCard = {
   value: string;
   tone: ContractSummaryTone;
 };
-
-export type ContractInfoItem = readonly [label: string, value: string];
 
 export type ContractAnalysisTab = 'risk' | 'deposit' | 'missing';
 

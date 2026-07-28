@@ -82,19 +82,61 @@ export type ChecklistOverviewDto = {
   status: ChecklistStatusDto;
 };
 
-export type ContractRiskItemDto = {
-  id: number;
-  original: string;
-  severityTone: Extract<ApiStatusTone, 'orange' | 'red'>;
-  simple: string;
-  why: string;
-  question: string;
-  suggestion: string;
+// 계약 문구 분석 4단계 파이프라인: 입력 제출 -> OCR -> 마스킹 -> AI 분석.
+// 서버는 분석 결과를 포함해 아무 것도 저장하지 않는 정책이라, ID로 이전 단계 상태를 참조하는
+// 구조가 아니다 - 각 단계의 응답값을 클라이언트가 들고 있다가 다음 단계 요청에 그대로 실어 보낸다.
+export type ContractInputType = 'TEXT' | 'IMAGE';
+export type ContractInputNextStep = 'OCR' | 'MASKING';
+
+export type ContractInputRequestDto = {
+  inputType: ContractInputType;
+  text?: string;
+  propertyId?: number;
+};
+// inputType이 'IMAGE'면 위 필드 대신 multipart/form-data로 image 파트를 보낸다(JSON 바디 아님).
+
+export type ContractInputResponseDto = {
+  inputType: ContractInputType;
+  readyForNextStep: boolean;
+  nextStep: ContractInputNextStep;
 };
 
-export type ContractInfoItemDto = {
-  label: string;
-  value: string;
+// OCR 요청은 JSON 바디가 아니라 multipart/form-data(image 파일)라 별도 request DTO가 없다.
+export type OcrExtractResponseDto = {
+  extractedText: string;
+  confidence: number;
+  editable: boolean;
+};
+
+export type ContractMaskingRequestDto = {
+  text: string;
+};
+
+export type ContractMaskingResponseDto = {
+  maskedText: string;
+  maskedCount: number;
+  requiresUserConfirmation: boolean;
+};
+
+export type ContractAnalyzeRequestDto = {
+  maskedText: string;
+  userConfirmed: boolean;
+  propertyId?: number;
+};
+
+export type ContractClauseDto = {
+  originalText: string;
+  riskFlag: boolean;
+  explanation: string;
+  question: string;
+  suggestedText: string;
+};
+
+export type ContractAnalysisResultDto = {
+  clauses: ContractClauseDto[];
+  summary: string;
+  aiGeneratedNotice: string;
+  disclaimer: string;
 };
 
 export type ActivityHistoryItemDto = {
