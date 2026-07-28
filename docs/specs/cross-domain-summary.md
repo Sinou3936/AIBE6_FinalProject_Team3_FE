@@ -29,7 +29,7 @@
 
 원인은 하나입니다 — `app/lib/api/http.ts`의 `parseOrThrow`가 백엔드 `error.message`를 그대로 `ApiError`에 담고, 거의 모든 폼/화면이 `error instanceof ApiError ? error.message : '기본 문구'`로만 처리합니다. 백엔드가 각 실패 사유에 다른 에러 코드(`error.code`)를 이미 내려주고 있다면, `property`의 `REPORT_DUPLICATE` 처리처럼 `code` 기준으로 분기하는 게 기술적으로 어렵지 않습니다 — 지금은 그 분기를 안 하고 있을 뿐입니다.
 
-### 2. 클라이언트 사이드 호출은 Access Token 자동 재발급 대상이 아님 (구조적 한계, 여러 도메인 영향)
+### 2. 클라이언트 사이드 호출은 Access Token 자동 재발급 대상이 아님 (자동 재발급 미구현, 여러 도메인 영향)
 
 `auth-design.md` 이슈 2번에서 지적한 문제(클라이언트 컴포넌트에서 Access Token 자동 재발급이 아직 구현돼 있지 않음 — **정정, 2026-07-28**: 이전엔 "httpOnly라서 원천적으로 불가능"이라고 적었으나 부정확했음. httpOnly는 JS가 쿠키 값을 직접 읽는 것만 막지, `credentials:'include'` fetch가 쿠키를 자동으로 보내거나 브라우저가 `Set-Cookie`를 자동 반영하는 것까지 막지는 않는다 — 자세한 내용은 `auth-design.md` 참고)가 실제로 영향을 주는 화면은 하나가 아닙니다:
 
@@ -37,7 +37,7 @@
 - `property`: 매물 신고(`reportProperty`), 매물 삭제(`deleteProperty`)
 - `user`: 프로필 등록/수정(`registerProfile`/`updateMyProfile`), 닉네임 중복확인
 
-지금은 `PasswordUpdateFormClient`만 `isSessionInvalidErrorCode()`(구 `error.code === 'COMMON_401'` 단일 체크 — **2026-07-28 정정**: 그마저도 백엔드 ErrorCode rename/세분화로 실제로는 깨져 있던 걸 발견해 `UNAUTHORIZED`/`AUTH_TOKEN_MISSING`/`AUTH_TOKEN_INVALID`/`AUTH_TOKEN_EXPIRED` 네 코드를 인식하도록 고침)로 개별 감지해서 재로그인으로 유도하는 패턴을 갖고 있고 나머지는 전부 일반 에러 문구로만 처리됩니다. 세션에 오래 머무는 화면(체크리스트, 프로필 등록 폼처럼 입력이 긴 화면)일수록 실제로 겪을 확률이 높아, 반복되면 공통 처리로 끌어올리라는 `http.ts`의 기존 주석대로 가는 게 맞아 보입니다.
+지금은 `PasswordUpdateFormClient`만 `isSessionInvalidErrorCode()`(**2026-07-28 정정**: 기존에는 `error.code === 'UNAUTHORIZED'` 단일 체크였는데, 백엔드가 실패 사유를 `AUTH_TOKEN_MISSING`/`AUTH_TOKEN_INVALID`/`AUTH_TOKEN_EXPIRED`로 세분화하면서 실제로는 깨져 있던 걸 발견해 이 네 코드를 전부 인식하도록 고침)로 개별 감지해서 재로그인으로 유도하는 패턴을 갖고 있고 나머지는 전부 일반 에러 문구로만 처리됩니다. 세션에 오래 머무는 화면(체크리스트, 프로필 등록 폼처럼 입력이 긴 화면)일수록 실제로 겪을 확률이 높아, 반복되면 공통 처리로 끌어올리라는 `http.ts`의 기존 주석대로 가는 게 맞아 보입니다.
 
 ### 3. 파일/이미지 업로드가 어느 도메인에도 실제로 구현되어 있지 않음
 
