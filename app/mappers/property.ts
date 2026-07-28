@@ -42,13 +42,13 @@ export function mapPropertySummaryDto(dto: PropertySummaryDto): PropertySummary 
   };
 }
 
-const propertyTypeLabelMap: Record<PropertyTypeDto, string> = {
+export const propertyTypeLabelMap: Record<PropertyTypeDto, string> = {
   OFFICETEL: '오피스텔',
   MULTI_FAMILY: '연립다세대',
   DETACHED_HOUSE: '단독/다가구',
 };
 
-const propertyTransactionTypeLabelMap: Record<PropertyTransactionTypeDto, PropertyTradeType> = {
+export const propertyTransactionTypeLabelMap: Record<PropertyTransactionTypeDto, PropertyTradeType> = {
   JEONSE: '전세',
   MONTHLY_RENT: '월세',
 };

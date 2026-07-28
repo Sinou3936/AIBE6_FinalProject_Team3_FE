@@ -262,7 +262,7 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
                 </p>
               )}
               <div className="space-y-3">
-                <Link href="/checklist" className="ansim-button-primary w-full">
+                <Link href={`/properties/${property.id}/checklist`} className="ansim-button-primary w-full">
                   현장 체크리스트 시작
                 </Link>
                 <Link href="/contract/upload" className="ansim-button-secondary w-full">
