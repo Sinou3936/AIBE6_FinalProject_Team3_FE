@@ -1,14 +1,5 @@
 import { AlertCircle, CheckCircle2, TrendingUp } from 'lucide-react';
-import { type PropertyPricePoint, type PropertyRiskSummary } from '../types/domain';
-
-export const priceData: PropertyPricePoint[] = [
-  { month: '1월', price: 16500 },
-  { month: '2월', price: 16800 },
-  { month: '3월', price: 17200 },
-  { month: '4월', price: 17000 },
-  { month: '5월', price: 17500 },
-  { month: '6월', price: 18000 },
-];
+import { type PropertyRiskSummary } from '../types/domain';
 
 export const riskSummaries: PropertyRiskSummary[] = [
   {

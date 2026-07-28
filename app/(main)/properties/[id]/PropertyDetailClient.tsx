@@ -18,7 +18,6 @@ import {
   Share2,
   Trash2,
 } from 'lucide-react';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { riskSummaries } from '../../../data/property-detail';
 import { deleteProperty } from '../../../services/properties';
 import { type PropertyDetail } from '../../../types/domain';
@@ -31,6 +30,17 @@ type PropertyDetailClientProps = {
   property?: PropertyDetail;
   loadError?: string;
 };
+
+// "+3%"/"−4%" 같은 부호 표기를 사실 기반 문구로 바꾼다 (문구 정책: 절대적 안전/위험 단정 금지,
+// 수치 기반 사실 표현만 사용 - AGENTS.md "Copy / wording policy" 참고).
+function formatDifferenceMessage(differenceRateText?: string): string {
+  if (!differenceRateText) {
+    return '정보 없음';
+  }
+  const isHigher = differenceRateText.startsWith('+');
+  const percent = differenceRateText.replace(/[+-]/g, '');
+  return `시세보다 ${percent} ${isHigher ? '높은' : '낮은'} 가격이에요`;
+}
 
 export function PropertyDetailClient({ property, loadError }: PropertyDetailClientProps) {
   const router = useRouter();
@@ -180,55 +190,38 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
             </div>
 
             <div className="mb-10">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-slate-950">실거래가 비교</h2>
-                {property.priceHistory && <span className="text-xs text-slate-500">최근 6개월 추이</span>}
-              </div>
-              {property.priceHistory ? (
+              <h2 className="mb-2 text-lg font-bold text-slate-950">실거래가 비교</h2>
+              <p className="mb-4 text-xs leading-relaxed text-slate-400">
+                전세 매물의 보증금만 국토교통부 실거래가와 비교돼요. 월세 매물은 비교 대상이 아니에요.
+              </p>
+              {property.marketComparison?.status === 'AVAILABLE' ? (
                 <div className="ansim-card p-6">
-                  <div className="mb-6 flex items-center justify-between gap-4">
+                  <div className="mb-6">
+                    <p className="mb-1 text-sm text-slate-500">
+                      인근 실거래 {property.marketComparison.sampleCount}건 기준 (반경{' '}
+                      {property.marketComparison.radiusMeters}m)
+                    </p>
+                    <p className="text-xl font-bold text-slate-950">
+                      {formatDifferenceMessage(property.marketComparison.differenceRateText)}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 text-sm">
                     <div>
-                      <p className="mb-1 text-sm text-slate-500">주변 유사 매물 평균 대비</p>
-                      <p className="text-xl font-bold text-slate-950">
-                        {property.marketDelta ? (
-                          <span
-                            className={property.marketDelta.startsWith('+') ? 'text-orange-500' : 'text-emerald-600'}
-                          >
-                            {property.marketDelta}
-                          </span>
-                        ) : (
-                          '정보 없음'
-                        )}
-                      </p>
+                      <p className="mb-1 text-xs text-slate-400">기준 시세(중앙값)</p>
+                      <p className="font-semibold text-slate-800">{property.marketComparison.referencePriceText}</p>
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs text-slate-400">기준일</p>
+                      <p className="font-semibold text-slate-800">{property.marketComparison.referenceDate}</p>
                     </div>
                   </div>
-                  <div className="h-[200px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={property.priceHistory}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                        <XAxis
-                          dataKey="month"
-                          axisLine={false}
-                          tickLine={false}
-                          tick={{ fontSize: 12, fill: '#94a3b8' }}
-                          dy={10}
-                        />
-                        <YAxis hide />
-                        <Tooltip formatter={(value) => [`${Number(value).toLocaleString()}만원`, '가격']} />
-                        <Line
-                          type="monotone"
-                          dataKey="price"
-                          stroke="#0d9488"
-                          strokeWidth={3}
-                          dot={{ r: 4, fill: '#0d9488' }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <p className="mt-4 text-[11px] leading-relaxed text-slate-400">
+                    국토교통부 실거래가 공개시스템 기준이며, 참고용 정보이니 실제 시세는 별도로 확인해보세요.
+                  </p>
                 </div>
               ) : (
                 <div className="ansim-card p-6 text-sm text-slate-500">
-                  아직 실거래가 비교 정보가 없어요. 국토부 실거래가 연동 예정입니다.
+                  {property.marketComparison?.message ?? '아직 실거래가 비교 정보가 없어요.'}
                 </div>
               )}
             </div>

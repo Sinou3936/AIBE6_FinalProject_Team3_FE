@@ -1,7 +1,12 @@
-import { priceData } from '../data/property-detail';
-import { type PropertyDetail, type PropertyTradeType, type PropertySummary } from '../types/domain';
+import {
+  type PropertyDetail,
+  type PropertyMarketComparison,
+  type PropertyTradeType,
+  type PropertySummary,
+} from '../types/domain';
 import {
   type ApiStatusTone,
+  type MarketComparisonDto,
   type PropertyDetailResponseDto,
   type PropertyListItemDto,
   type PropertySummaryDto,
@@ -112,10 +117,27 @@ function formatMarketDelta(differenceRate: number): string {
 }
 
 /**
+ * BE MarketComparisonDto -> 화면 표시용 PropertyMarketComparison 변환. status와 무관하게
+ * 항상 객체를 만든다 - UNAVAILABLE이어도 사유(message)를 보여줘야 하기 때문에 "값이 없으면
+ * undefined"가 아니라 "값이 있고 status로 분기"가 맞는 형태다.
+ */
+function mapMarketComparisonDto(dto: MarketComparisonDto): PropertyMarketComparison {
+  return {
+    status: dto.status,
+    referencePriceText: dto.referencePrice !== null ? formatManwon(dto.referencePrice) : undefined,
+    differenceRateText: dto.differenceRate !== null ? formatMarketDelta(dto.differenceRate) : undefined,
+    sampleCount: dto.sampleCount ?? undefined,
+    referenceDate: dto.referenceDate ? formatDateText(dto.referenceDate) : undefined,
+    radiusMeters: dto.radiusMeters ?? undefined,
+    message: dto.message ?? undefined,
+  };
+}
+
+/**
  * 실제 GET /properties/{id} 응답(PropertyDetailResponseDto) -> PropertyDetail 변환.
- * marketComparison은 국토부 실거래가 연동 전까지 BE가 항상 UNAVAILABLE을 내려주므로
- * marketDelta는 사실상 항상 undefined지만, AVAILABLE로 바뀔 미래를 대비해 분기는 남겨둔다.
- * 신호(기능4)/전세가율(기능5)/체크리스트(기능2)/관리비는 아직 API 자체가 없어 항상 undefined.
+ * marketComparison은 BE의 실거래가 비교 로직이 실제로 계산한 결과(AVAILABLE/UNAVAILABLE)를
+ * 그대로 옮겨 담는다. 신호(기능4)/전세가율(기능5)/체크리스트(기능2)/관리비는 아직 API 자체가
+ * 없어 항상 undefined.
  */
 export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): PropertyDetail {
   return {
@@ -129,10 +151,7 @@ export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): Pr
     area: dto.area,
     description: dto.description ?? undefined,
     imageUrls: dto.imageUrls,
-    marketDelta:
-      dto.marketComparison.status === 'AVAILABLE' && dto.marketComparison.differenceRate !== null
-        ? formatMarketDelta(dto.marketComparison.differenceRate)
-        : undefined,
+    marketComparison: mapMarketComparisonDto(dto.marketComparison),
     statusColor: propertyStatusColorMap.slate,
     location: {
       latitude: dto.address.latitude ?? 0,
@@ -158,6 +177,13 @@ export function mapPropertySummaryToMockDetail(property: PropertySummary): Prope
     ...property,
     imageUrls: detailMockImageUrls,
     description: '깨끗하고 채광이 좋은 매물입니다. 역과 가까워 통근이 편리해요.',
-    priceHistory: priceData,
+    marketComparison: {
+      status: 'AVAILABLE',
+      referencePriceText: '1억 8,000만원',
+      differenceRateText: '+3%',
+      sampleCount: 5,
+      referenceDate: '2026.06.20',
+      radiusMeters: 300,
+    },
   };
 }
