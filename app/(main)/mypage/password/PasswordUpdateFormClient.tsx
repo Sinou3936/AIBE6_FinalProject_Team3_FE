@@ -31,11 +31,11 @@ export function PasswordUpdateFormClient({ hasPassword }: PasswordUpdateFormClie
       setCurrentPassword('');
       setNewPassword('');
     } catch (submitError) {
-      // 이 페이지에 머무는 동안 Access Token이 만료되면 서버는 COMMON_401(인증 필요)을 준다 —
+      // 이 페이지에 머무는 동안 Access Token이 만료되면 서버는 UNAUTHORIZED(인증 필요)를 준다 —
       // 클라이언트 컴포넌트는 httpOnly인 refresh_token을 읽을 수 없어 http.ts의 자동 재시도
       // 대상이 아니므로(주석 참고), 폼 에러로 보여주는 대신 재로그인 화면으로 보내야 한다.
       // AUTH_INVALID_CREDENTIALS(현재 비밀번호 오류)는 이 케이스와 구분해 폼 에러로 유지한다.
-      if (submitError instanceof ApiError && submitError.body?.code === 'COMMON_401') {
+      if (submitError instanceof ApiError && submitError.body?.code === 'UNAUTHORIZED') {
         router.push('/login?error=session_expired');
         return;
       }
