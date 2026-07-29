@@ -169,10 +169,11 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl }
                   setIsMobileMenuOpen(false);
                   handleLogout();
                 }}
-                className="flex items-center gap-3 p-4 text-lg font-medium text-slate-600 hover:bg-slate-50"
+                disabled={isLoggingOut}
+                className="flex items-center gap-3 p-4 text-lg font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
               >
                 <LogOut className="h-6 w-6" />
-                로그아웃
+                {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
               </button>
             </nav>
           </div>
