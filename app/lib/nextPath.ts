@@ -1,4 +1,4 @@
-export const DEFAULT_NEXT_PATH = '/home';
+const DEFAULT_NEXT_PATH = '/home';
 
 // proxy.ts의 matcher와 동일한 보호 경로 목록 — 셋 중 하나가 바뀌면 같이 갱신할 것.
 // (main)/layout.tsx는 이 프리픽스들 아래에서만 쓰이므로 next 값도 이 범위로 제한한다.

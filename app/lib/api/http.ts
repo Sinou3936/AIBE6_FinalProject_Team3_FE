@@ -42,10 +42,6 @@ export class ApiError extends Error {
   }
 }
 
-export function assertApiConfigured() {
-  getApiBaseUrl();
-}
-
 export function getApiBaseUrl(): string {
   if (!API_BASE_URL) {
     throw new ApiError('NEXT_PUBLIC_API_BASE_URL is required when mock data is disabled.', 0);
