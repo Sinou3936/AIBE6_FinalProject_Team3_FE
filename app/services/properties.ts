@@ -59,6 +59,8 @@ export async function createProperty(request: CreatePropertyRequestDto): Promise
         differenceRate: null,
         sampleCount: null,
         referenceDate: null,
+        radiusMeters: null,
+        message: '모의 데이터 모드라 시세 비교를 제공하지 않아요.',
       },
       notice: null,
     };
@@ -96,7 +98,10 @@ export async function deleteProperty(id: number): Promise<void> {
 
 // mock 모드에는 신고 이력을 저장할 저장소가 없어 매번 성공만 반환한다 - 중복신고(409) 같은
 // 에러 케이스는 실제 API 모드에서만 재현 가능하다.
-export async function reportProperty(id: number, request: ReportPropertyRequestDto): Promise<PropertyReportResponseDto> {
+export async function reportProperty(
+  id: number,
+  request: ReportPropertyRequestDto,
+): Promise<PropertyReportResponseDto> {
   if (useMockData) {
     return {
       reportId: Date.now(),

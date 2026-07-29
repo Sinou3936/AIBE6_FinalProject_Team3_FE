@@ -1,24 +1,25 @@
-import { type ContractInfoItem, type ContractRiskItem } from '../types/domain';
-import { type ContractInfoItemDto, type ContractRiskItemDto } from '../types/api';
+import { type ContractAnalysisResult, type ContractClause } from '../types/domain';
+import { type ContractAnalysisResultDto, type ContractClauseDto } from '../types/api';
 
-const contractRiskLevelColorMap: Record<ContractRiskItemDto['severityTone'], string> = {
-  orange: 'text-orange-700 bg-orange-50 border-orange-100',
-  red: 'text-red-700 bg-red-50 border-red-100',
-};
-
-export function mapContractRiskItemDto(dto: ContractRiskItemDto): ContractRiskItem {
+export function mapContractClauseDto(dto: ContractClauseDto): ContractClause {
   return {
-    id: dto.id,
-    original: dto.original,
-    level: '확인 필요',
-    levelColor: contractRiskLevelColorMap[dto.severityTone],
-    simple: dto.simple,
-    why: dto.why,
+    originalText: dto.originalText,
+    riskFlag: dto.riskFlag,
+    explanation: dto.explanation,
     question: dto.question,
-    suggestion: dto.suggestion,
+    suggestedText: dto.suggestedText,
+    levelLabel: dto.riskFlag ? '확인 필요' : '참고',
+    levelColor: dto.riskFlag
+      ? 'text-orange-700 bg-orange-50 border-orange-100'
+      : 'text-slate-600 bg-slate-50 border-slate-100',
   };
 }
 
-export function mapContractInfoItemDto(dto: ContractInfoItemDto): ContractInfoItem {
-  return [dto.label, dto.value];
+export function mapContractAnalysisResultDto(dto: ContractAnalysisResultDto): ContractAnalysisResult {
+  return {
+    clauses: dto.clauses.map(mapContractClauseDto),
+    summary: dto.summary,
+    aiGeneratedNotice: dto.aiGeneratedNotice,
+    disclaimer: dto.disclaimer,
+  };
 }

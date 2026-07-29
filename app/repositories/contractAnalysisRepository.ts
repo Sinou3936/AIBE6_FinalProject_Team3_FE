@@ -1,17 +1,9 @@
-import { mapContractInfoItemDto, mapContractRiskItemDto } from '../mappers/contract-analysis';
-import { initContractInfoItemDtos, initContractRiskItemDtos } from '../mocks/init/contract-analysis';
-import { type ContractInfoItem, type ContractRiskItem } from '../types/domain';
+import { mapContractAnalysisResultDto } from '../mappers/contract-analysis';
+import { initContractAnalysisResultDto } from '../mocks/init/contract-analysis';
+import { type ContractAnalysisResult } from '../types/domain';
 
-export type MockContractAnalysisResult = {
-  riskItems: ContractRiskItem[];
-  contractInfoItems: ContractInfoItem[];
-};
+const mockContractAnalysisResult: ContractAnalysisResult = mapContractAnalysisResultDto(initContractAnalysisResultDto);
 
-const mockContractAnalysisResult: MockContractAnalysisResult = {
-  riskItems: initContractRiskItemDtos.map(mapContractRiskItemDto),
-  contractInfoItems: initContractInfoItemDtos.map(mapContractInfoItemDto),
-};
-
-export function getMockContractAnalysisResult(): MockContractAnalysisResult {
+export function getMockContractAnalysisResult(): ContractAnalysisResult {
   return mockContractAnalysisResult;
 }

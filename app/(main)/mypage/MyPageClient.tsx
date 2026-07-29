@@ -2,10 +2,9 @@
 
 import { Lock, LogOut, Pencil, Plus, User, UserX } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { ENABLE_ANALYSIS_HISTORY } from '../../config/features';
 import { hasRegisteredProfile } from '../../lib/profile';
-import { logout } from '../../services/auth';
+import { useLogout } from '../../lib/useLogout';
 import { type MyPageOverview, type UserProfile } from '../../types/domain';
 import { Badge } from '../../ui/Badge';
 import { InfoRow } from '../../ui/InfoRow';
@@ -20,18 +19,10 @@ type MyPageClientProps = {
 };
 
 export function MyPageClient({ overview, loadError, nickname, profile, profileLoadError }: MyPageClientProps) {
-  const router = useRouter();
   const isRegistered = hasRegisteredProfile(profile);
   const properties = overview.bookmarkedProperties;
   const signalCount = properties.reduce((sum, property) => sum + (property.checkSignalCount ?? 0), 0);
-
-  async function handleLogout() {
-    try {
-      await logout();
-    } finally {
-      router.push('/login');
-    }
-  }
+  const { isLoggingOut, logoutError, handleLogout } = useLogout();
 
   function handleWithdrawClick() {
     // TODO: 회원 탈퇴 확인 모달 연동 (백엔드 탈퇴 API 확정 후 진행)
@@ -106,11 +97,13 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
             <button
               type="button"
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              disabled={isLoggingOut}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
             >
               <LogOut className="h-4 w-4 text-slate-400" />
-              로그아웃
+              {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
             </button>
+            {logoutError && <p className="px-3 text-xs text-red-600">{logoutError}</p>}
             <button
               type="button"
               onClick={handleWithdrawClick}

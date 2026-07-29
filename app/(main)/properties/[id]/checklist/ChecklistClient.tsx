@@ -3,12 +3,15 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { checklistCategories as categories } from '../../../../data/checklist';
+import { ApiError, isSessionInvalidErrorCode } from '../../../../lib/api/http';
 import { type ChecklistSummary } from '../../../../lib/checklistSummary';
 import { cn } from '../../../../lib/cn';
 import { getChecklistResult, updateChecklistItem } from '../../../../services/checklist';
 import { type ChecklistItemUpdateRequestDto } from '../../../../types/api';
 import { type Checklist, type ChecklistItem, type PropertyDetail } from '../../../../types/domain';
+import { Badge } from '../../../../ui/Badge';
 import { NoticeBox } from '../../../../ui/NoticeBox';
 
 const EMPTY_SUMMARY: ChecklistSummary = {
@@ -27,6 +30,7 @@ type ChecklistClientProps = {
 };
 
 export function ChecklistClient({ propertyId, checklist, initialSummary, loadError, property }: ChecklistClientProps) {
+  const router = useRouter();
   const [items, setItems] = useState<ChecklistItem[]>(checklist?.items ?? []);
   const [summary, setSummary] = useState<ChecklistSummary>(initialSummary ?? EMPTY_SUMMARY);
   const [activeCategory, setActiveCategory] = useState(categories[0].id);
@@ -62,9 +66,32 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
       } catch {
         // 결과 재조회 실패는 문항 저장 자체와는 무관하므로 조용히 무시한다 (다음 변경 때 다시 시도됨).
       }
-    } catch {
+    } catch (submitError) {
+      // requestJson()이 브라우저 컨텍스트에서 401 → refresh → 원 요청 1회 재시도를 자동으로
+      // 처리하므로(app/lib/api/http.ts 참고), 정상 케이스(refresh 성공)는 이 catch까지 401이 아예
+      // 올라오지 않는다. 이 분기가 실제로 타는 건 refresh까지 실패한 경우뿐인데, 그중
+      // 'rejected'(진짜 무효)는 requestJson()이 이미 /auth/session-recover로 페이지 이동시켜버려서
+      // 이 컴포넌트 코드가 실행될 새도 없이 화면을 벗어난다. 그러니 여기 남는 건 사실상
+      // 'unreachable'(네트워크 오류/백엔드 일시 장애)뿐이다 — 이때는 세션이 진짜 무효인지 알 수
+      // 없으므로 재로그인 화면으로 보내지 않고 일반 에러로만 보여준다(PasswordUpdateFormClient와
+      // 동일 패턴).
+      if (
+        submitError instanceof ApiError &&
+        isSessionInvalidErrorCode(submitError.body?.code) &&
+        submitError.sessionRefreshOutcome !== 'unreachable'
+      ) {
+        router.push('/login?error=session_expired');
+        return;
+      }
+
       setItems((currentItems) => currentItems.map((current) => (current.id === item.id ? item : current)));
-      setItemErrors((current) => ({ ...current, [item.id]: '저장하지 못했어요. 다시 시도해 주세요.' }));
+      setItemErrors((current) => ({
+        ...current,
+        [item.id]:
+          submitError instanceof ApiError && submitError.sessionRefreshOutcome === 'unreachable'
+            ? '서버와 통신할 수 없습니다. 잠시 후 다시 시도해 주세요.'
+            : '저장하지 못했어요. 다시 시도해 주세요.',
+      }));
     }
   }
 
@@ -151,7 +178,12 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
               key={item.id}
               className={cn('ansim-card bg-white p-4', item.issueFound && 'border-orange-200 bg-orange-50/40')}
             >
-              <p className="mb-1 font-medium leading-relaxed text-slate-900">{item.content}</p>
+              <div className="mb-1 flex items-start gap-2">
+                {item.importance === 'required' && (
+                  <Badge className="mt-0.5 shrink-0 bg-slate-900 text-white">필수</Badge>
+                )}
+                <p className="font-medium leading-relaxed text-slate-900">{item.content}</p>
+              </div>
               {item.guideText && <p className="mb-3 text-xs text-slate-500">{item.guideText}</p>}
 
               {item.itemType === 'check' && (
