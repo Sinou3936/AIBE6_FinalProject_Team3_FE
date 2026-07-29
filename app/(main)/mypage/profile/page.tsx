@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { hasRegisteredProfile } from '../../../lib/profile';
-import { classifyProfileLoadError } from '../../../lib/profileLoadError';
+import { classifyProfileLoadError } from '../../../lib/sessionErrors';
 import { getMyProfile } from '../../../services/user';
 import { type UserProfile } from '../../../types/domain';
 import { AccountUnavailableRedirect } from '../../../ui/AccountUnavailableRedirect';

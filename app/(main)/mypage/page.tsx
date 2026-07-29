@@ -1,6 +1,6 @@
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { classifyProfileLoadError } from '../../lib/profileLoadError';
+import { classifyProfileLoadError, redirectIfSessionInvalid } from '../../lib/sessionErrors';
 import { getCurrentUser } from '../../services/auth';
 import { getMyPageOverview } from '../../services/mypage';
 import { getMyProfile } from '../../services/user';
@@ -43,7 +43,8 @@ export default async function Page() {
 
   try {
     overview = await getMyPageOverview(cookieHeader);
-  } catch {
+  } catch (error) {
+    redirectIfSessionInvalid(error);
     loadError = '마이페이지 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 

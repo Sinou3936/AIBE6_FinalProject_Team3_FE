@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { quickActions, quickActionToneMap } from '../../data/dashboard';
 import { computeHomeSummaryCounts } from '../../lib/homeSummary';
 import { getPriorityAction } from '../../lib/priorityAction';
-import { classifyProfileLoadError } from '../../lib/profileLoadError';
+import { classifyProfileLoadError, redirectIfSessionInvalid } from '../../lib/sessionErrors';
 import { getMyChecklistOverviews } from '../../services/checklist';
 import { getMyPageOverview } from '../../services/mypage';
 import { getProperties } from '../../services/properties';
@@ -63,7 +63,8 @@ export default async function Page({ searchParams }: HomePageProps) {
   let propertiesLoadFailed = false;
   try {
     properties = await getProperties(cookieHeader);
-  } catch {
+  } catch (error) {
+    redirectIfSessionInvalid(error);
     // 실패 시 "매물이 없다"고 단정하지 않도록 propertiesLoadFailed로 별도 표시하고,
     // 아래 배너로도 실패 사실을 알린다.
     propertiesLoadFailed = true;
@@ -73,7 +74,8 @@ export default async function Page({ searchParams }: HomePageProps) {
   let overview = emptyOverview;
   try {
     overview = await getMyPageOverview(cookieHeader);
-  } catch {
+  } catch (error) {
+    redirectIfSessionInvalid(error);
     // 실패 시 분석한 특약사항 카운트는 0으로 표시하고, 아래 배너로 실패 사실을 알린다.
     loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
@@ -81,7 +83,8 @@ export default async function Page({ searchParams }: HomePageProps) {
   let checklistOverviews: ChecklistOverview[] = [];
   try {
     checklistOverviews = await getMyChecklistOverviews(cookieHeader);
-  } catch {
+  } catch (error) {
+    redirectIfSessionInvalid(error);
     // 실패 시 개인화 우선순위 카드는 "불러오지 못함" 상태로 표시하고, 아래 배너로도 실패 사실을 알린다.
     loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
