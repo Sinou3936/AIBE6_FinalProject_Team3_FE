@@ -58,8 +58,11 @@ const NETWORK_ERROR_MESSAGE = '서버와 통신할 수 없습니다. 잠시 후 
 // 때 쓰는 "서버와 통신할 수 없습니다"와 톤이 달라졌다. 같은 원인(서버 연결 불가)이면 항상 같은
 // ApiError(NETWORK_ERROR, status 0)로 정규화해 호출부가 하나의 catch로 처리할 수 있게 한다.
 async function fetchOrThrowNetworkError(path: string, init: RequestInit): Promise<Response> {
+  // getApiBaseUrl()은 try 밖에서 호출한다 — NEXT_PUBLIC_API_BASE_URL 누락은 네트워크 오류가 아니라
+  // 환경 설정 오류라, 같은 catch에 걸려 NETWORK_ERROR로 덮이면 dev/CI에서 원인 진단이 어려워진다.
+  const url = `${getApiBaseUrl()}${path}`;
   try {
-    return await fetch(`${getApiBaseUrl()}${path}`, init);
+    return await fetch(url, init);
   } catch {
     throw new ApiError(NETWORK_ERROR_MESSAGE, 0, { code: 'NETWORK_ERROR', message: NETWORK_ERROR_MESSAGE });
   }
