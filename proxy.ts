@@ -56,14 +56,23 @@ export async function proxy(request: NextRequest) {
   // 틀렸다"는 문구는 부정확하므로 별도 쿼리(session_unavailable)로 구분해, 로그인 화면이 "다시
   // 로그인하세요"가 아니라 "잠시 후 다시 시도하세요"를 보여주게 한다.
   //
-  // next는 rejected/세션 없음 케이스(진짜 로그인이 다시 필요한, 훨씬 흔한 경우)에도 똑같이
-  // 넘긴다 — 로그인 폼/OAuth가 성공 후 이 값으로 복귀하므로(LoginFormClient.tsx,
-  // oauth/callback/route.ts 참고), next가 없으면 재로그인해도 항상 홈으로만 떨어진다.
+  // next는 세 경우 모두 똑같이 넘긴다 — 로그인 폼/OAuth가 성공 후 이 값으로 복귀하므로
+  // (LoginFormClient.tsx, oauth/callback/route.ts 참고), next가 없으면 재로그인해도 항상
+  // 홈으로만 떨어진다.
+  //
+  // 에러 문구는 세 가지로 구분한다 — refreshToken 자체가 없었던 경우(애초에 로그인한 적 없음)는
+  // 굳이 놀랄 문구를 보여줄 필요가 없어 에러 없이 로그인 폼만 보여주지만, 'rejected'(로그인은
+  // 했었는데 세션이 실제로 끊긴 경우 — 다른 곳에서 로그아웃, DB 초기화 등)는 session-recover와
+  // 동일하게 "다시 로그인해주세요" 문구를 보여줘야 한다. 이걸 안 보여주면 방금까지 로그인돼
+  // 있던 사용자가 아무 설명 없이 빈 로그인 화면을 보게 된다.
   const currentPath = request.nextUrl.pathname + request.nextUrl.search;
-  const loginPath =
+  const errorParam =
     refreshOutcomeStatus === 'unreachable'
-      ? `/login?error=session_unavailable&next=${encodeURIComponent(currentPath)}`
-      : `/login?next=${encodeURIComponent(currentPath)}`;
+      ? 'session_unavailable'
+      : refreshOutcomeStatus === 'rejected'
+        ? 'session_expired'
+        : undefined;
+  const loginPath = `/login?${errorParam ? `error=${errorParam}&` : ''}next=${encodeURIComponent(currentPath)}`;
   const response = NextResponse.redirect(new URL(loginPath, request.url));
   if (refreshOutcomeStatus === 'rejected') {
     response.cookies.delete(ACCESS_TOKEN_COOKIE);
