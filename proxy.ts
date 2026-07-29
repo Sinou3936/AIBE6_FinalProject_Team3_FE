@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { useMockData } from './app/config/dataSource';
-import { mergeCookieHeader, refreshSession } from './app/lib/api/http';
+import { CURRENT_PATH_HEADER, mergeCookieHeader, refreshSession } from './app/lib/api/http';
 
 const ACCESS_TOKEN_COOKIE = 'access_token';
 const REFRESH_TOKEN_COOKIE = 'refresh_token';
@@ -9,13 +9,19 @@ const REFRESH_TOKEN_COOKIE = 'refresh_token';
 // 실제 유효성 검증(서명/만료)은 백엔드가 각 API 호출마다 수행하므로, 여기서는
 // "로그인 안 한 사용자를 로그인 화면으로 안내"하는 UX 목적의 가벼운 체크로 충분하다.
 export async function proxy(request: NextRequest) {
+  // 이 요청이 통과되는 모든 경로(mock 모드, 쿠키 존재, refresh 성공)에서 공통으로 심어준다 —
+  // (main)/layout.tsx가 access_token은 있지만 무효인 경우 세션 복구 후 원래 경로로 돌아가려면
+  // 자기 자신의 경로를 알아야 하는데, Server Component는 그걸 직접 알 방법이 없다.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(CURRENT_PATH_HEADER, request.nextUrl.pathname);
+
   // mock 모드는 백엔드가 없어도 화면을 확인할 수 있어야 하므로 로그인 게이트를 건너뛴다.
   if (useMockData) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   if (request.cookies.has(ACCESS_TOKEN_COOKIE)) {
-    return NextResponse.next();
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // access_token은 Max-Age가 지나면 브라우저가 알아서 지우므로, 쿠키가 없다는 사실만으로는
@@ -29,7 +35,6 @@ export async function proxy(request: NextRequest) {
       // Set-Cookie는 브라우저의 "다음" 요청부터만 적용된다. 지금 이 요청에 이어지는
       // 서버 컴포넌트(layout 등)가 cookies()로 읽는 건 여전히 원래 요청 헤더라서, 갱신된
       // 토큰을 요청 헤더에도 반영해줘야 이번 요청에서 바로 로그인 화면으로 튕기지 않는다.
-      const requestHeaders = new Headers(request.headers);
       requestHeaders.set('cookie', mergeCookieHeader(requestHeaders.get('cookie'), outcome.cookies));
 
       const response = NextResponse.next({ request: { headers: requestHeaders } });
