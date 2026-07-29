@@ -50,6 +50,21 @@ export function getApiBaseUrl(): string {
   return API_BASE_URL;
 }
 
+const NETWORK_ERROR_MESSAGE = '서버와 통신할 수 없습니다. 잠시 후 다시 시도해 주세요.';
+
+// requestJson()의 fetch() 자체가 실패하면(백엔드가 완전히 다운됐거나 네트워크가 끊긴 경우) 원래는
+// raw TypeError가 그대로 올라가 호출부마다 ApiError만 잡는 catch를 빠져나가곤 했다 — 그 결과
+// 로그인/회원가입/프로필 저장 등에서 "실패했습니다"류의 일반 문구만 보이고, refresh unreachable
+// 때 쓰는 "서버와 통신할 수 없습니다"와 톤이 달라졌다. 같은 원인(서버 연결 불가)이면 항상 같은
+// ApiError(NETWORK_ERROR, status 0)로 정규화해 호출부가 하나의 catch로 처리할 수 있게 한다.
+async function fetchOrThrowNetworkError(path: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(`${getApiBaseUrl()}${path}`, init);
+  } catch {
+    throw new ApiError(NETWORK_ERROR_MESSAGE, 0, { code: 'NETWORK_ERROR', message: NETWORK_ERROR_MESSAGE });
+  }
+}
+
 // 예전엔 여기서 자체 refresh를 시도했지만(retryAfterRefresh), 회전된 새 access/refresh 토큰이
 // 실제 브라우저 쿠키에 반영되지 않아 브라우저가 이미 무효화된 옛 토큰을 계속 들고 있다가 다음
 // refresh 시점에 세션이 끊기는 문제가 있어 제거했었다. 이 함수는 Server Component와 클라이언트
@@ -65,7 +80,7 @@ export function getApiBaseUrl(): string {
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = normalizeHeaders(init?.headers, init?.body instanceof FormData);
   const requestStartedAt = typeof window !== 'undefined' ? Date.now() : 0;
-  const response = await fetch(`${getApiBaseUrl()}${path}`, { ...init, credentials: 'include', headers });
+  const response = await fetchOrThrowNetworkError(path, { ...init, credentials: 'include', headers });
   const body = await readApiResponse<T>(response);
 
   const shouldTryRefresh =
@@ -82,14 +97,14 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
     // 끝낸 뒤에야 B의 401이 뒤늦게 도착하는 경우 — 안 그러면 이미 성공한 refresh 직후에 불필요한
     // 재-rotate가 한 번 더 일어난다.)
     if (requestStartedAt < lastRefreshSucceededAt) {
-      const retryResponse = await fetch(`${getApiBaseUrl()}${path}`, { ...init, credentials: 'include', headers });
+      const retryResponse = await fetchOrThrowNetworkError(path, { ...init, credentials: 'include', headers });
       return finalizeResponse<T>(retryResponse, await readApiResponse<T>(retryResponse));
     }
 
     const outcome = await refreshOnceInBrowser();
 
     if (outcome === 'success') {
-      const retryResponse = await fetch(`${getApiBaseUrl()}${path}`, { ...init, credentials: 'include', headers });
+      const retryResponse = await fetchOrThrowNetworkError(path, { ...init, credentials: 'include', headers });
       return finalizeResponse<T>(retryResponse, await readApiResponse<T>(retryResponse));
     }
 
