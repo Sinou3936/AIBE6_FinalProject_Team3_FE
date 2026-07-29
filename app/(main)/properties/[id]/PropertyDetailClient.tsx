@@ -81,6 +81,9 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
   }
 
   const images = property.imageUrls;
+  // 이번 세션에서 막 신고에 성공한 경우(reportSuccess)와, 이전에 이미 신고해둔 경우(property.reported)
+  // 둘 다 "이미 신고했음" 상태로 취급한다 - 상세조회 응답은 페이지를 새로 불러와야 반영되므로.
+  const alreadyReported = property.reported === true || reportSuccess;
 
   return (
     <div className="min-h-screen bg-white pb-24">
@@ -263,7 +266,7 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
               )}
               <div className="space-y-3">
                 <Link href={`/properties/${property.id}/checklist`} className="ansim-button-primary w-full">
-                  현장 체크리스트 시작
+                  {property.checklistCreated ? '현장 체크리스트 이어보기' : '현장 체크리스트 시작'}
                 </Link>
                 <Link href="/contract/upload" className="ansim-button-secondary w-full">
                   특약사항 분석하기
@@ -281,13 +284,13 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
                   {deleteError}
                 </NoticeBox>
               )}
-              {reportSuccess && (
+              {alreadyReported && (
                 <NoticeBox
                   icon={CheckCircle2}
                   iconClassName="text-emerald-600"
                   className="mb-4 bg-emerald-50 text-emerald-700"
                 >
-                  신고가 접수됐어요. 검토 후 반영할게요.
+                  {reportSuccess ? '신고가 접수됐어요. 검토 후 반영할게요.' : '이미 신고한 매물이에요.'}
                 </NoticeBox>
               )}
               <div className="space-y-2">
@@ -299,13 +302,11 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
                 </Link>
                 <button
                   type="button"
-                  onClick={() => {
-                    setReportSuccess(false);
-                    setIsReportModalOpen(true);
-                  }}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                  onClick={() => setIsReportModalOpen(true)}
+                  disabled={alreadyReported}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Flag className="h-4 w-4" /> 매물 신고
+                  <Flag className="h-4 w-4" /> {alreadyReported ? '신고 완료' : '매물 신고'}
                 </button>
                 <button
                   type="button"

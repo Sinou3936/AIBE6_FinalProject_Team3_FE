@@ -11,6 +11,16 @@ export type ApiResponse<T> = {
   error?: ApiErrorBody | null;
 };
 
+// BE PageResponse<T> 그대로 - Spring Data Pageable 기반 목록 조회 응답의 공용 래퍼.
+export type PageResponseDto<T> = {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+};
+
 export type ApiStatusTone = 'orange' | 'emerald' | 'red' | 'slate';
 
 export type PropertySummaryDto = {
@@ -233,6 +243,9 @@ export type PropertyDetailResponseDto = {
   address: PropertyDetailAddressDto;
   imageUrls: string[];
   marketComparison: MarketComparisonDto;
+  // 로그인한 사용자 본인 기준 - 체크리스트를 생성했는지, 본인이 이 매물을 신고한 적 있는지.
+  checklistCreated: boolean;
+  reported: boolean;
   status: PropertyStatusDto;
   createdAt: string;
   updatedAt: string;

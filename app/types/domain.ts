@@ -55,6 +55,23 @@ export type PropertyDetail = {
   // 실거래가 비교(market-data) 결과. 실제 API는 항상 채워진다(status가 AVAILABLE/UNAVAILABLE
   // 둘 중 하나) - "정보 없음"이 아니라 판정 결과 자체가 항상 존재한다는 뜻.
   marketComparison?: PropertyMarketComparison;
+  // 로그인한 사용자 본인 기준 체크리스트 생성 여부 / 신고 여부. mock 데이터는 이 필드 자체가
+  // 없어 undefined이고, 실제 API는 항상 boolean으로 채워진다.
+  checklistCreated?: boolean;
+  reported?: boolean;
+};
+
+/**
+ * 목록 조회(GET /properties) 페이지네이션 결과. BE PageResponse를 그대로 옮기되 content만
+ * PropertySummary로 매핑한다. mock 모드는 전체 목록을 단일 페이지로 감싸서 동일한 형태로 맞춘다.
+ */
+export type PropertyListPage = {
+  items: PropertySummary[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
 };
 
 /**

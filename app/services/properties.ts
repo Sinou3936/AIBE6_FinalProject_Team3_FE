@@ -9,24 +9,51 @@ import { getMockProperties, getMockPropertyById } from '../repositories/property
 import {
   type CreatePropertyRequestDto,
   type CreatePropertyResponseDto,
+  type PageResponseDto,
   type PropertyDetailResponseDto,
   type PropertyListItemDto,
   type PropertyReportResponseDto,
   type ReportPropertyRequestDto,
   type UpdatePropertyRequestDto,
 } from '../types/api';
-import { type PropertyDetail, type PropertySummary } from '../types/domain';
+import { type PropertyDetail, type PropertyListPage, type PropertySummary } from '../types/domain';
 
-export async function getProperties(cookieHeader?: string): Promise<PropertySummary[]> {
+export type GetPropertiesParams = {
+  page?: number;
+  size?: number;
+  // BE가 허용하는 정렬 필드는 createdAt/deposit/area 뿐이다 (PageableUtils.validateSort 참고).
+  sort?: string;
+};
+
+// mock 모드는 페이지 개념이 없어 전체 목록을 크기 1짜리 단일 페이지로 감싼다 - 호출부가
+// 실제 API/mock 모드를 구분하지 않고 동일한 PropertyListPage 형태로 다룰 수 있게 하기 위함.
+function wrapAsSinglePage(items: PropertySummary[]): PropertyListPage {
+  return { items, page: 0, size: items.length, totalElements: items.length, totalPages: 1, hasNext: false };
+}
+
+export async function getProperties(cookieHeader?: string, params?: GetPropertiesParams): Promise<PropertyListPage> {
   if (useMockData) {
-    return getMockProperties();
+    return wrapAsSinglePage(getMockProperties());
   }
 
-  const dtos = await requestJson<PropertyListItemDto[]>(
-    '/properties',
+  const query = new URLSearchParams();
+  if (params?.page !== undefined) query.set('page', String(params.page));
+  if (params?.size !== undefined) query.set('size', String(params.size));
+  if (params?.sort) query.set('sort', params.sort);
+  const queryString = query.toString();
+
+  const page = await requestJson<PageResponseDto<PropertyListItemDto>>(
+    queryString ? `/properties?${queryString}` : '/properties',
     cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined,
   );
-  return dtos.map(mapPropertyListItemDto);
+  return {
+    items: page.content.map(mapPropertyListItemDto),
+    page: page.page,
+    size: page.size,
+    totalElements: page.totalElements,
+    totalPages: page.totalPages,
+    hasNext: page.hasNext,
+  };
 }
 
 export async function getPropertyById(id: number, cookieHeader?: string): Promise<PropertyDetail | undefined> {

@@ -48,7 +48,7 @@ export default async function Page({ searchParams }: HomePageProps) {
 
   let properties: PropertySummary[] = [];
   try {
-    properties = await getProperties();
+    properties = (await getProperties()).items;
   } catch {
     // 실패 시 요약/알림/매물 기준 정보는 빈 상태로 표시하고, 아래 배너로 실패 사실을 알린다.
     loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';

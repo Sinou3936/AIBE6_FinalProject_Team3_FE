@@ -136,8 +136,8 @@ function mapMarketComparisonDto(dto: MarketComparisonDto): PropertyMarketCompari
 /**
  * 실제 GET /properties/{id} 응답(PropertyDetailResponseDto) -> PropertyDetail 변환.
  * marketComparison은 BE의 실거래가 비교 로직이 실제로 계산한 결과(AVAILABLE/UNAVAILABLE)를
- * 그대로 옮겨 담는다. 신호(기능4)/전세가율(기능5)/체크리스트(기능2)/관리비는 아직 API 자체가
- * 없어 항상 undefined.
+ * 그대로 옮겨 담는다. 신호(기능4)/전세가율(기능5)/관리비는 아직 API 자체가 없어 항상 undefined.
+ * checklistCreated/reported는 체크리스트 생성 여부·본인 신고 여부 필드가 추가되면서 함께 반영된다.
  */
 export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): PropertyDetail {
   return {
@@ -158,6 +158,8 @@ export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): Pr
       longitude: dto.address.longitude ?? 0,
     },
     createdAt: formatDateText(dto.createdAt),
+    checklistCreated: dto.checklistCreated,
+    reported: dto.reported,
   };
 }
 
