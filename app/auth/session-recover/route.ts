@@ -42,7 +42,12 @@ export async function GET(request: NextRequest) {
       ? `/login?error=session_unavailable&next=${encodeURIComponent(next)}`
       : `/login?error=session_expired&next=${encodeURIComponent(next)}`;
   const response = NextResponse.redirect(new URL(loginPath, request.url));
-  if (refreshOutcomeStatus === 'rejected') {
+  // 여기 온 것 자체가 이미 layout.tsx의 /auth/me 실패로 access_token이 무효라고 확인된 뒤다 —
+  // 'unreachable'(백엔드/네트워크가 잠깐 불안정했을 뿐, 무효 여부를 확인 못 한 경우)이 아니라면
+  // access_token은 항상 지운다. 안 지우면 proxy.ts가 이 쿠키의 "존재 여부"만 보고 통과시켜
+  // layout.tsx → session-recover → login으로 오는 이 흐름이 매번 헛되이 반복된다. refresh_token은
+  // 애초에 없었을 수도 있지만(refreshToken이 falsy인 경우), 그럴 땐 지우는 게 no-op이라 안전하다.
+  if (refreshOutcomeStatus !== 'unreachable') {
     response.cookies.delete(ACCESS_TOKEN_COOKIE);
     response.cookies.delete(REFRESH_TOKEN_COOKIE);
   }

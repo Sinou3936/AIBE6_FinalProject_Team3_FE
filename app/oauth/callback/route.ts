@@ -7,19 +7,30 @@ import { getMyProfile } from '../../services/user';
 const OAUTH_NEXT_COOKIE = 'oauth_next';
 
 export async function GET(request: NextRequest) {
+  // 로그인 화면(SocialLoginLinks)이 구글/카카오로 넘어가기 직전에 남겨둔 원래 경로 — OAuth는
+  // 제공자로 리다이렉트됐다 돌아오는 왕복이라 쿼리스트링으로 next를 들고 다닐 방법이 없어서 대신
+  // 쿠키를 쓴다. 실패/성공 어느 분기로 끝나든 한 번 쓰고 나면 지워서 다음 로그인 시도에 잘못
+  // 재사용되지 않게 한다.
+  const rawNext = request.cookies.get(OAUTH_NEXT_COOKIE)?.value ?? null;
+  const next = sanitizeNextPath(rawNext);
+
   const error = request.nextUrl.searchParams.get('error');
   if (error) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('error', error);
-    return NextResponse.redirect(loginUrl);
+    // 실패해도 next는 살려서 로그인 화면(이메일 로그인/다른 소셜 로그인)이 여전히 원래 경로로
+    // 복귀할 수 있게 한다 — rawNext가 있을 때만 붙여서, 애초에 next 없이 시작한 로그인 실패에는
+    // 쓸데없이 /home을 next로 얹지 않는다.
+    if (rawNext) {
+      loginUrl.searchParams.set('next', next);
+    }
+    const response = NextResponse.redirect(loginUrl);
+    response.cookies.delete(OAUTH_NEXT_COOKIE);
+    return response;
   }
 
   const notice = request.nextUrl.searchParams.get('notice');
   const cookieHeader = request.headers.get('cookie') ?? undefined;
-  // 로그인 화면(SocialLoginLinks)이 구글/카카오로 넘어가기 직전에 남겨둔 원래 경로 — OAuth는
-  // 제공자로 리다이렉트됐다 돌아오는 왕복이라 쿼리스트링으로 next를 들고 다닐 방법이 없어서 대신
-  // 쿠키를 쓴다. 한 번 쓰고 나면 지워서 다음 로그인 시도에 잘못 재사용되지 않게 한다.
-  const next = sanitizeNextPath(request.cookies.get(OAUTH_NEXT_COOKIE)?.value ?? null);
 
   try {
     await getCurrentUser(cookieHeader);

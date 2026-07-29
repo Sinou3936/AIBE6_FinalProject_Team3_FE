@@ -14,6 +14,10 @@ const OAUTH_NEXT_COOKIE = 'oauth_next';
 export function SocialLoginLinks({ googleLoginUrl, kakaoLoginUrl, next }: SocialLoginLinksProps) {
   function rememberNext() {
     if (!next) {
+      // next 없이 로그인하는 경우(예: 세션 만료 없이 그냥 로그인 화면에 온 경우)에도, 이전에
+      // 실패한 OAuth 시도가 남겨둔 stale oauth_next 쿠키가 있을 수 있다 — 그걸 그대로 두면 이번
+      // 로그인이 엉뚱한 예전 경로로 튈 수 있으므로 명시적으로 지운다.
+      document.cookie = `${OAUTH_NEXT_COOKIE}=; path=/; max-age=0; samesite=lax`;
       return;
     }
     // 민감 정보가 아닌 내부 경로 문자열이라 httpOnly가 필요 없다(애초에 클라이언트에서만 쓰고 쓸
