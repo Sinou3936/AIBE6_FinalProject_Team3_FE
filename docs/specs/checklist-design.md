@@ -44,7 +44,7 @@
 | 서류 요청 결과(제공됨/미제공) 반영 | ✅ `DOCUMENT_REQUEST` 타입 항목은 "제공받음"/"미제공" 버튼 |
 | 서류 미제공/신탁등기 있음/명의불일치 시 자동 `issueFound` | Backend 계산 결과를 FE가 그대로 표시만 함. 다만 "명의 일치" 항목은 Backend 문서가 이미 "질문 방향이 요구사항과 반대(일치 여부를 물어서 N이 불일치)"라고 짚어뒀고, FE는 백엔드가 내려준 `content`/`guideText`를 그대로 렌더링하므로 이 방향 차이를 그대로 이어받음 |
 | 상태 변경 결과를 즉시 화면에 반영 | ✅ **optimistic update** — API 응답을 기다리지 않고 클릭 즉시 로컬 상태를 먼저 바꾸고(`setItems`), 실패하면 해당 항목만 롤백(`applyUpdate`의 catch에서 항목 단위로 되돌림) |
-| 실패: 존재하지 않는 항목/권한없음/잘못된 상태값/삭제된 매물 | ⚠️ 단일 문구("저장하지 못했어요. 다시 시도해 주세요.") + 해당 항목 롤백. 사유 구분 없음(**2026-07-29**: Backend가 삭제된 매물이면 항목 수정 시점에도 404로 막도록 고쳤지만, FE는 여전히 모든 실패를 동일 문구로 표시). **덧붙여 `auth-design.md` 이슈 2번과 직결** — 이 클라이언트 사이드 PATCH 호출은 Access Token 자동 재발급 대상이 아니라서, 세션 도중 토큰이 만료되면 재로그인 유도 없이 그냥 이 저장 실패 문구만 뜸 |
+| 실패: 존재하지 않는 항목/권한없음/잘못된 상태값/삭제된 매물 | ⚠️ 단일 문구("저장하지 못했어요. 다시 시도해 주세요.") + 해당 항목 롤백. 사유 구분 없음(**2026-07-29**: Backend가 삭제된 매물이면 항목 수정 시점에도 404로 막도록 고쳤지만, FE는 여전히 모든 실패를 동일 문구로 표시). 세션 만료 관련은 **2026-07-29** `requestJson()`에 브라우저 전용 자동 refresh-then-retry가 들어가 대부분 조용히 복구되고, 그래도 실패하면(주로 `unreachable`) 아래 5번 항목의 `isSessionInvalidErrorCode` fallback이 처리 — 더 이상 "자동 재발급 대상이 아님"은 아님(`auth-design.md` 이슈 2번 참고) |
 
 ## 체크리스트 결과 확인 — 요구사항 대비
 
@@ -87,5 +87,5 @@
 2. ~~카테고리 탭 내부에서 중요도 순 정렬이 안 됨~~ ✅ **해결됨(2026-07-29)** — Backend가 카테고리→중요도→`displayOrder` 순 정렬을 응답에 반영, FE는 순서를 그대로 보존하는 구조라 코드 변경 없이 자동 해결
 3. ~~삭제된 매물의 체크리스트 조회/수정 차단이 생성 시점에만 있음~~ ✅ **해결됨(2026-07-29)** — Backend가 조회·항목수정 시점에도 매물 삭제 여부를 재검사하도록 수정, FE는 코드 변경 없이 자동으로 안전해짐
 4. **risk-analysis 연계 보조 신호("최근 소유권 변경 + 높은 전세가율")가 화면에 자리 자체가 없음** — risk-analysis 도메인이 실제로 연동되기 시작하면 이 부분도 같이 설계해야 함
-5. ~~클라이언트 사이드 PATCH가 Access Token 만료에 취약함~~ ✅ **해결됨(2026-07-29)** — `ChecklistClient.tsx`의 `applyUpdate`에 `isSessionInvalidErrorCode()` 체크를 추가, `PasswordUpdateFormClient`와 동일하게 세션 무효 응답이면 `/login?error=session_expired`로 리다이렉트하도록 수정
+5. ~~클라이언트 사이드 PATCH가 Access Token 만료에 취약함~~ ✅ **해결됨(2026-07-29, 같은 날 두 단계로 진행)** — 처음엔 `ChecklistClient.tsx`의 `applyUpdate`에 `isSessionInvalidErrorCode()` 체크를 추가해 세션 무효 응답이면 `/login?error=session_expired`로 리다이렉트하도록 수정했으나(`PasswordUpdateFormClient`의 그 당시 패턴 그대로), **이후 같은 날 `requestJson()`에 브라우저 전용 자동 refresh-then-retry가 들어가면서(`auth-design.md` 이슈 2번 참고) 이 컴포넌트 레벨 체크는 실제로는 거의 안 타게 됨** — 정상 케이스(토큰 만료 → refresh 성공)는 이 catch까지 401이 아예 안 올라오기 때문. 다만 refresh가 `unreachable`(네트워크 오류 등)로 실패한 경우까지 강제 로그아웃시키는 건 별개 버그라, `PasswordUpdateFormClient`와 동일하게 `sessionRefreshOutcome !== 'unreachable'` 가드를 추가해 그 경우엔 재로그인 대신 "서버와 통신할 수 없습니다" 일반 에러로만 표시하도록 다시 수정함
 6. **(2026-07-29, 보류로 결론)** `GET /properties/{propertyId}/checklists`가 이제 404/403을 구분해서 내려주는데도 화면은 여전히 같은 에러 문구로 뭉뚱그림 — `cross-domain-summary.md` 패턴 1(실패 사유 pass-through)의 한 사례로 코드 자체는 쉽게 고칠 수 있지만, 이 403은 정상적인 화면 흐름으로는 도달할 수 없고(URL 직접 조작 시에만 발생) 실사용자가 겪을 일이 없어 **지금은 손대지 않기로 결정** — 나중에 체크리스트 링크 공유 기능 등이 생기면 재검토
