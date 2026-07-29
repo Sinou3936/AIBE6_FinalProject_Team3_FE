@@ -67,17 +67,31 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
         // 결과 재조회 실패는 문항 저장 자체와는 무관하므로 조용히 무시한다 (다음 변경 때 다시 시도됨).
       }
     } catch (submitError) {
-      // 이 화면에 오래 머무는 동안 Access Token이 만료되면 서버는 401(UNAUTHORIZED 또는
-      // AUTH_TOKEN_MISSING/INVALID/EXPIRED)을 준다 — requestJson()엔 브라우저-side
-      // refresh-then-retry가 없어(docs/specs/auth-design.md 참고) 이 401을 그대로 던지므로,
-      // 일반 저장 실패로 보여주는 대신 재로그인 화면으로 보낸다(PasswordUpdateFormClient와 동일 패턴).
-      if (submitError instanceof ApiError && isSessionInvalidErrorCode(submitError.body?.code)) {
+      // requestJson()이 브라우저 컨텍스트에서 401 → refresh → 원 요청 1회 재시도를 자동으로
+      // 처리하므로(app/lib/api/http.ts 참고), 정상 케이스(refresh 성공)는 이 catch까지 401이 아예
+      // 올라오지 않는다. 이 분기가 실제로 타는 건 refresh까지 실패한 경우뿐인데, 그중
+      // 'rejected'(진짜 무효)는 requestJson()이 이미 /auth/session-recover로 페이지 이동시켜버려서
+      // 이 컴포넌트 코드가 실행될 새도 없이 화면을 벗어난다. 그러니 여기 남는 건 사실상
+      // 'unreachable'(네트워크 오류/백엔드 일시 장애)뿐이다 — 이때는 세션이 진짜 무효인지 알 수
+      // 없으므로 재로그인 화면으로 보내지 않고 일반 에러로만 보여준다(PasswordUpdateFormClient와
+      // 동일 패턴).
+      if (
+        submitError instanceof ApiError &&
+        isSessionInvalidErrorCode(submitError.body?.code) &&
+        submitError.sessionRefreshOutcome !== 'unreachable'
+      ) {
         router.push('/login?error=session_expired');
         return;
       }
 
       setItems((currentItems) => currentItems.map((current) => (current.id === item.id ? item : current)));
-      setItemErrors((current) => ({ ...current, [item.id]: '저장하지 못했어요. 다시 시도해 주세요.' }));
+      setItemErrors((current) => ({
+        ...current,
+        [item.id]:
+          submitError instanceof ApiError && submitError.sessionRefreshOutcome === 'unreachable'
+            ? '서버와 통신할 수 없습니다. 잠시 후 다시 시도해 주세요.'
+            : '저장하지 못했어요. 다시 시도해 주세요.',
+      }));
     }
   }
 
