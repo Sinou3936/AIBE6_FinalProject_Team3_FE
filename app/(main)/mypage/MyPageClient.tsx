@@ -2,11 +2,9 @@
 
 import { Lock, LogOut, Pencil, Plus, User, UserX } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import { ENABLE_ANALYSIS_HISTORY } from '../../config/features';
 import { hasRegisteredProfile } from '../../lib/profile';
-import { logout } from '../../services/auth';
+import { useLogout } from '../../lib/useLogout';
 import { type MyPageOverview, type UserProfile } from '../../types/domain';
 import { Badge } from '../../ui/Badge';
 import { InfoRow } from '../../ui/InfoRow';
@@ -21,31 +19,10 @@ type MyPageClientProps = {
 };
 
 export function MyPageClient({ overview, loadError, nickname, profile, profileLoadError }: MyPageClientProps) {
-  const router = useRouter();
   const isRegistered = hasRegisteredProfile(profile);
   const properties = overview.bookmarkedProperties;
   const signalCount = properties.reduce((sum, property) => sum + (property.checkSignalCount ?? 0), 0);
-  const [logoutError, setLogoutError] = useState<string>();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
-
-  // 서버 호출이 실패하면(네트워크 오류, 백엔드 일시 장애 등) 로그아웃은 실제로 안 됐을 수 있다 —
-  // 무조건 /login으로 보내면 사용자는 로그아웃된 줄 알지만 서버 세션은 그대로 남는다. 성공했을
-  // 때만 이동하고, 실패하면 화면에 남겨 재시도하게 한다. isLoggingOut으로 버튼을 비활성화해,
-  // 응답 오는 동안 여러 번 눌러 /auth/logout이 중복 호출되는 것도 막는다.
-  async function handleLogout() {
-    if (isLoggingOut) {
-      return;
-    }
-    setIsLoggingOut(true);
-    setLogoutError(undefined);
-    try {
-      await logout();
-      router.push('/login');
-    } catch {
-      setLogoutError('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
-      setIsLoggingOut(false);
-    }
-  }
+  const { isLoggingOut, logoutError, handleLogout } = useLogout();
 
   function handleWithdrawClick() {
     // TODO: 회원 탈퇴 확인 모달 연동 (백엔드 탈퇴 API 확정 후 진행)

@@ -2,11 +2,11 @@
 
 import { AlertCircle, Bell, Home, LogOut, Menu, User, X } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { navItems } from '../data/navigation';
 import { cn } from '../lib/cn';
-import { logout } from '../services/auth';
+import { useLogout } from '../lib/useLogout';
 import { NoticeBox } from '../ui/NoticeBox';
 
 type MainLayoutClientProps = {
@@ -17,32 +17,10 @@ type MainLayoutClientProps = {
 
 export default function MainLayoutClient({ children, nickname, profileImageUrl }: MainLayoutClientProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [logoutError, setLogoutError] = useState<string>();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { isLoggingOut, logoutError, handleLogout } = useLogout();
 
   const isActive = (path: string) => pathname === path;
-
-  // 서버 호출이 실패하면(네트워크 오류, 백엔드 일시 장애 등) 로그아웃은 실제로 안 됐을 수 있다 —
-  // 그런데도 무조건 /login으로 보내면 사용자는 로그아웃된 줄 알지만 서버 세션(refresh token 등)은
-  // 그대로 남아있는 상태가 된다. 성공했을 때만 이동하고, 실패하면 화면에 남겨 재시도하게 한다.
-  // isLoggingOut으로 버튼을 비활성화해, 응답 오는 동안 여러 번 눌러 /auth/logout이 중복
-  // 호출되는 것도 막는다.
-  async function handleLogout() {
-    if (isLoggingOut) {
-      return;
-    }
-    setIsLoggingOut(true);
-    setLogoutError(undefined);
-    try {
-      await logout();
-      router.push('/login');
-    } catch {
-      setLogoutError('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
-      setIsLoggingOut(false);
-    }
-  }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">

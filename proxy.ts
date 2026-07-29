@@ -74,7 +74,11 @@ export async function proxy(request: NextRequest) {
         : undefined;
   const loginPath = `/login?${errorParam ? `error=${errorParam}&` : ''}next=${encodeURIComponent(currentPath)}`;
   const response = NextResponse.redirect(new URL(loginPath, request.url));
-  if (refreshOutcomeStatus === 'rejected') {
+  // session-recover/route.ts와 동일한 조건('unreachable'이 아니면 삭제) — 이 분기는 이미
+  // access_token 쿠키가 없다고 확인된 뒤라(23번째 줄) 실제로는 rejected/undefined 어느 쪽이든
+  // 지울 게 없는 no-op이지만, 조건을 두 파일에서 다르게 두면 나중에 위 가드가 바뀔 때 조용히
+  // 어긋날 수 있어 표현을 맞춰둔다.
+  if (refreshOutcomeStatus !== 'unreachable') {
     response.cookies.delete(ACCESS_TOKEN_COOKIE);
     response.cookies.delete(REFRESH_TOKEN_COOKIE);
   }
