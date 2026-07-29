@@ -7,6 +7,24 @@ import { logout } from '../services/auth';
 // MainLayoutClient.tsx(헤더)와 MyPageClient.tsx 양쪽에서 거의 동일한 로그아웃 처리 로직이
 // 중복돼 있다가, 한쪽만 고치고 다른 쪽을 빠뜨리는 drift가 실제로 한 번 있었다(모바일 메뉴 버튼의
 // "로그아웃 중..." 표시가 나중에야 따라붙음) — 한 곳으로 모아 그런 일을 구조적으로 막는다.
+//
+// 이 훅은 각 컴포넌트마다 독립된 isLoggingOut state를 갖는다 — /mypage 페이지에는
+// MainLayoutClient(헤더)와 MyPageClient(본문)가 동시에 마운트되어 이 훅을 각자 호출하므로, 헤더
+// 버튼과 본문 버튼의 "로그아웃 중..." 표시는 서로 동기화되지 않는다(둘 다 Context 없이 지역
+// state이기 때문). 다만 실제로 문제가 되는 건 화면 표시 불일치가 아니라 /auth/logout이 두 번
+// 나가는 것이므로, 그 부분만 아래 logoutOnce()로 모듈 레벨에서 막는다 — 여러 인스턴스가 거의
+// 동시에 호출해도 실제 네트워크 요청은 한 번만 나간다.
+let logoutInFlight: Promise<void> | null = null;
+
+function logoutOnce(): Promise<void> {
+  if (!logoutInFlight) {
+    logoutInFlight = logout().finally(() => {
+      logoutInFlight = null;
+    });
+  }
+  return logoutInFlight;
+}
+
 export function useLogout() {
   const router = useRouter();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -15,7 +33,8 @@ export function useLogout() {
   // 서버 호출이 실패하면(네트워크 오류, 백엔드 일시 장애 등) 로그아웃은 실제로 안 됐을 수 있다 —
   // 무조건 /login으로 보내면 사용자는 로그아웃된 줄 알지만 서버 세션은 그대로 남는다. 성공했을
   // 때만 이동하고, 실패하면 호출부가 에러를 보여주며 현재 페이지에 남기도록 logoutError를 반환한다.
-  // isLoggingOut으로 중복 호출도 막는다(어느 진입점에서 호출되든 동일하게 적용됨).
+  // isLoggingOut으로 이 인스턴스에서의 중복 호출을 막고, logoutOnce()가 다른 인스턴스와의 중복
+  // 호출까지 막는다.
   async function handleLogout() {
     if (isLoggingOut) {
       return;
@@ -23,7 +42,7 @@ export function useLogout() {
     setIsLoggingOut(true);
     setLogoutError(undefined);
     try {
-      await logout();
+      await logoutOnce();
       router.push('/login');
     } catch {
       setLogoutError('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
