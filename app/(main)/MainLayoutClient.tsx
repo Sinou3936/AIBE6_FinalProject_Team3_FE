@@ -1,12 +1,13 @@
 'use client';
 
-import { Bell, Home, LogOut, Menu, User, X } from 'lucide-react';
+import { AlertCircle, Bell, Home, LogOut, Menu, User, X } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { navItems } from '../data/navigation';
 import { cn } from '../lib/cn';
-import { logout } from '../services/auth';
+import { useLogout } from '../lib/useLogout';
+import { NoticeBox } from '../ui/NoticeBox';
 
 type MainLayoutClientProps = {
   children: ReactNode;
@@ -16,18 +17,10 @@ type MainLayoutClientProps = {
 
 export default function MainLayoutClient({ children, nickname, profileImageUrl }: MainLayoutClientProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isLoggingOut, logoutError, handleLogout } = useLogout();
 
   const isActive = (path: string) => pathname === path;
-
-  async function handleLogout() {
-    try {
-      await logout();
-    } finally {
-      router.push('/login');
-    }
-  }
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -80,10 +73,11 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl }
             </Link>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1 rounded-full p-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-950"
+              disabled={isLoggingOut}
+              className="flex items-center gap-1 rounded-full p-2 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-950 disabled:opacity-60"
             >
               <LogOut className="h-4 w-4" />
-              로그아웃
+              {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
             </button>
           </div>
         </div>
@@ -107,6 +101,14 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl }
           </div>
         </div>
       </header>
+
+      {logoutError && (
+        <div className="container mx-auto px-4 pt-4">
+          <NoticeBox icon={AlertCircle} iconClassName="text-red-500" className="bg-red-50 text-red-600">
+            {logoutError}
+          </NoticeBox>
+        </div>
+      )}
 
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 bg-white md:hidden">
@@ -145,10 +147,11 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl }
                   setIsMobileMenuOpen(false);
                   handleLogout();
                 }}
-                className="flex items-center gap-3 p-4 text-lg font-medium text-slate-600 hover:bg-slate-50"
+                disabled={isLoggingOut}
+                className="flex items-center gap-3 p-4 text-lg font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-60"
               >
                 <LogOut className="h-6 w-6" />
-                로그아웃
+                {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
               </button>
             </nav>
           </div>
