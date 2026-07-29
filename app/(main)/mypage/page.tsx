@@ -1,9 +1,11 @@
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { classifyProfileLoadError } from '../../lib/profileLoadError';
 import { getCurrentUser } from '../../services/auth';
 import { getMyPageOverview } from '../../services/mypage';
 import { getMyProfile } from '../../services/user';
 import { type MyPageOverview, type UserProfile } from '../../types/domain';
+import { AccountUnavailableRedirect } from '../../ui/AccountUnavailableRedirect';
 import { MyPageClient } from './MyPageClient';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +39,7 @@ export default async function Page() {
   let loadError: string | undefined;
   let profile = emptyProfile;
   let profileLoadError: string | undefined;
+  let profileNotFound = false;
 
   try {
     overview = await getMyPageOverview(cookieHeader);
@@ -47,17 +50,24 @@ export default async function Page() {
   try {
     const cookieHeader = (await headers()).get('cookie') ?? undefined;
     profile = await getMyProfile(cookieHeader);
-  } catch {
-    profileLoadError = '프로필 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+  } catch (error) {
+    if (classifyProfileLoadError(error) === 'not-found') {
+      profileNotFound = true;
+    } else {
+      profileLoadError = '프로필 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+    }
   }
 
   return (
-    <MyPageClient
-      overview={overview}
-      loadError={loadError}
-      nickname={nickname}
-      profile={profile}
-      profileLoadError={profileLoadError}
-    />
+    <>
+      {profileNotFound && <AccountUnavailableRedirect />}
+      <MyPageClient
+        overview={overview}
+        loadError={loadError}
+        nickname={nickname}
+        profile={profile}
+        profileLoadError={profileLoadError}
+      />
+    </>
   );
 }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { quickActions, quickActionToneMap } from '../../data/dashboard';
 import { computeHomeSummaryCounts } from '../../lib/homeSummary';
 import { getPriorityAction } from '../../lib/priorityAction';
+import { classifyProfileLoadError } from '../../lib/profileLoadError';
 import { getMyChecklistOverviews } from '../../services/checklist';
 import { getMyPageOverview } from '../../services/mypage';
 import { getProperties } from '../../services/properties';
@@ -14,6 +15,7 @@ import {
   type PropertySummary,
   type UserProfile,
 } from '../../types/domain';
+import { AccountUnavailableRedirect } from '../../ui/AccountUnavailableRedirect';
 import { ChecklistProgressWidget } from '../../ui/ChecklistProgressWidget';
 import { NoticeBox } from '../../ui/NoticeBox';
 import { PriorityActionCard } from '../../ui/PriorityActionCard';
@@ -43,13 +45,18 @@ export default async function Page({ searchParams }: HomePageProps) {
   const cookieHeader = (await cookies()).toString();
 
   let loadError: string | undefined;
+  let profileNotFound = false;
 
   let profile = emptyProfile;
   try {
     profile = await getMyProfile(cookieHeader);
-  } catch {
-    // 실패 시 개인화 우선순위 카드는 미등록 상태 기준으로 표시하고, 아래 배너로 실패 사실을 알린다.
-    loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+  } catch (error) {
+    if (classifyProfileLoadError(error) === 'not-found') {
+      profileNotFound = true;
+    } else {
+      // 실패 시 개인화 우선순위 카드는 미등록 상태 기준으로 표시하고, 아래 배너로 실패 사실을 알린다.
+      loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+    }
   }
 
   let properties: PropertySummary[] = [];
@@ -102,6 +109,8 @@ export default async function Page({ searchParams }: HomePageProps) {
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-6 md:py-10">
+      {profileNotFound && <AccountUnavailableRedirect />}
+
       <div className="mb-8">
         <h1 className="ansim-page-title mb-2">계약 전 확인할 항목을 정리했어요</h1>
         <p className="ansim-page-description">
