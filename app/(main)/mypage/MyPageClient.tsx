@@ -26,17 +26,24 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
   const properties = overview.bookmarkedProperties;
   const signalCount = properties.reduce((sum, property) => sum + (property.checkSignalCount ?? 0), 0);
   const [logoutError, setLogoutError] = useState<string>();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // 서버 호출이 실패하면(네트워크 오류, 백엔드 일시 장애 등) 로그아웃은 실제로 안 됐을 수 있다 —
   // 무조건 /login으로 보내면 사용자는 로그아웃된 줄 알지만 서버 세션은 그대로 남는다. 성공했을
-  // 때만 이동하고, 실패하면 화면에 남겨 재시도하게 한다.
+  // 때만 이동하고, 실패하면 화면에 남겨 재시도하게 한다. isLoggingOut으로 버튼을 비활성화해,
+  // 응답 오는 동안 여러 번 눌러 /auth/logout이 중복 호출되는 것도 막는다.
   async function handleLogout() {
+    if (isLoggingOut) {
+      return;
+    }
+    setIsLoggingOut(true);
     setLogoutError(undefined);
     try {
       await logout();
       router.push('/login');
     } catch {
       setLogoutError('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      setIsLoggingOut(false);
     }
   }
 
@@ -113,10 +120,11 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
             <button
               type="button"
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
+              disabled={isLoggingOut}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-60"
             >
               <LogOut className="h-4 w-4 text-slate-400" />
-              로그아웃
+              {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
             </button>
             {logoutError && <p className="px-3 text-xs text-red-600">{logoutError}</p>}
             <button
