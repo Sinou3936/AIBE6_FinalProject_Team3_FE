@@ -13,7 +13,7 @@ export async function proxy(request: NextRequest) {
   // (main)/layout.tsx가 access_token은 있지만 무효인 경우 세션 복구 후 원래 경로로 돌아가려면
   // 자기 자신의 경로를 알아야 하는데, Server Component는 그걸 직접 알 방법이 없다.
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set(CURRENT_PATH_HEADER, request.nextUrl.pathname);
+  requestHeaders.set(CURRENT_PATH_HEADER, request.nextUrl.pathname + request.nextUrl.search);
 
   // mock 모드는 백엔드가 없어도 화면을 확인할 수 있어야 하므로 로그인 게이트를 건너뛴다.
   if (useMockData) {

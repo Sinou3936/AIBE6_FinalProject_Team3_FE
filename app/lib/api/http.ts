@@ -32,6 +32,10 @@ export class ApiError extends Error {
     message: string,
     public readonly status: number,
     public readonly body?: ApiErrorBody | null,
+    // requestJson()이 브라우저에서 refresh를 시도했지만 네트워크 오류/서버 일시 장애로 결과를 알 수
+    // 없었던 경우에만 'unreachable'을 채운다 — 호출부(예: PasswordUpdateFormClient)가 "세션이 확실히
+    // 무효"와 "일시 장애라 판단 불가"를 구분해서, 후자는 강제 로그아웃시키지 않게 하기 위함이다.
+    public readonly sessionRefreshOutcome?: 'unreachable',
   ) {
     super(message);
     this.name = 'ApiError';
@@ -64,6 +68,7 @@ export function getApiBaseUrl(): string {
 // layout.tsx가 session-recover로 보내는 기존 흐름 그대로).
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = normalizeHeaders(init?.headers);
+  const requestStartedAt = typeof window !== 'undefined' ? Date.now() : 0;
   const response = await fetch(`${getApiBaseUrl()}${path}`, { ...init, credentials: 'include', headers });
   const body = await readApiResponse<T>(response);
 
@@ -75,6 +80,16 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
     path !== REFRESH_PATH;
 
   if (shouldTryRefresh) {
+    // 이 요청이 나간 "이후"에 이미 성공한 refresh가 있다면, 그 401은 우리 요청이 낡은(만료된)
+    // access token을 들고 나갔을 때 생긴 것일 뿐이다 — 브라우저는 이미 새 쿠키를 갖고 있으니
+    // refresh를 또 시작할 필요 없이 바로 재시도만 하면 된다. (동시에 나간 A/B 요청 중 A가 refresh를
+    // 끝낸 뒤에야 B의 401이 뒤늦게 도착하는 경우 — 안 그러면 이미 성공한 refresh 직후에 불필요한
+    // 재-rotate가 한 번 더 일어난다.)
+    if (requestStartedAt < lastRefreshSucceededAt) {
+      const retryResponse = await fetch(`${getApiBaseUrl()}${path}`, { ...init, credentials: 'include', headers });
+      return finalizeResponse<T>(retryResponse, await readApiResponse<T>(retryResponse));
+    }
+
     const outcome = await refreshOnceInBrowser();
 
     if (outcome === 'success') {
@@ -85,12 +100,15 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
     // 'rejected'는 백엔드가 이 세션을 확실히 무효로 판단한 경우다 — access/refresh 쿠키는 httpOnly라
     // 여기서 직접 지울 수 없으므로(서버 응답으로만 Set-Cookie 삭제 가능), 이미 그 정리를 하는
     // /auth/session-recover로 전체 페이지 이동시켜 위임한다(쿠키 삭제 로직을 두 곳에 중복시키지
-    // 않기 위함). 'unreachable'(네트워크 오류 등)은 세션이 실제로 무효인지 알 수 없으므로 강제
-    // 로그아웃시키지 않고 원래 401을 그대로 던져 컴포넌트가 일반 에러로 보여주게 둔다.
+    // 않기 위함). 'unreachable'(네트워크 오류, 5xx 등 refresh 자체가 성공/실패 어느 쪽인지 알 수
+    // 없는 경우)은 세션이 실제로 무효인지 알 수 없으므로 강제 로그아웃시키지 않고 원래 401을 그대로
+    // 던지되, sessionRefreshOutcome 표시를 남겨 호출부가 "확정된 세션 만료"와 구분할 수 있게 한다.
     if (outcome === 'rejected') {
       redirectToSessionRecover();
       return new Promise<T>(() => {}); // 페이지 이동이 끝날 때까지 아무 것도 하지 않고 대기
     }
+
+    return finalizeResponse<T>(response, body, 'unreachable');
   }
 
   return finalizeResponse<T>(response, body);
@@ -103,11 +121,22 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
 type BrowserRefreshOutcome = 'success' | 'rejected' | 'unreachable';
 
 let refreshInFlight: Promise<BrowserRefreshOutcome> | null = null;
+let lastRefreshSucceededAt = 0;
 
 function refreshOnceInBrowser(): Promise<BrowserRefreshOutcome> {
   if (!refreshInFlight) {
     refreshInFlight = fetch(`${getApiBaseUrl()}${REFRESH_PATH}`, { method: 'POST', credentials: 'include' })
-      .then((response): BrowserRefreshOutcome => (response.ok ? 'success' : 'rejected'))
+      .then((response): BrowserRefreshOutcome => {
+        if (response.ok) {
+          lastRefreshSucceededAt = Date.now();
+          return 'success';
+        }
+        // 401만 "백엔드가 실제로 이 refresh token을 거부했다"는 확정 신호다. 5xx/429 등은 refresh
+        // 엔드포인트 자체의 일시 장애일 수 있어(auth-design.md 기준 실패는 항상 401로 응답하도록
+        // 되어 있음), 그런 경우까지 rejected로 묶으면 서버가 잠깐 이상했을 뿐인데 강제 로그아웃되는
+        // 것처럼 보인다.
+        return response.status === 401 ? 'rejected' : 'unreachable';
+      })
       .catch((): BrowserRefreshOutcome => 'unreachable')
       .finally(() => {
         refreshInFlight = null;
@@ -142,13 +171,22 @@ function normalizeHeaders(initHeaders?: HeadersInit): Headers {
 // 401이 그대로 던져진다 — `PasswordUpdateFormClient`처럼 `isSessionInvalidErrorCode(error.code)`로
 // 감지해 `/login?error=session_expired`로 보내는 컴포넌트 레벨 fallback은 계속 필요하다(예:
 // refresh_token 자체가 이미 없거나 만료된 경우).
-function finalizeResponse<T>(response: Response, body: ApiResponse<T>): T {
+function finalizeResponse<T>(
+  response: Response,
+  body: ApiResponse<T>,
+  sessionRefreshOutcome?: 'unreachable',
+): T {
   if (!response.ok) {
-    throw new ApiError(body.error?.message ?? `API request failed: ${response.status}`, response.status, body.error);
+    throw new ApiError(
+      body.error?.message ?? `API request failed: ${response.status}`,
+      response.status,
+      body.error,
+      sessionRefreshOutcome,
+    );
   }
 
   if (!body.success) {
-    throw new ApiError(body.error?.message ?? 'API request failed.', response.status, body.error);
+    throw new ApiError(body.error?.message ?? 'API request failed.', response.status, body.error, sessionRefreshOutcome);
   }
 
   return body.data;
@@ -181,7 +219,10 @@ export async function refreshSession(refreshTokenCookieValue: string): Promise<R
   }
 
   if (!response.ok) {
-    return { status: 'rejected' };
+    // 401만 "refresh token을 확실히 거부함"이다 — 5xx/429 등 백엔드 일시 장애까지 rejected로
+    // 묶으면 proxy.ts/session-recover가 멀쩡한 세션의 쿠키를 지워버릴 수 있다(auth-design.md 기준
+    // refresh 실패는 항상 401로 응답하도록 되어 있음).
+    return response.status === 401 ? { status: 'rejected' } : { status: 'unreachable' };
   }
 
   // 미들웨어/Node 런타임에서는 지원되지만, 런타임에 따라 없을 수 있으니 안전하게 호출한다.
