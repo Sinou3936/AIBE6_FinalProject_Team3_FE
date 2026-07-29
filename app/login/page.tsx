@@ -3,6 +3,7 @@ import { AlertCircle, Shield } from 'lucide-react';
 import { getGoogleLoginUrl, getKakaoLoginUrl } from '../services/auth';
 import { NoticeBox } from '../ui/NoticeBox';
 import { LoginFormClient } from './LoginFormClient';
+import { SocialLoginLinks } from './SocialLoginLinks';
 
 const ERROR_MESSAGES: Record<string, string> = {
   oauth_login_failed: '로그인에 실패했습니다. 잠시 후 다시 시도해주세요.',
@@ -51,7 +52,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </NoticeBox>
         )}
 
-        <LoginFormClient />
+        <LoginFormClient next={next} />
 
         <div className="my-6 flex items-center gap-3 text-xs text-slate-400">
           <div className="h-px flex-1 bg-slate-200" />
@@ -59,20 +60,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <div className="h-px flex-1 bg-slate-200" />
         </div>
 
-        <div className="flex flex-col gap-3">
-          <a
-            href={getGoogleLoginUrl()}
-            className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-6 py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
-          >
-            구글로 로그인
-          </a>
-          <a
-            href={getKakaoLoginUrl()}
-            className="flex items-center justify-center gap-2 rounded-lg bg-[#FEE500] px-6 py-3 font-semibold text-[#191919] transition-colors hover:bg-[#f5dc00]"
-          >
-            카카오로 로그인
-          </a>
-        </div>
+        <SocialLoginLinks googleLoginUrl={getGoogleLoginUrl()} kakaoLoginUrl={getKakaoLoginUrl()} next={next} />
 
         <p className="mt-6 text-center text-sm text-slate-600">
           아직 계정이 없으신가요?{' '}
