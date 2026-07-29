@@ -24,9 +24,12 @@ export function SocialLoginLinks({ googleLoginUrl, kakaoLoginUrl, next }: Social
 
   return (
     <div className="flex flex-col gap-3">
+      {/* onClick만으로는 가운데 클릭/새 탭에서 열기(click 대신 auxclick이 발생)에서 next가 조용히
+          사라진다 — onAuxClick도 같이 걸어 어느 버튼으로 열든 쿠키가 남게 한다. */}
       <a
         href={googleLoginUrl}
         onClick={rememberNext}
+        onAuxClick={rememberNext}
         className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-6 py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
       >
         구글로 로그인
@@ -34,6 +37,7 @@ export function SocialLoginLinks({ googleLoginUrl, kakaoLoginUrl, next }: Social
       <a
         href={kakaoLoginUrl}
         onClick={rememberNext}
+        onAuxClick={rememberNext}
         className="flex items-center justify-center gap-2 rounded-lg bg-[#FEE500] px-6 py-3 font-semibold text-[#191919] transition-colors hover:bg-[#f5dc00]"
       >
         카카오로 로그인
