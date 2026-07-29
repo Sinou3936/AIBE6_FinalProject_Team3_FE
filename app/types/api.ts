@@ -88,12 +88,13 @@ export type ChecklistOverviewDto = {
 export type ContractInputType = 'TEXT' | 'IMAGE';
 export type ContractInputNextStep = 'OCR' | 'MASKING';
 
+// 이 요청은 JSON 바디가 아니라 multipart/form-data로 보낸다(TEXT/IMAGE 둘 다). 아래 타입은 각
+// 필드가 폼 파트로 무엇을 담는지 문서화하는 용도이고, image는 File이라 여기 타입엔 포함하지 않는다.
 export type ContractInputRequestDto = {
   inputType: ContractInputType;
   text?: string;
   propertyId?: number;
 };
-// inputType이 'IMAGE'면 위 필드 대신 multipart/form-data로 image 파트를 보낸다(JSON 바디 아님).
 
 export type ContractInputResponseDto = {
   inputType: ContractInputType;

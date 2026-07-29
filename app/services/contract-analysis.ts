@@ -5,7 +5,6 @@ import { getMockContractAnalysisResult } from '../repositories/contractAnalysisR
 import {
   type ContractAnalysisResultDto,
   type ContractAnalyzeRequestDto,
-  type ContractInputRequestDto,
   type ContractInputResponseDto,
   type ContractMaskingRequestDto,
   type ContractMaskingResponseDto,
@@ -22,9 +21,14 @@ export async function submitContractInput(text: string): Promise<ContractInputRe
     return { inputType: 'TEXT', readyForNextStep: true, nextStep: 'MASKING' };
   }
 
+  // 이 엔드포인트는 TEXT/IMAGE 둘 다 multipart/form-data로 받는다(JSON 바디 아님).
+  const formData = new FormData();
+  formData.append('inputType', 'TEXT');
+  formData.append('text', text);
+
   return requestJson<ContractInputResponseDto>('/contract-analysis/inputs', {
     method: 'POST',
-    body: JSON.stringify({ inputType: 'TEXT', text } satisfies ContractInputRequestDto),
+    body: formData,
   });
 }
 
