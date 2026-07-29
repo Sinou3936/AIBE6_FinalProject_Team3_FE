@@ -173,7 +173,8 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
       } else {
         await updateMyProfile(formValues);
       }
-      router.push('/mypage');
+      // 최초 등록(온보딩)은 분기 결과가 반영된 홈 화면으로, 이후 수정은 원래 있던 마이페이지로 되돌아간다.
+      router.push(mode === 'register' ? '/home' : '/mypage');
       router.refresh();
     } catch (error) {
       setSaveError(

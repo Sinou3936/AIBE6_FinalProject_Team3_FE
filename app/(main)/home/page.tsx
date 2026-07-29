@@ -4,10 +4,16 @@ import Link from 'next/link';
 import { quickActions, quickActionToneMap } from '../../data/dashboard';
 import { computeHomeSummaryCounts } from '../../lib/homeSummary';
 import { getPriorityAction } from '../../lib/priorityAction';
+import { getMyChecklistOverviews } from '../../services/checklist';
 import { getMyPageOverview } from '../../services/mypage';
 import { getProperties } from '../../services/properties';
 import { getMyProfile } from '../../services/user';
-import { type MyPageOverview, type PropertySummary, type UserProfile } from '../../types/domain';
+import {
+  type ChecklistOverview,
+  type MyPageOverview,
+  type PropertySummary,
+  type UserProfile,
+} from '../../types/domain';
 import { ChecklistProgressWidget } from '../../ui/ChecklistProgressWidget';
 import { NoticeBox } from '../../ui/NoticeBox';
 import { PriorityActionCard } from '../../ui/PriorityActionCard';
@@ -47,10 +53,13 @@ export default async function Page({ searchParams }: HomePageProps) {
   }
 
   let properties: PropertySummary[] = [];
+  let propertiesLoadFailed = false;
   try {
-    properties = await getProperties();
+    properties = await getProperties(cookieHeader);
   } catch {
-    // 실패 시 요약/알림/매물 기준 정보는 빈 상태로 표시하고, 아래 배너로 실패 사실을 알린다.
+    // 실패 시 "매물이 없다"고 단정하지 않도록 propertiesLoadFailed로 별도 표시하고,
+    // 아래 배너로도 실패 사실을 알린다.
+    propertiesLoadFailed = true;
     loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
@@ -62,17 +71,23 @@ export default async function Page({ searchParams }: HomePageProps) {
     loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
-  // TODO: 백엔드에 hasProperty/hasChecklist 전용 필드(또는 API)가 추가되면 이 파생 계산을 실제 값으로 교체하세요.
-  // 지금은 매물 목록/매물별 체크리스트 진행률(checklist)로 근사합니다.
+  let checklistOverviews: ChecklistOverview[] = [];
+  try {
+    checklistOverviews = await getMyChecklistOverviews(cookieHeader);
+  } catch {
+    // 실패 시 개인화 우선순위 카드는 "불러오지 못함" 상태로 표시하고, 아래 배너로도 실패 사실을 알린다.
+    loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+  }
+
   const hasProperty = properties.length > 0;
+  // TODO: 체크리스트 항목별 저장 API가 추가되면 아래 위젯 노출 조건도 checklistOverviews 기반으로 교체하세요.
   const hasChecklist = properties.some((property) => (property.checklist ?? 0) > 0);
-  const primaryProperty = properties[0];
 
   const priorityAction = getPriorityAction({
     currentStage: profile.currentStage,
     hasProperty,
-    hasChecklist,
-    propertyTitle: primaryProperty?.title,
+    propertiesLoadFailed,
+    checklistOverviews,
   });
 
   const summaryCounts = computeHomeSummaryCounts(properties, overview.activityHistory);
