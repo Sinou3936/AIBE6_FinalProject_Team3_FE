@@ -59,7 +59,7 @@ export function getApiBaseUrl(): string {
 // 라우트는 항상 미들웨어를 먼저 거치므로, 이 함수가 호출되는 시점엔 이미 유효한 access token이
 // 쿠키에 있어야 정상이다.
 export async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers = normalizeHeaders(init?.headers);
+  const headers = normalizeHeaders(init?.headers, init?.body instanceof FormData);
   const response = await fetch(`${getApiBaseUrl()}${path}`, { ...init, credentials: 'include', headers });
   return parseOrThrow<T>(response);
 }
@@ -67,12 +67,14 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
 // HeadersInit은 plain object/배열/Headers 인스턴스 중 뭐든 될 수 있는데, {...init?.headers}로
 // 스프레드하면 Headers 인스턴스나 배열은 조용히 빈 객체가 되어 헤더가 통째로 사라진다.
 // new Headers(...)로 정규화해야 어떤 형태로 들어와도 안전하게 병합/조회할 수 있다.
-function normalizeHeaders(initHeaders?: HeadersInit): Headers {
+function normalizeHeaders(initHeaders?: HeadersInit, isFormData = false): Headers {
   const headers = new Headers(initHeaders);
   if (!headers.has('Accept')) {
     headers.set('Accept', 'application/json');
   }
-  if (!headers.has('Content-Type')) {
+  // FormData 바디는 브라우저가 multipart boundary까지 포함해 Content-Type을 직접 설정해야 하므로
+  // 여기서 미리 값을 넣으면 안 된다(넣으면 boundary 없는 잘못된 헤더로 덮어써져 요청이 깨진다).
+  if (!isFormData && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
   return headers;

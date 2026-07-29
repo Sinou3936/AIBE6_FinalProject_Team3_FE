@@ -10,7 +10,6 @@ import {
   Download,
   FileText,
   HelpCircle,
-  Info,
   MessageSquare,
   Share2,
   ShieldCheck,
@@ -23,18 +22,25 @@ import {
   depositSafetyActions,
   missingItems,
 } from '../../../data/contract-analysis';
-import { type ContractAnalysisTab, type ContractInfoItem, type ContractRiskItem } from '../../../types/domain';
+import { type ContractAnalysisTab, type ContractClause } from '../../../types/domain';
 import { Badge } from '../../../ui/Badge';
-import { InfoRow } from '../../../ui/InfoRow';
 import { SummaryCard } from '../../../ui/SummaryCard';
 
 type ContractResultClientProps = {
-  riskItems: ContractRiskItem[];
-  contractInfoItems: ContractInfoItem[];
+  clauses: ContractClause[];
+  summary?: string;
+  aiGeneratedNotice?: string;
+  disclaimer?: string;
   loadError?: string;
 };
 
-export function ContractResultClient({ riskItems, contractInfoItems, loadError }: ContractResultClientProps) {
+export function ContractResultClient({
+  clauses,
+  summary,
+  aiGeneratedNotice,
+  disclaimer,
+  loadError,
+}: ContractResultClientProps) {
   const [activeTab, setActiveTab] = useState<ContractAnalysisTab>('risk');
 
   return (
@@ -48,9 +54,8 @@ export function ContractResultClient({ riskItems, contractInfoItems, loadError }
                 <span className="text-sm text-slate-400">분석 일시: 2026.07.13 14:30</span>
               </div>
               <h1 className="ansim-page-title mb-2">계약서 분석 결과입니다</h1>
-              <p className="ansim-page-description">
-                주의가 필요한 조항 <span className="font-bold text-orange-600">3개</span>가 발견되었습니다.
-              </p>
+              {summary && <p className="ansim-page-description">{summary}</p>}
+              {aiGeneratedNotice && <p className="mt-2 text-xs text-slate-400">{aiGeneratedNotice}</p>}
             </div>
             <div className="flex items-center gap-3">
               <button className="ansim-button-secondary px-4 py-2.5 text-sm">
@@ -72,16 +77,6 @@ export function ContractResultClient({ riskItems, contractInfoItems, loadError }
 
       <div className="container mx-auto grid max-w-6xl grid-cols-1 gap-8 px-4 py-10 lg:grid-cols-12">
         <div className="space-y-6 lg:col-span-5">
-          <div className="ansim-card p-6">
-            <h3 className="mb-6 flex items-center gap-2 font-bold text-slate-950">
-              <Info className="h-5 w-5 text-teal-600" /> 계약 핵심 정보
-            </h3>
-            {loadError && <p className="text-sm text-red-600">{loadError}</p>}
-            {contractInfoItems.map(([label, value]) => (
-              <InfoRow key={label} label={label} value={value} />
-            ))}
-          </div>
-
           <div className="ansim-card overflow-hidden">
             <div className="flex items-center justify-between bg-slate-800 p-3">
               <span className="text-xs font-medium text-slate-300">계약서 원본 미리보기</span>
@@ -126,13 +121,13 @@ export function ContractResultClient({ riskItems, contractInfoItems, loadError }
               {loadError && (
                 <div className="ansim-card border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
               )}
-              {riskItems.map((item) => (
+              {clauses.map((item, index) => (
                 <div
-                  key={item.id}
+                  key={index}
                   className="ansim-card border-l-4 border-l-slate-200 p-6 transition-all hover:border-l-teal-500"
                 >
                   <div className="mb-4 flex items-center justify-between">
-                    <Badge className={`rounded border ${item.levelColor}`}>{item.level}</Badge>
+                    <Badge className={`rounded border ${item.levelColor}`}>{item.levelLabel}</Badge>
                     <button className="text-slate-400 hover:text-slate-600">
                       <HelpCircle className="h-4 w-4" />
                     </button>
@@ -141,23 +136,15 @@ export function ContractResultClient({ riskItems, contractInfoItems, loadError }
                     <p className="mb-2 text-xs text-slate-400">원문 조항</p>
                     <p className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-sm italic text-slate-700">
                       <span aria-hidden="true">&quot;</span>
-                      {item.original}
+                      {item.originalText}
                       <span aria-hidden="true">&quot;</span>
                     </p>
                   </div>
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                    <div>
-                      <h4 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-950">
-                        <MessageSquare className="h-4 w-4 text-teal-600" /> 쉬운 설명
-                      </h4>
-                      <p className="text-sm leading-relaxed text-slate-600">{item.simple}</p>
-                    </div>
-                    <div>
-                      <h4 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-950">
-                        <AlertCircle className="h-4 w-4 text-orange-500" /> 왜 주의해야 하나요?
-                      </h4>
-                      <p className="text-sm leading-relaxed text-slate-600">{item.why}</p>
-                    </div>
+                  <div>
+                    <h4 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-950">
+                      <MessageSquare className="h-4 w-4 text-teal-600" /> 설명
+                    </h4>
+                    <p className="text-sm leading-relaxed text-slate-600">{item.explanation}</p>
                   </div>
                   <div className="mt-8 rounded-xl border border-teal-100 bg-teal-50 p-4">
                     <div className="mb-3 flex items-center gap-2">
@@ -180,7 +167,7 @@ export function ContractResultClient({ riskItems, contractInfoItems, loadError }
                     </div>
                     <p className="mb-4 text-sm text-slate-700">
                       <span aria-hidden="true">&quot;</span>
-                      {item.suggestion}
+                      {item.suggestedText}
                       <span aria-hidden="true">&quot;</span>
                     </p>
                     <button className="flex items-center gap-2 text-xs font-bold text-slate-600">
@@ -255,10 +242,7 @@ export function ContractResultClient({ riskItems, contractInfoItems, loadError }
             <button className="ansim-button-secondary flex-1 py-4">전문가 상담 안내받기</button>
           </div>
 
-          <p className="text-center text-[10px] leading-relaxed text-slate-400">
-            본 분석 결과는 참고 정보이며 법률 자문이나 계약 안전을 보장하지 않습니다. 실제 계약 전에는 전문가 검토를
-            받으세요.
-          </p>
+          {disclaimer && <p className="text-center text-[10px] leading-relaxed text-slate-400">{disclaimer}</p>}
         </div>
       </div>
     </div>
