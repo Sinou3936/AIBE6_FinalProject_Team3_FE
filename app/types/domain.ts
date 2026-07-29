@@ -28,8 +28,8 @@ export type PropertySummary = {
 
 /**
  * 매물 상세(GET /properties/{id}) 화면 전용 도메인 타입. PropertySummary(목록)와 달리
- * 설명/이미지/등록일을 포함한다. 신호/전세가율/체크리스트/관리비/시세차이는 목록과 동일하게
- * 아직 백엔드에 없어 실제 매물은 undefined, mock 데이터만 값을 채운다.
+ * 설명/이미지/등록일/실거래가 비교 결과를 포함한다. 신호/전세가율/체크리스트/관리비는
+ * 목록과 동일하게 아직 백엔드에 없어 실제 매물은 undefined, mock 데이터만 값을 채운다.
  */
 export type PropertyDetail = {
   id: number;
@@ -45,7 +45,6 @@ export type PropertyDetail = {
   description?: string;
   imageUrls: string[];
   maintenance?: string;
-  marketDelta?: string;
   checkSignalCount?: number;
   signalSummary?: string;
   jeonseRatio?: string;
@@ -53,14 +52,25 @@ export type PropertyDetail = {
   statusColor: string;
   location: PropertyLocation;
   createdAt?: string;
-  // 실거래가 기간별 추이 차트용. 국토부 실거래가 연동 전까지 실제 매물은 항상 undefined이고,
-  // mock 데이터에서만 데모용 값을 채운다.
-  priceHistory?: PropertyPricePoint[];
+  // 실거래가 비교(market-data) 결과. 실제 API는 항상 채워진다(status가 AVAILABLE/UNAVAILABLE
+  // 둘 중 하나) - "정보 없음"이 아니라 판정 결과 자체가 항상 존재한다는 뜻.
+  marketComparison?: PropertyMarketComparison;
 };
 
-export type PropertyPricePoint = {
-  month: string;
-  price: number;
+/**
+ * BE MarketComparisonDto를 화면 표시용으로 가공한 형태. status가 UNAVAILABLE이면
+ * referencePriceText 등 나머지 필드는 비어있고 message에 사유 문구만 채워진다.
+ */
+export type PropertyMarketComparison = {
+  status: 'AVAILABLE' | 'UNAVAILABLE';
+  referencePriceText?: string;
+  differenceRateText?: string;
+  sampleCount?: number;
+  referenceDate?: string;
+  // 실제 적용된 반경 단계(300 또는 600) - 반경이 확장됐는지 사용자에게 알려주기 위함.
+  radiusMeters?: number;
+  // UNAVAILABLE일 때 사유(월세/단독다가구/좌표없음/표본부족 등)를 그대로 보여준다.
+  message?: string;
 };
 
 export type PropertyRiskSummary = {
