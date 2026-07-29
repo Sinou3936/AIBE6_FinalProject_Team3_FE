@@ -28,7 +28,7 @@ export async function proxy(request: NextRequest) {
   // "로그인한 적 없음"과 "Access Token만 만료됨"을 구분할 수 없다. refresh_token이 남아있다면
   // 여기서 재발급을 시도해, 세션이 아직 유효한 사용자를 로그인 화면으로 돌려보내지 않는다.
   const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
-  let refreshWasRejected = false;
+  let refreshOutcomeStatus: 'rejected' | 'unreachable' | undefined;
   if (refreshToken) {
     const outcome = await refreshSession(refreshToken);
     if (outcome.status === 'success') {
@@ -44,14 +44,20 @@ export async function proxy(request: NextRequest) {
     // 'rejected'(DB 초기화 등으로 백엔드가 이 토큰을 실제로 거부함)와 'unreachable'(네트워크 오류
     // 등으로 토큰 상태를 아예 확인 못 함)을 구분한다 — 후자까지 무효 토큰 취급해 쿠키를 지우면,
     // 백엔드가 잠깐 응답 안 했을 뿐인 멀쩡한 세션까지 로그아웃시켜버린다.
-    refreshWasRejected = outcome.status === 'rejected';
+    refreshOutcomeStatus = outcome.status;
   }
 
   // refreshToken이 있었는데 실제로 거부당했다면(DB 초기화 등으로 더 이상 유효하지 않은 경우) 그
   // 쿠키를 지우지 않으면 브라우저가 계속 들고 있다가 보호 페이지에 접근할 때마다 이 흐름을 반복해
   // 백엔드에 매번 "유효하지 않은 Refresh Token입니다" 요청을 만든다.
-  const response = NextResponse.redirect(new URL('/login', request.url));
-  if (refreshWasRejected) {
+  //
+  // 'unreachable'인 경우 access token 쿠키는 이미 없고(이 분기에 들어온 이유), refresh_token
+  // 상태도 확인하지 못했다는 뜻이라 사용자를 계속 페이지에 둘 방법이 없다 — 하지만 "로그인 정보가
+  // 틀렸다"는 문구는 부정확하므로 별도 쿼리(session_unavailable)로 구분해, 로그인 화면이 "다시
+  // 로그인하세요"가 아니라 "잠시 후 다시 시도하세요"를 보여주게 한다.
+  const loginPath = refreshOutcomeStatus === 'unreachable' ? '/login?error=session_unavailable' : '/login';
+  const response = NextResponse.redirect(new URL(loginPath, request.url));
+  if (refreshOutcomeStatus === 'rejected') {
     response.cookies.delete(ACCESS_TOKEN_COOKIE);
     response.cookies.delete(REFRESH_TOKEN_COOKIE);
   }

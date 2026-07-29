@@ -1,12 +1,13 @@
 'use client';
 
-import { Bell, Home, LogOut, Menu, User, X } from 'lucide-react';
+import { AlertCircle, Bell, Home, LogOut, Menu, User, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { navItems } from '../data/navigation';
 import { cn } from '../lib/cn';
 import { logout } from '../services/auth';
+import { NoticeBox } from '../ui/NoticeBox';
 
 type MainLayoutClientProps = {
   children: ReactNode;
@@ -18,14 +19,20 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl }
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [logoutError, setLogoutError] = useState<string>();
 
   const isActive = (path: string) => pathname === path;
 
+  // 서버 호출이 실패하면(네트워크 오류, 백엔드 일시 장애 등) 로그아웃은 실제로 안 됐을 수 있다 —
+  // 그런데도 무조건 /login으로 보내면 사용자는 로그아웃된 줄 알지만 서버 세션(refresh token 등)은
+  // 그대로 남아있는 상태가 된다. 성공했을 때만 이동하고, 실패하면 화면에 남겨 재시도하게 한다.
   async function handleLogout() {
+    setLogoutError(undefined);
     try {
       await logout();
-    } finally {
       router.push('/login');
+    } catch {
+      setLogoutError('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     }
   }
 
@@ -107,6 +114,14 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl }
           </div>
         </div>
       </header>
+
+      {logoutError && (
+        <div className="container mx-auto px-4 pt-4">
+          <NoticeBox icon={AlertCircle} iconClassName="text-red-500" className="bg-red-50 text-red-600">
+            {logoutError}
+          </NoticeBox>
+        </div>
+      )}
 
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 bg-white md:hidden">

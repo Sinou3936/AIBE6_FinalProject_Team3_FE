@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
   const next = sanitizeNextPath(request.nextUrl.searchParams.get('next'));
   const refreshToken = request.cookies.get(REFRESH_TOKEN_COOKIE)?.value;
 
-  let refreshWasRejected = false;
+  let refreshOutcomeStatus: 'rejected' | 'unreachable' | undefined;
   if (refreshToken) {
     const outcome = await refreshSession(refreshToken);
     if (outcome.status === 'success') {
@@ -40,13 +40,18 @@ export async function GET(request: NextRequest) {
     }
     // proxy.ts와 동일한 구분 — 'rejected'(진짜 무효)일 때만 쿠키를 지운다. 'unreachable'(네트워크
     // 오류 등)까지 지우면 백엔드가 잠깐 응답 안 했을 뿐인 멀쩡한 세션까지 로그아웃시켜버린다.
-    refreshWasRejected = outcome.status === 'rejected';
+    refreshOutcomeStatus = outcome.status;
   }
 
   // 여기서 쿠키를 지우지 않으면 proxy.ts가 (무효해진) access_token 쿠키의 "존재 여부"만 보고
   // 통과시켜서, 다음 방문 때마다 이 세션 복구 흐름을 헛되이 반복하게 된다.
-  const response = NextResponse.redirect(new URL('/login?error=session_expired', request.url));
-  if (refreshWasRejected) {
+  //
+  // 'unreachable'이면 세션이 실제로 만료된 게 아니라 백엔드/네트워크가 잠깐 불안정했을 뿐일 수
+  // 있으므로, "다시 로그인하세요"(session_expired) 대신 "잠시 후 다시 시도하세요"(session_unavailable)
+  // 문구로 구분한다. refreshToken 자체가 아예 없었던 경우(진짜 세션 없음)는 여전히 session_expired.
+  const errorCode = refreshOutcomeStatus === 'unreachable' ? 'session_unavailable' : 'session_expired';
+  const response = NextResponse.redirect(new URL(`/login?error=${errorCode}`, request.url));
+  if (refreshOutcomeStatus === 'rejected') {
     response.cookies.delete(ACCESS_TOKEN_COOKIE);
     response.cookies.delete(REFRESH_TOKEN_COOKIE);
   }

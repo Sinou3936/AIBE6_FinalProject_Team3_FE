@@ -7,6 +7,9 @@ import { LoginFormClient } from './LoginFormClient';
 const ERROR_MESSAGES: Record<string, string> = {
   oauth_login_failed: '로그인에 실패했습니다. 잠시 후 다시 시도해주세요.',
   session_expired: '로그인 세션을 확인할 수 없습니다. 다시 로그인해주세요.',
+  // 세션이 실제로 만료된 게 아니라 서버/네트워크가 일시적으로 불안정했을 뿐인 경우
+  // (proxy.ts/session-recover의 refresh 'unreachable') — "다시 로그인하세요"와 구분한다.
+  session_unavailable: '일시적으로 서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.',
 };
 
 type LoginPageProps = {

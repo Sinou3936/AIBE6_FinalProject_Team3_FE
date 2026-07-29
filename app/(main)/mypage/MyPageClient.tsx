@@ -3,6 +3,7 @@
 import { Lock, LogOut, Pencil, Plus, User, UserX } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { ENABLE_ANALYSIS_HISTORY } from '../../config/features';
 import { hasRegisteredProfile } from '../../lib/profile';
 import { logout } from '../../services/auth';
@@ -24,12 +25,18 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
   const isRegistered = hasRegisteredProfile(profile);
   const properties = overview.bookmarkedProperties;
   const signalCount = properties.reduce((sum, property) => sum + (property.checkSignalCount ?? 0), 0);
+  const [logoutError, setLogoutError] = useState<string>();
 
+  // 서버 호출이 실패하면(네트워크 오류, 백엔드 일시 장애 등) 로그아웃은 실제로 안 됐을 수 있다 —
+  // 무조건 /login으로 보내면 사용자는 로그아웃된 줄 알지만 서버 세션은 그대로 남는다. 성공했을
+  // 때만 이동하고, 실패하면 화면에 남겨 재시도하게 한다.
   async function handleLogout() {
+    setLogoutError(undefined);
     try {
       await logout();
-    } finally {
       router.push('/login');
+    } catch {
+      setLogoutError('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     }
   }
 
@@ -111,6 +118,7 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
               <LogOut className="h-4 w-4 text-slate-400" />
               로그아웃
             </button>
+            {logoutError && <p className="px-3 text-xs text-red-600">{logoutError}</p>}
             <button
               type="button"
               onClick={handleWithdrawClick}
