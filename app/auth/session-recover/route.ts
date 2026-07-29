@@ -32,12 +32,15 @@ export async function GET(request: NextRequest) {
   // 'unreachable'이면 세션이 실제로 만료된 게 아니라 백엔드/네트워크가 잠깐 불안정했을 뿐일 수
   // 있으므로, "다시 로그인하세요"(session_expired) 대신 "잠시 후 다시 시도하세요"(session_unavailable)
   // 문구로 구분한다. refreshToken 자체가 아예 없었던 경우(진짜 세션 없음)는 여전히 session_expired.
-  // 이때 원래 가려던 next도 같이 넘겨서, 로그인 화면의 "다시 시도" 링크가 이 경로로 다시
-  // /auth/session-recover를 태울 수 있게 한다.
+  //
+  // next는 두 경우 모두 넘긴다 — unreachable이면 "다시 시도" 링크가 이 경로로 다시
+  // /auth/session-recover를 태우는 데 쓰고, session_expired(진짜 재로그인이 필요한, 더 흔한 경우)면
+  // 로그인 폼/OAuth가 성공 후 이 값으로 복귀하는 데 쓴다(LoginFormClient.tsx,
+  // oauth/callback/route.ts 참고) — 여기서 안 넘기면 재로그인해도 항상 홈으로만 떨어진다.
   const loginPath =
     refreshOutcomeStatus === 'unreachable'
       ? `/login?error=session_unavailable&next=${encodeURIComponent(next)}`
-      : '/login?error=session_expired';
+      : `/login?error=session_expired&next=${encodeURIComponent(next)}`;
   const response = NextResponse.redirect(new URL(loginPath, request.url));
   if (refreshOutcomeStatus === 'rejected') {
     response.cookies.delete(ACCESS_TOKEN_COOKIE);

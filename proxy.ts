@@ -54,13 +54,16 @@ export async function proxy(request: NextRequest) {
   // 'unreachable'인 경우 access token 쿠키는 이미 없고(이 분기에 들어온 이유), refresh_token
   // 상태도 확인하지 못했다는 뜻이라 사용자를 계속 페이지에 둘 방법이 없다 — 하지만 "로그인 정보가
   // 틀렸다"는 문구는 부정확하므로 별도 쿼리(session_unavailable)로 구분해, 로그인 화면이 "다시
-  // 로그인하세요"가 아니라 "잠시 후 다시 시도하세요"를 보여주게 한다. 이때 원래 있던 경로(next)도
-  // 같이 넘겨서, 로그인 화면이 "다시 시도" 링크로 /auth/session-recover를 다시 태울 수 있게 한다 —
-  // 그렇지 않으면 refresh_token은 멀쩡히 남아있는데도 이메일/소셜 로그인을 처음부터 다시 해야 한다.
+  // 로그인하세요"가 아니라 "잠시 후 다시 시도하세요"를 보여주게 한다.
+  //
+  // next는 rejected/세션 없음 케이스(진짜 로그인이 다시 필요한, 훨씬 흔한 경우)에도 똑같이
+  // 넘긴다 — 로그인 폼/OAuth가 성공 후 이 값으로 복귀하므로(LoginFormClient.tsx,
+  // oauth/callback/route.ts 참고), next가 없으면 재로그인해도 항상 홈으로만 떨어진다.
+  const currentPath = request.nextUrl.pathname + request.nextUrl.search;
   const loginPath =
     refreshOutcomeStatus === 'unreachable'
-      ? `/login?error=session_unavailable&next=${encodeURIComponent(request.nextUrl.pathname + request.nextUrl.search)}`
-      : '/login';
+      ? `/login?error=session_unavailable&next=${encodeURIComponent(currentPath)}`
+      : `/login?next=${encodeURIComponent(currentPath)}`;
   const response = NextResponse.redirect(new URL(loginPath, request.url));
   if (refreshOutcomeStatus === 'rejected') {
     response.cookies.delete(ACCESS_TOKEN_COOKIE);
