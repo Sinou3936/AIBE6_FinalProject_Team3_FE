@@ -14,7 +14,7 @@ Backend `docs/specs/auth-design.md`와 같은 성격의 **요구사항 명세서
 | `app/signup/page.tsx` + `SignupFormClient.tsx` | 이메일 회원가입 폼 |
 | `app/oauth/callback/route.ts` | 소셜 로그인 성공 후 리다이렉트 목적지(온보딩/홈) 결정 |
 | `app/services/auth.ts` | 로그인/회원가입/로그아웃/비밀번호 변경/`GET /auth/me` 호출 |
-| `app/lib/api/http.ts` | 공통 fetch 래퍼(`requestJson`), `refreshSession`. **(2026-07-28)** 예전엔 `requestJson`이 401을 감지해 자체적으로 재발급 재시도(`retryAfterRefresh`)까지 했으나, 회전된 refresh token이 브라우저에 반영 안 되는 문제로 제거됨 — refresh는 이제 `proxy.ts`에서만 수행 |
+| `app/lib/api/http.ts` | 공통 fetch 래퍼(`requestJson`), `refreshSession`. **(2026-07-29)** `requestJson`이 브라우저 컨텍스트에서 401 + 세션 무효 코드를 감지하면 single-flight로 `POST /auth/refresh` → 성공 시 원 요청 1회 재시도까지 자동 처리(아래 "남은 이슈 2번" 참고). Server Component 경로(쿠키를 명시적으로 넘기는 호출)는 이 자동 재시도 대상이 아니라 여전히 `proxy.ts`/`session-recover`가 담당 |
 | `proxy.ts` | Next.js 미들웨어 — 보호된 경로 진입 시 access_token 쿠키 존재 여부 확인, 없으면 refresh 시도 |
 | `app/(main)/layout.tsx` | `GET /auth/me` 호출로 실제 세션 유효성 재확인, 실패 시 `/login?error=session_expired` |
 
@@ -59,13 +59,13 @@ Backend `docs/specs/auth-design.md`와 같은 성격의 **요구사항 명세서
 | Refresh Token 서명/만료만으로 검증(별도 저장소 조회 없음) | Backend 책임 — FE는 검증 방식 자체에 관여하지 않고 `POST /auth/refresh` 응답을 신뢰하기만 함(FE 자체 저장소는 없음). **참고**: 이 요구사항 문구가 원한 "서명/만료만으로 검증"은 실제 Backend 구현과 다르다(DB 조회 방식 — backend `docs/specs/auth-design.md`의 "토큰 재발급" 섹션 참고) — FE 관점에서 ✅로 표시하면 backend 문서와 모순돼 보일 수 있어 판정 없이 서술로만 남김 |
 | 성공 시 새 Access Token 발급 | ✅ `refreshSession()`은 백엔드의 `Set-Cookie` 응답 헤더를 그대로 반환만 하고, 그 결과를 실제로 현재 요청 헤더와 브라우저 응답에 반영하는 건 호출부인 `proxy.ts`다(`mergeCookieHeader`로 이번 요청 헤더에 병합 + `response.headers.append('Set-Cookie', ...)`로 브라우저에도 내려줌) |
 | 실패 시 재발급 안 되고 재로그인 요청 | ✅ `proxy.ts`에서 refresh 실패 시 `/login`으로 리다이렉트 |
-| (사용성) Access Token 만료 시 자동 재발급 시도 | ⚠️ **화면 전환(`proxy.ts`)에서만 커버됨.** **(2026-07-28 갱신)** 예전엔 `requestJson`에 `retryAfterRefresh`(Server Component가 쿠키를 명시적으로 넘긴 호출용 재시도)가 있었으나, 회전된 refresh token이 브라우저에 실제로 반영되지 않아 다음 refresh 시점에 세션이 끊기는 문제가 있어 **완전히 제거함** — 이제 refresh는 `proxy.ts`(페이지 이동 시) 한 곳에서만 일어난다. **브라우저에서 발생하는 클라이언트 사이드 호출은 여전히 재발급 대상이 아님** — 다만 이건 httpOnly 때문에 "원천적으로 불가능"한 게 아니라 **아직 구현이 안 된 것**이다(정정: 2026-07-28). httpOnly는 JS가 `document.cookie`로 값을 직접 읽거나 쓰는 것만 막을 뿐, `fetch(url, { credentials: 'include' })`가 그 쿠키를 자동으로 실어 보내는 것도, 브라우저가 응답의 `Set-Cookie`를 받아 쿠키 저장소를 갱신하는 것도 막지 않는다 — 이 둘 다 브라우저가 JS 개입 없이 알아서 처리하는 동작이다(JS가 `fetch` 응답에서 `Set-Cookie` 헤더 값 자체를 읽을 수 없는 것과는 별개). 그러니 client component가 직접 `POST /auth/refresh`를 호출해도 기계적으로는 토큰 회전이 반영될 수 있다. `requestJson()`에 이 흐름이 아직 없는 진짜 이유는(아래 "남은 이슈 2번" 참고) 예전 `retryAfterRefresh`가 애초에 Server Component 전용(서버-서버 fetch라 응답의 Set-Cookie가 실제 브라우저에 자동 전달되지 않는 문제가 있었음, 그래서 제거됨)이었고, 순수 클라이언트 컴포넌트용 재시도 흐름은 아직 별도로 만든 적이 없기 때문이다. `PasswordUpdateFormClient`만 `isSessionInvalidErrorCode(error.code)`(`app/lib/api/http.ts`)를 직접 감지해 재로그인으로 유도하는 개별 처리가 있고, 그 외 클라이언트 컴포넌트(예: 체크리스트 항목 토글)는 이 패턴이 없어 세션 도중 Access Token이 만료되면 그냥 일반 에러("저장하지 못했어요")로만 표시됨. **(2026-07-28 수정)** `isSessionInvalidErrorCode`는 `UNAUTHORIZED`/`AUTH_TOKEN_MISSING`/`AUTH_TOKEN_INVALID`/`AUTH_TOKEN_EXPIRED` 네 코드를 전부 인식한다 — 예전엔 `UNAUTHORIZED` 하나만 봤는데, 백엔드가 실패 사유를 세 코드로 분리하면서(`fix/auth-access_token&refresh_token` 브랜치) 그 체크가 실제로 깨져 있었음(아래 "남은 이슈 2번" 참고) |
+| (사용성) Access Token 만료 시 자동 재발급 시도 | ✅ **(2026-07-29) 화면 전환(`proxy.ts`/`session-recover`)과 브라우저 클라이언트 컴포넌트 호출(`requestJson()`) 양쪽 다 커버.** 예전엔 `requestJson`에 있던 `retryAfterRefresh`(Server Component 전용, 서버-서버 fetch라 응답의 Set-Cookie가 브라우저에 자동 전달 안 되는 문제로 제거)만 있고 순수 브라우저 컨텍스트용 재시도는 없었는데, `typeof window !== 'undefined'`로 서버/브라우저를 구분해 브라우저에서만 자동 refresh-then-retry를 켜는 방식으로 다시 구현함(상세는 아래 "남은 이슈 2번" 참고) — Server Component 쪽은 여전히 기존 `proxy.ts`/`session-recover` 흐름 그대로라 이 문제가 재발하지 않음 |
 
 ## 로그아웃 — 요구사항 대비
 
 | 요구사항 | 실제 구현 |
 | --- | --- |
-| 클라이언트에 저장된 토큰 제거 | ✅(간접) — 토큰이 애초에 httpOnly 쿠키라 FE가 직접 지울 수 없고, `POST /auth/logout` 응답의 `Set-Cookie`로 백엔드가 지움. FE는 `logout()` 성공/실패와 무관하게 `finally`에서 항상 `/login`으로 이동해 사용자 상태를 확실히 로그아웃으로 되돌림 |
+| 클라이언트에 저장된 토큰 제거 | ✅(간접) — 토큰이 애초에 httpOnly 쿠키라 FE가 직접 지울 수 없고, `POST /auth/logout` 응답의 `Set-Cookie`로 백엔드가 지움. **(2026-07-29 수정)** 예전엔 `logout()` 성공/실패와 무관하게 `finally`에서 항상 `/login`으로 이동했는데, 실패(네트워크 오류 등)해도 로그아웃된 것처럼 보이는 문제가 있어 고침 — 지금은 `useLogout` 훅(`app/lib/useLogout.ts`)이 성공했을 때만 `/login`으로 이동하고, 실패하면 현재 페이지에 그대로 남겨 에러 문구를 보여줌(재시도 가능) |
 
 ## 비기능 요구사항 — 대조
 
