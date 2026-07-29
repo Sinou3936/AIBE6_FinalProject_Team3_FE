@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
   ArrowRight,
@@ -11,21 +12,65 @@ import {
   Info,
   Upload,
 } from 'lucide-react';
-import Link from 'next/link';
+import { analyzeContract, maskContractText, submitContractInput } from '../../../services/contract-analysis';
+import { type ContractAnalysisResult } from '../../../types/domain';
+
+// query string은 서버에 남기지 않는 대신 브라우저 히스토리/로그에 노출되므로, 결과를 그대로 담지 않고
+// base64url로 인코딩한다. 브라우저에는 Buffer가 없어 TextEncoder + btoa로 UTF-8 안전하게 인코딩한다.
+function encodeContractAnalysisResult(result: ContractAnalysisResult): string {
+  const json = JSON.stringify(result);
+  const bytes = new TextEncoder().encode(json);
+  let binary = '';
+  bytes.forEach((byte) => {
+    binary += String.fromCharCode(byte);
+  });
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
 
 export default function Page() {
+  const router = useRouter();
   const [isDragging, setIsDragging] = useState(false);
+  const [text, setText] = useState('');
   const [checks, setChecks] = useState({
     specialClauseOnly: false,
     maskedPrivacy: false,
     consent: false,
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | undefined>();
 
   const toggleCheck = (key: keyof typeof checks) => {
     setChecks((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const allChecked = Object.values(checks).every(Boolean);
+  const canSubmit = allChecked && text.trim().length > 0 && !isSubmitting;
+
+  const handleSubmit = async () => {
+    if (!canSubmit) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(undefined);
+
+    try {
+      const inputResult = await submitContractInput(text);
+      // 텍스트로 직접 입력하는 이 화면에서는 항상 nextStep이 'MASKING'이어야 정상이다.
+      // 'OCR'이 오면 이미지 입력이 필요하다는 뜻인데, 이 화면은 아직 텍스트만 지원한다.
+      if (inputResult.nextStep === 'OCR') {
+        throw new Error('이미지 입력은 아직 지원하지 않습니다.');
+      }
+
+      const maskedText = await maskContractText(text);
+      const result = await analyzeContract(maskedText, checks.consent);
+      const encoded = encodeContractAnalysisResult(result);
+      router.push(`/contract/result?data=${encoded}`);
+    } catch {
+      setSubmitError('특약사항 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8 md:py-16">
@@ -82,6 +127,8 @@ export default function Page() {
         <textarea
           className="ansim-input min-h-36 resize-y"
           placeholder="예: 임대인은 개인 사정에 따라 계약 기간 중 목적물 명도를 요청할 수 있다."
+          value={text}
+          onChange={(event) => setText(event.target.value)}
         />
       </div>
 
@@ -130,14 +177,18 @@ export default function Page() {
         </div>
       </div>
 
-      <Link
-        href={allChecked ? '/contract/result' : '#'}
+      {submitError && <p className="mb-4 text-center text-sm text-red-600">{submitError}</p>}
+
+      <button
+        type="button"
+        disabled={!canSubmit}
+        onClick={handleSubmit}
         className={`flex w-full items-center justify-center gap-2 rounded-lg px-6 py-4 font-bold transition ${
-          allChecked ? 'bg-teal-600 text-white hover:bg-teal-700' : 'pointer-events-none bg-slate-200 text-slate-400'
+          canSubmit ? 'bg-teal-600 text-white hover:bg-teal-700' : 'pointer-events-none bg-slate-200 text-slate-400'
         }`}
       >
-        특약사항 분석하기 <ArrowRight className="h-5 w-5" />
-      </Link>
+        {isSubmitting ? '분석 중...' : '특약사항 분석하기'} <ArrowRight className="h-5 w-5" />
+      </button>
     </div>
   );
 }

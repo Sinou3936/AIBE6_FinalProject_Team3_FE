@@ -9,7 +9,7 @@
 | 도메인 | 상태 | 비고 |
 | --- | --- | --- |
 | `auth` | 거의 완전 구현 | **(2026-07-28 갱신)** 확인 필요 1개로 축소 — matcher 누락/비밀번호 정책 중복 해결, 에러 메시지 pass-through는 의도된 설계로 재분류됨. 남은 1개(클라이언트 사이드 자동 재발급 미구현)는 브라우저-side refresh-retry 흐름 미구현 상태로 보류 |
-| `checklist` | 거의 완전 구현 | 확인 필요 5개, 대부분 표시 방식(필수/일반 미구분, 정렬) |
+| `checklist` | 거의 완전 구현 | **(2026-07-29 갱신)** 확인 필요 1개로 축소 — Backend의 정렬/삭제매물 재검증 해결에 이어, FE도 필수/일반 배지 추가 + Access Token 만료 시 재로그인 유도(`isSessionInvalidErrorCode`)를 직접 구현·검증 완료. 403 메시지 구체화는 실사용 경로가 없어 보류. 남은 건 risk-analysis 연계 신호 자리 없음(다른 도메인 구현 대기) |
 | `user` | 부분 구현 | 회원 탈퇴 완전 미구현, 이미지 업로드 자체가 없음 |
 | `property` | 부분 구현, 명세보다 크게 좁음 | 검색/정렬/페이지네이션 없음, 사진 업로드 없음, 시세·위험신호·신고이력·체크리스트진행 표시 전무 |
 | `contract-analysis` | 부분 구현(진행 중), 사실상 데모 | 입력 → 분석 파이프라인이 안 이어져 있어 항상 고정 문구만 분석함 |
@@ -33,11 +33,11 @@
 
 `auth-design.md` 이슈 2번에서 지적한 문제(클라이언트 컴포넌트에서 Access Token 자동 재발급이 아직 구현돼 있지 않음 — **정정, 2026-07-28**: 이전엔 "httpOnly라서 원천적으로 불가능"이라고 적었으나 부정확했음. httpOnly는 JS가 쿠키 값을 직접 읽는 것만 막지, `credentials:'include'` fetch가 쿠키를 자동으로 보내거나 브라우저가 `Set-Cookie`를 자동 반영하는 것까지 막지는 않는다 — 자세한 내용은 `auth-design.md` 참고)가 실제로 영향을 주는 화면은 하나가 아닙니다:
 
-- `checklist`: 항목 체크/미흡 처리(`updateChecklistItem`)
+- ~~`checklist`: 항목 체크/미흡 처리(`updateChecklistItem`)~~ ✅ **해결됨(2026-07-29)** — `ChecklistClient`도 `isSessionInvalidErrorCode()`로 개별 감지하도록 수정
 - `property`: 매물 신고(`reportProperty`), 매물 삭제(`deleteProperty`)
 - `user`: 프로필 등록/수정(`registerProfile`/`updateMyProfile`), 닉네임 중복확인
 
-지금은 `PasswordUpdateFormClient`만 `isSessionInvalidErrorCode()`(**2026-07-28 정정**: 기존에는 `error.code === 'UNAUTHORIZED'` 단일 체크였는데, 백엔드가 실패 사유를 `AUTH_TOKEN_MISSING`/`AUTH_TOKEN_INVALID`/`AUTH_TOKEN_EXPIRED`로 세분화하면서 실제로는 깨져 있던 걸 발견해 이 네 코드를 전부 인식하도록 고침)로 개별 감지해서 재로그인으로 유도하는 패턴을 갖고 있고 나머지는 전부 일반 에러 문구로만 처리됩니다. 세션에 오래 머무는 화면(체크리스트, 프로필 등록 폼처럼 입력이 긴 화면)일수록 실제로 겪을 확률이 높아, 반복되면 공통 처리로 끌어올리라는 `http.ts`의 기존 주석대로 가는 게 맞아 보입니다.
+지금은 `PasswordUpdateFormClient`와 `ChecklistClient` 둘만 `isSessionInvalidErrorCode()`(**2026-07-28 정정**: 기존에는 `error.code === 'UNAUTHORIZED'` 단일 체크였는데, 백엔드가 실패 사유를 `AUTH_TOKEN_MISSING`/`AUTH_TOKEN_INVALID`/`AUTH_TOKEN_EXPIRED`로 세분화하면서 실제로는 깨져 있던 걸 발견해 이 네 코드를 전부 인식하도록 고침)로 개별 감지해서 재로그인으로 유도하는 패턴을 갖고 있고 나머지(`property`, `user`)는 전부 일반 에러 문구로만 처리됩니다. 세션에 오래 머무는 화면일수록 실제로 겪을 확률이 높아, 반복될수록 공통 처리로 끌어올리라는 `http.ts`의 기존 주석대로 가는 게 맞아 보입니다 — 지금 2곳이 같은 패턴을 반복 중이라 다음에 하나 더 생기면 그때 훅으로 뽑아내는 걸 고려할 만함.
 
 ### 3. 파일/이미지 업로드가 어느 도메인에도 실제로 구현되어 있지 않음
 
@@ -86,6 +86,6 @@ Backend 문서의 같은 패턴이 FE에도 그대로 나타납니다.
 | user | 7개 |
 | property | 6개 |
 | market-data | 4개 |
-| checklist | 5개 |
+| checklist | 1개 (2026-07-29 갱신, 위 표 참고) |
 | contract-analysis | 5개 |
 | risk-analysis | 4개 |

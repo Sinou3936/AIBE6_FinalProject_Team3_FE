@@ -3,12 +3,15 @@
 import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { checklistCategories as categories } from '../../../../data/checklist';
+import { ApiError, isSessionInvalidErrorCode } from '../../../../lib/api/http';
 import { type ChecklistSummary } from '../../../../lib/checklistSummary';
 import { cn } from '../../../../lib/cn';
 import { getChecklistResult, updateChecklistItem } from '../../../../services/checklist';
 import { type ChecklistItemUpdateRequestDto } from '../../../../types/api';
 import { type Checklist, type ChecklistItem, type PropertyDetail } from '../../../../types/domain';
+import { Badge } from '../../../../ui/Badge';
 import { NoticeBox } from '../../../../ui/NoticeBox';
 
 const EMPTY_SUMMARY: ChecklistSummary = {
@@ -27,6 +30,7 @@ type ChecklistClientProps = {
 };
 
 export function ChecklistClient({ propertyId, checklist, initialSummary, loadError, property }: ChecklistClientProps) {
+  const router = useRouter();
   const [items, setItems] = useState<ChecklistItem[]>(checklist?.items ?? []);
   const [summary, setSummary] = useState<ChecklistSummary>(initialSummary ?? EMPTY_SUMMARY);
   const [activeCategory, setActiveCategory] = useState(categories[0].id);
@@ -62,7 +66,16 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
       } catch {
         // 결과 재조회 실패는 문항 저장 자체와는 무관하므로 조용히 무시한다 (다음 변경 때 다시 시도됨).
       }
-    } catch {
+    } catch (submitError) {
+      // 이 화면에 오래 머무는 동안 Access Token이 만료되면 서버는 401(UNAUTHORIZED 또는
+      // AUTH_TOKEN_MISSING/INVALID/EXPIRED)을 준다 — requestJson()엔 브라우저-side
+      // refresh-then-retry가 없어(docs/specs/auth-design.md 참고) 이 401을 그대로 던지므로,
+      // 일반 저장 실패로 보여주는 대신 재로그인 화면으로 보낸다(PasswordUpdateFormClient와 동일 패턴).
+      if (submitError instanceof ApiError && isSessionInvalidErrorCode(submitError.body?.code)) {
+        router.push('/login?error=session_expired');
+        return;
+      }
+
       setItems((currentItems) => currentItems.map((current) => (current.id === item.id ? item : current)));
       setItemErrors((current) => ({ ...current, [item.id]: '저장하지 못했어요. 다시 시도해 주세요.' }));
     }
@@ -151,7 +164,12 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
               key={item.id}
               className={cn('ansim-card bg-white p-4', item.issueFound && 'border-orange-200 bg-orange-50/40')}
             >
-              <p className="mb-1 font-medium leading-relaxed text-slate-900">{item.content}</p>
+              <div className="mb-1 flex items-start gap-2">
+                {item.importance === 'required' && (
+                  <Badge className="mt-0.5 shrink-0 bg-slate-900 text-white">필수</Badge>
+                )}
+                <p className="font-medium leading-relaxed text-slate-900">{item.content}</p>
+              </div>
               {item.guideText && <p className="mb-3 text-xs text-slate-500">{item.guideText}</p>}
 
               {item.itemType === 'check' && (
