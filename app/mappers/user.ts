@@ -25,6 +25,7 @@ function toUserCurrentStage(value: string | null): UserCurrentStage | null {
 export function mapUserProfileDto(dto: UserProfileDto): UserProfile {
   return {
     nickname: dto.nickname,
+    email: dto.email,
     profileImageUrl: dto.profileImageUrl,
     interestRegion: dto.interestRegion,
     transactionType: dto.transactionType ? transactionTypeDtoToDomain[dto.transactionType] : null,
