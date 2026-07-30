@@ -141,15 +141,21 @@ export type ChecklistOverview = {
   status: ChecklistOverviewStatus;
 };
 
-export type ContractRiskItem = {
-  id: number;
-  original: string;
-  level: string;
-  levelColor: string;
-  simple: string;
-  why: string;
+export type ContractClause = {
+  originalText: string;
+  riskFlag: boolean;
+  explanation: string;
   question: string;
-  suggestion: string;
+  suggestedText: string;
+  levelLabel: string;
+  levelColor: string;
+};
+
+export type ContractAnalysisResult = {
+  clauses: ContractClause[];
+  summary: string;
+  aiGeneratedNotice: string;
+  disclaimer: string;
 };
 
 export type ContractSummaryTone = 'orange' | 'slate';
@@ -159,8 +165,6 @@ export type ContractSummaryCard = {
   value: string;
   tone: ContractSummaryTone;
 };
-
-export type ContractInfoItem = readonly [label: string, value: string];
 
 export type ContractAnalysisTab = 'risk' | 'deposit' | 'missing';
 
@@ -220,6 +224,10 @@ export type UserCurrentStage = '자취 처음' | '자취 경험 있음';
 
 export type UserProfile = {
   nickname: string;
+  // 소셜 로그인 provider가 이메일 동의항목을 요청하지 않았거나(카카오, 2026-07-29 기준
+  // profile_nickname만 요청) 검증되지 않은 이메일이면 null — 이 경우 비밀번호를 설정해도
+  // 로그인에 쓸 이메일이 없다(services/user.ts 비밀번호 설정 관련 화면 참고).
+  email: string | null;
   profileImageUrl: string | null;
   interestRegion: string | null;
   transactionType: UserTransactionType | null;

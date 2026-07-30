@@ -1,24 +1,41 @@
-import { analyzeContractSpecialTerms } from '../../../services/contract-analysis';
-import { type ContractInfoItem, type ContractRiskItem } from '../../../types/domain';
+import { type ContractAnalysisResult } from '../../../types/domain';
 import { ContractResultClient } from './ContractResultClient';
 
 export const dynamic = 'force-dynamic';
 
-const demoSpecialTermsText =
-  '임대인은 개인 사정에 따라 계약 기간 중 목적물 명도를 요청할 수 있다. 보증금 반환은 새로운 임차인이 들어온 이후에 지급하기로 한다.';
+type ResultPageProps = {
+  searchParams: Promise<{ data?: string }>;
+};
 
-export default async function Page() {
-  let riskItems: ContractRiskItem[] = [];
-  let contractInfoItems: ContractInfoItem[] = [];
+// upload 화면이 4단계 파이프라인을 전부 마친 뒤 결과를 base64url로 인코딩해 넘겨준다.
+// 이 페이지는 그 결과를 그대로 디코딩해서 보여줄 뿐, 서버에 재요청하지 않는다(분석 결과 무저장 정책).
+function decodeContractAnalysisResult(data: string): ContractAnalysisResult {
+  return JSON.parse(Buffer.from(data, 'base64url').toString('utf-8')) as ContractAnalysisResult;
+}
+
+export default async function Page({ searchParams }: ResultPageProps) {
+  const { data } = await searchParams;
+
+  let result: ContractAnalysisResult | undefined;
   let loadError: string | undefined;
 
-  try {
-    const result = await analyzeContractSpecialTerms(demoSpecialTermsText);
-    riskItems = result.riskItems;
-    contractInfoItems = result.contractInfoItems;
-  } catch {
-    loadError = '계약 분석 결과를 불러오지 못했습니다. API 설정을 확인해 주세요.';
+  if (!data) {
+    loadError = '분석 결과를 찾을 수 없습니다. 특약사항 입력부터 다시 진행해 주세요.';
+  } else {
+    try {
+      result = decodeContractAnalysisResult(data);
+    } catch {
+      loadError = '분석 결과를 불러오지 못했습니다. 특약사항 입력부터 다시 진행해 주세요.';
+    }
   }
 
-  return <ContractResultClient riskItems={riskItems} contractInfoItems={contractInfoItems} loadError={loadError} />;
+  return (
+    <ContractResultClient
+      clauses={result?.clauses ?? []}
+      summary={result?.summary}
+      aiGeneratedNotice={result?.aiGeneratedNotice}
+      disclaimer={result?.disclaimer}
+      loadError={loadError}
+    />
+  );
 }

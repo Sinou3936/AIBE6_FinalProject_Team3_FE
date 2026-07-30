@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ApiError, isSessionInvalidErrorCode } from '../../../lib/api/http';
 import { updatePassword } from '../../../services/auth';
 import { type PasswordPolicyDto } from '../../../types/api';
@@ -16,12 +16,23 @@ export function PasswordUpdateFormClient({ hasPassword, passwordPolicy }: Passwo
   const router = useRouter();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string>();
   const [success, setSuccess] = useState(false);
+  const confirmNewPasswordRef = useRef<HTMLInputElement>(null);
+
+  const passwordMismatch = confirmNewPassword.length > 0 && newPassword !== confirmNewPassword;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (newPassword !== confirmNewPassword) {
+      // Enter 키로 제출된 경우 브라우저의 암묵적 제출 처리가 포커스를 되돌려놓기 때문에,
+      // 다음 tick으로 미뤄야 포커스 이동이 실제로 적용된다.
+      setTimeout(() => confirmNewPasswordRef.current?.focus(), 0);
+      return;
+    }
 
     setIsSaving(true);
     setError(undefined);
@@ -32,22 +43,33 @@ export function PasswordUpdateFormClient({ hasPassword, passwordPolicy }: Passwo
       setSuccess(true);
       setCurrentPassword('');
       setNewPassword('');
+      setConfirmNewPassword('');
     } catch (submitError) {
-      // 이 페이지에 머무는 동안 Access Token이 없어지거나/무효화되거나/만료되면 서버는 401
-      // (UNAUTHORIZED 또는 AUTH_TOKEN_MISSING/INVALID/EXPIRED)을 준다 — requestJson()에는 아직
-      // 브라우저-side refresh-then-retry 흐름이 없어(httpOnly라서 불가능한 게 아니라 단순히
-      // 구현이 안 된 것 — docs/specs/auth-design.md 참고) 이 401을 그대로 던지므로,
-      // 폼 에러로 보여주는 대신 재로그인 화면으로 보내야 한다. 화면 문구는 사유별로 안 나누지만
-      // (docs/specs/auth-design.md 참고) "재로그인이 필요한가" 판단은 네 코드를 전부 인식해야 한다.
-      // AUTH_INVALID_CREDENTIALS(현재 비밀번호 오류)는 이 케이스와 구분해 폼 에러로 유지한다.
-      if (submitError instanceof ApiError && isSessionInvalidErrorCode(submitError.body?.code)) {
+      // requestJson()이 이제 브라우저 컨텍스트에서 401 → refresh → 원 요청 1회 재시도를 자동으로
+      // 처리하므로(app/lib/api/http.ts 참고), 정상 케이스(refresh 성공)는 이 catch까지 401이 아예
+      // 올라오지 않는다. 이 분기가 실제로 타는 건 refresh까지 실패한 경우뿐인데, 그중
+      // 'rejected'(진짜 무효)는 requestJson()이 이미 /auth/session-recover로 페이지 이동시켜버려서
+      // 이 컴포넌트 코드가 실행될 새도 없이 화면을 벗어난다. 그러니 여기 남는 건 사실상
+      // 'unreachable'(네트워크 오류/백엔드 일시 장애, requestJson()이 강제 로그아웃하지 않고 원래
+      // 에러에 sessionRefreshOutcome: 'unreachable' 표시만 남겨 그대로 던지는 경우)뿐이다 — 이때는
+      // 세션이 진짜 무효인지 알 수 없으므로 재로그인 화면으로 보내지 않고 일반 에러로만 보여준다.
+      // sessionRefreshOutcome이 없는 session-invalid 에러(예: 애초에 refresh를 안 붙이는 서버
+      // 사이드 호출)는 여전히 재로그인으로 보낸다. AUTH_INVALID_CREDENTIALS(현재 비밀번호 오류)는
+      // 이 케이스와 구분해 폼 에러로 유지한다.
+      if (
+        submitError instanceof ApiError &&
+        isSessionInvalidErrorCode(submitError.body?.code) &&
+        submitError.sessionRefreshOutcome !== 'unreachable'
+      ) {
         router.push('/login?error=session_expired');
         return;
       }
 
       setError(
         submitError instanceof ApiError
-          ? submitError.message
+          ? submitError.sessionRefreshOutcome === 'unreachable'
+            ? '서버와 통신할 수 없습니다. 잠시 후 다시 시도해 주세요.'
+            : submitError.message
           : `비밀번호 ${hasPassword ? '변경' : '설정'}에 실패했습니다. 잠시 후 다시 시도해 주세요.`,
       );
     } finally {
@@ -91,6 +113,20 @@ export function PasswordUpdateFormClient({ hasPassword, passwordPolicy }: Passwo
             title={passwordPolicy.message}
             required
           />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-bold text-slate-700">새 비밀번호 확인</span>
+          <input
+            ref={confirmNewPasswordRef}
+            className="ansim-input w-full"
+            type="password"
+            value={confirmNewPassword}
+            onChange={(event) => setConfirmNewPassword(event.target.value)}
+            placeholder="새 비밀번호를 다시 입력해 주세요"
+            autoComplete="new-password"
+            required
+          />
+          {passwordMismatch && <p className="mt-1 text-sm text-red-600">비밀번호가 일치하지 않습니다.</p>}
         </label>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
