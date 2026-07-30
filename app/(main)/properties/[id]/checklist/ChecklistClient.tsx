@@ -12,6 +12,7 @@ import { getChecklistResult, updateChecklistItem } from '../../../../services/ch
 import { type ChecklistItemUpdateRequestDto } from '../../../../types/api';
 import { type Checklist, type ChecklistItem, type PropertyDetail } from '../../../../types/domain';
 import { Badge } from '../../../../ui/Badge';
+import { Modal } from '../../../../ui/Modal';
 import { NoticeBox } from '../../../../ui/NoticeBox';
 
 const EMPTY_SUMMARY: ChecklistSummary = {
@@ -36,6 +37,7 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
   const [activeCategory, setActiveCategory] = useState(categories[0].id);
   const [itemErrors, setItemErrors] = useState<Record<number, string>>({});
   const [helperItemId, setHelperItemId] = useState<number | null>(null);
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
 
   const checklistId = checklist?.id;
   const activeItems = items.filter((item) => item.category === activeCategory);
@@ -298,20 +300,48 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
           ))}
         </div>
 
-        {summary.hasStarted && summary.missingRequiredCount === 0 && (
+        <div className="mt-6 flex flex-col gap-3 md:flex-row">
+          <button
+            type="button"
+            disabled={summary.progressPercent < 100}
+            onClick={() => setIsCompleteModalOpen(true)}
+            className="ansim-button-primary flex-1 px-5 py-3 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            체크리스트 완료
+          </button>
+
           <Link
             href="/contract/upload"
-            className="ansim-button-primary mt-6 flex items-center justify-center gap-2 px-5 py-3"
+            className="ansim-button-secondary flex flex-1 items-center justify-center gap-2 px-5 py-3"
           >
-            다음 단계: 특약사항 분석하기 <ArrowRight className="h-4 w-4" />
+            특약사항도 AI로 분석해보세요 <ArrowRight className="h-4 w-4" />
           </Link>
-        )}
+        </div>
 
         <NoticeBox icon={Info} iconClassName="text-slate-400" className="mt-6">
           {summary.disclaimer ?? '체크리스트 결과는 점수나 안전 등급이 아닙니다.'} 확인한 항목과 주의가 필요한 항목을
           정리하는 참고용 기록이며, 실제 계약 전 등기부등본과 보증보험 가능 여부를 함께 확인하세요.
         </NoticeBox>
       </div>
+
+      <Modal open={isCompleteModalOpen} onClose={() => setIsCompleteModalOpen(false)}>
+        <h2 className="mb-2 text-lg font-bold text-slate-950">정말로 체크 다 하셨나요?</h2>
+        <p className="mb-5 text-sm text-slate-500">
+          현장에서 직접 확인한 내용이 맞는지 다시 한 번 확인해 주세요. 확인 후에는 홈으로 이동해요.
+        </p>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setIsCompleteModalOpen(false)}
+            className="ansim-button-secondary flex-1 py-3"
+          >
+            취소
+          </button>
+          <button type="button" onClick={() => router.push('/home')} className="ansim-button-primary flex-1 py-3">
+            확인
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
