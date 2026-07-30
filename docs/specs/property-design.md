@@ -131,3 +131,4 @@
 4. ~~매물 목록에 검색/정렬/페이지네이션이 텍스트 검색 하나만 빼고 전부 없음~~ → **페이지네이션(이전/다음 페이지 이동)은 추가됨.** 지역/면적/가격범위 검색과 정렬 UI는 여전히 없음 — BE에 검색 쿼리 자체가 아직 없어서(`property-design.md`(BE) 참고), 이 부분은 BE 작업이 선행돼야 함
 5. ~~상세 화면이 "체크리스트 진행 여부"와 "신고 누적 여부"를 서버에서 조회해서 보여주지 않음~~ → BE에 `checklistCreated`/`reported` 필드가 추가되면서 해소됨(위 상세조회 표 참고)
 6. **매물 삭제 확인이 앱 자체 `Modal` 대신 브라우저 `window.confirm()`** — 이미 있는 컴포넌트와 스타일이 다름, 통일 여부 확인
+7. **목록/상세에 보이는 매물 제목이 실제 저장값이 아님** — `mapPropertyListItemDto`/`mapPropertyDetailResponseDto`(`app/mappers/property.ts`)가 `propertyType`만 보고 `"오피스텔 매물"`처럼 그때그때 만들어내는 문자열이다. BE `Property`에 `title` 컬럼이 아예 없어서 벌어지는 일(`property-design.md`(BE) 18번 참고) — BE에 `title` 컬럼 추가가 합의됐고, 별도 이슈로 진행되면 등록 폼에 제목 입력 필드 추가 + 이 자동생성 로직 제거가 함께 필요함
