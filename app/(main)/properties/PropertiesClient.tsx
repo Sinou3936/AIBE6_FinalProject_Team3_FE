@@ -6,6 +6,8 @@ import {
   AlertTriangle,
   Building2,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   MapPin,
   Plus,
   Search,
@@ -13,20 +15,24 @@ import {
   SlidersHorizontal,
 } from 'lucide-react';
 import { cn } from '../../lib/cn';
-import { type PropertySummary } from '../../types/domain';
+import { type PropertyListPage } from '../../types/domain';
 import { Badge } from '../../ui/Badge';
 import { NoticeBox } from '../../ui/NoticeBox';
 
 type PropertiesClientProps = {
-  properties: PropertySummary[];
+  propertyPage: PropertyListPage;
   loadError?: string;
   notice?: string;
 };
 
-export function PropertiesClient({ properties, loadError, notice }: PropertiesClientProps) {
+export function PropertiesClient({ propertyPage, loadError, notice }: PropertiesClientProps) {
+  const { items: properties, page, totalPages, hasNext } = propertyPage;
   const [query, setQuery] = useState('');
   const [selectedType, setSelectedType] = useState('전체');
 
+  // 검색/유형 필터는 현재 페이지에 실려온 매물에 대해서만 동작한다 - BE에 아직 검색 쿼리
+  // 파라미터가 없어서(property-design.md 참고), 페이지를 넘기지 않고는 전체 매물을 가로질러
+  // 검색할 방법이 없다. 매물 수가 늘어나면 서버사이드 검색으로 옮겨야 한다.
   const filteredProperties = useMemo(() => {
     return properties.filter((property) => {
       const typeMatches = selectedType === '전체' || property.type === selectedType;
@@ -179,6 +185,38 @@ export function PropertiesClient({ properties, loadError, notice }: PropertiesCl
             </Link>
           ))}
         </div>
+
+        {!loadError && totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-center gap-4">
+            {page > 0 ? (
+              <Link
+                href={`/properties?page=${page - 1}`}
+                className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+              >
+                <ChevronLeft className="h-4 w-4" /> 이전
+              </Link>
+            ) : (
+              <span className="flex items-center gap-1 rounded-xl border border-slate-100 px-4 py-2 text-sm font-bold text-slate-300">
+                <ChevronLeft className="h-4 w-4" /> 이전
+              </span>
+            )}
+            <span className="text-sm text-slate-500">
+              {page + 1} / {totalPages} 페이지
+            </span>
+            {hasNext ? (
+              <Link
+                href={`/properties?page=${page + 1}`}
+                className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+              >
+                다음 <ChevronRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <span className="flex items-center gap-1 rounded-xl border border-slate-100 px-4 py-2 text-sm font-bold text-slate-300">
+                다음 <ChevronRight className="h-4 w-4" />
+              </span>
+            )}
+          </div>
+        )}
 
         <NoticeBox icon={AlertTriangle} iconClassName="text-orange-500" className="mt-8">
           확인 필요 신호는 확정 판단이 아닌 참고용 정보입니다. 등기부등본, 보증보험 가능 여부, 실제 계약 조건은 별도로
