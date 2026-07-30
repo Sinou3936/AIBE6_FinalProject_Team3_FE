@@ -97,6 +97,9 @@ export type ChecklistItem = {
   category: ChecklistCategoryId;
   content: string;
   guideText: string | null;
+  // 질문/guideText를 읽어도 남는 배경지식(용어, 왜 문제가 되는지)을 초등학생도 이해할 수 있게 풀어주는 문구.
+  // guideText와 달리 일부 필수 항목에만 존재한다(예: 서비스 내에서 별도로 다루는 항목은 null).
+  helperText: string | null;
   importance: ChecklistImportance;
   itemType: ChecklistItemType;
   checked: boolean;

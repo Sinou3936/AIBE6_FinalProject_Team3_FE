@@ -40,6 +40,8 @@ export type ChecklistItemDto = {
   category: ChecklistCategoryDto;
   content: string;
   guideText: string | null;
+  // Backend checklist_item_template.helper_text 컬럼(예정) — 일부 필수 항목에만 값이 있고 나머지는 null.
+  helperText: string | null;
   importance: ChecklistImportanceDto;
   itemType: ChecklistItemTypeDto;
   checked: boolean;

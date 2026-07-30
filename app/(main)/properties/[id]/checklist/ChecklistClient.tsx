@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, ArrowRight, Info } from 'lucide-react';
+import { ArrowLeft, ArrowRight, HelpCircle, Info } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { checklistCategories as categories } from '../../../../data/checklist';
@@ -35,6 +35,7 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
   const [summary, setSummary] = useState<ChecklistSummary>(initialSummary ?? EMPTY_SUMMARY);
   const [activeCategory, setActiveCategory] = useState(categories[0].id);
   const [itemErrors, setItemErrors] = useState<Record<number, string>>({});
+  const [helperItemId, setHelperItemId] = useState<number | null>(null);
 
   const checklistId = checklist?.id;
   const activeItems = items.filter((item) => item.category === activeCategory);
@@ -182,8 +183,23 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
                 {item.importance === 'required' && (
                   <Badge className="mt-0.5 shrink-0 bg-slate-900 text-white">필수</Badge>
                 )}
-                <p className="font-medium leading-relaxed text-slate-900">{item.content}</p>
+                <p className="flex items-start gap-1 font-medium leading-relaxed text-slate-900">
+                  {item.content}
+                  {item.helperText && (
+                    <button
+                      type="button"
+                      onClick={() => setHelperItemId((current) => (current === item.id ? null : item.id))}
+                      className="mt-0.5 shrink-0 text-slate-400 hover:text-slate-600"
+                      aria-label="쉬운 설명 보기"
+                    >
+                      <HelpCircle className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </p>
               </div>
+              {helperItemId === item.id && item.helperText && (
+                <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">{item.helperText}</p>
+              )}
               {item.guideText && <p className="mb-3 text-xs text-slate-500">{item.guideText}</p>}
 
               {item.itemType === 'check' && (

@@ -46,6 +46,7 @@ export function mapChecklistItemDto(dto: ChecklistItemDto): ChecklistItem {
     category: categoryMap[dto.category],
     content: dto.content,
     guideText: dto.guideText,
+    helperText: dto.helperText,
     importance: importanceMap[dto.importance],
     itemType: itemTypeMap[dto.itemType],
     checked: dto.checked,
