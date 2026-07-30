@@ -292,8 +292,8 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
         )}
 
         <NoticeBox icon={Info} iconClassName="text-slate-400" className="mt-6">
-          체크리스트 결과는 점수나 안전 등급이 아닙니다. 확인한 항목과 주의가 필요한 항목을 정리하는 참고용 기록이며,
-          실제 계약 전 등기부등본과 보증보험 가능 여부를 함께 확인하세요.
+          {summary.disclaimer ?? '체크리스트 결과는 점수나 안전 등급이 아닙니다.'} 확인한 항목과 주의가 필요한 항목을
+          정리하는 참고용 기록이며, 실제 계약 전 등기부등본과 보증보험 가능 여부를 함께 확인하세요.
         </NoticeBox>
       </div>
     </div>

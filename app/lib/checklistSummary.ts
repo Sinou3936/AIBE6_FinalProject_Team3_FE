@@ -4,4 +4,5 @@ export type ChecklistSummary = {
   cautionCount: number;
   hasStarted: boolean;
   message?: string;
+  disclaimer?: string;
 };

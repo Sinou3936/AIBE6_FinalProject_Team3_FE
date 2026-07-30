@@ -71,6 +71,8 @@ export function getMockChecklistResult(): ChecklistSummary {
     requiredMissingCount,
     issueCount,
     message: status === 'NOT_STARTED' ? '체크리스트를 시작해보세요' : undefined,
+    // Backend가 상태와 무관하게 항상 내려주는 고정 문구(ChecklistResultResponse.SAFETY_DISCLAIMER)와 동일하게 맞춘다.
+    disclaimer: '이 결과는 매물의 안전을 보장하지 않습니다.',
   });
 }
 

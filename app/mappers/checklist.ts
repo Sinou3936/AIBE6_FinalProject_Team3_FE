@@ -72,6 +72,7 @@ export function mapChecklistResultDto(dto: ChecklistResultDto): ChecklistSummary
     cautionCount: dto.issueCount,
     hasStarted: dto.status !== 'NOT_STARTED',
     message: dto.message,
+    disclaimer: dto.disclaimer,
   };
 }
 

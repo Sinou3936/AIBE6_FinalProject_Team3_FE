@@ -65,6 +65,9 @@ export type ChecklistResultDto = {
   requiredMissingCount: number;
   issueCount: number;
   message?: string;
+  // 상태와 무관하게 항상 내려오는 고정 문구("이 결과는 매물의 안전을 보장하지 않습니다.") — message와
+  // 달리 NOT_STARTED 여부에 따라 생략되지 않는다.
+  disclaimer: string;
 };
 
 // PATCH 요청 바디. checked만 바뀌는 CHECK 타입 문항은 { checked }, 값 입력이 필요한 YES_NO/DATE/
