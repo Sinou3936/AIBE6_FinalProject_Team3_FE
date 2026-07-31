@@ -50,6 +50,8 @@ export type ChecklistItemDto = {
   category: ChecklistCategoryDto;
   content: string;
   guideText: string | null;
+  // Backend checklist_item_template.helper_text 컬럼(예정) — 일부 필수 항목에만 값이 있고 나머지는 null.
+  helperText: string | null;
   importance: ChecklistImportanceDto;
   itemType: ChecklistItemTypeDto;
   checked: boolean;
@@ -75,6 +77,9 @@ export type ChecklistResultDto = {
   requiredMissingCount: number;
   issueCount: number;
   message?: string;
+  // 상태와 무관하게 항상 내려오는 고정 문구("이 결과는 매물의 안전을 보장하지 않습니다.") — message와
+  // 달리 NOT_STARTED 여부에 따라 생략되지 않는다.
+  disclaimer: string;
 };
 
 // PATCH 요청 바디. checked만 바뀌는 CHECK 타입 문항은 { checked }, 값 입력이 필요한 YES_NO/DATE/
@@ -90,6 +95,8 @@ export type ChecklistOverviewDto = {
   propertyType: PropertyTypeDto;
   transactionType: PropertyTransactionTypeDto;
   status: ChecklistStatusDto;
+  // 체크리스트가 있으면 checklist.updatedAt, 없으면 property.updatedAt으로 Backend가 대체해서 내려준다.
+  lastCheckedAt: string;
 };
 
 // 계약 문구 분석 4단계 파이프라인: 입력 제출 -> OCR -> 마스킹 -> AI 분석.
