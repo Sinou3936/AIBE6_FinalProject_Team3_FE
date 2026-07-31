@@ -20,6 +20,7 @@ type PageProps = {
     maxDeposit?: string;
     minMonthlyRent?: string;
     maxMonthlyRent?: string;
+    sort?: string;
   }>;
 };
 
@@ -37,6 +38,10 @@ const emptyPage: PropertyListPage = {
 
 const VALID_TRANSACTION_TYPES: PropertyTransactionTypeDto[] = ['JEONSE', 'MONTHLY_RENT'];
 const VALID_PROPERTY_TYPES: PropertyTypeDto[] = ['OFFICETEL', 'MULTI_FAMILY', 'DETACHED_HOUSE'];
+// BE가 허용하는 정렬 필드는 createdAt/deposit/area 뿐이다(PageableUtils.validateSort 참고).
+// createdAt,desc(최신순)는 BE 기본값이라 굳이 명시적으로 보낼 값 목록에 넣지 않았다 - sort를
+// 생략해도 동일한 결과가 나온다.
+const VALID_SORT_VALUES = ['deposit,asc', 'deposit,desc', 'area,asc', 'area,desc'];
 
 function parsePositiveNumber(value: string | undefined): number | undefined {
   if (!value) return undefined;
@@ -58,6 +63,7 @@ export default async function Page({ searchParams }: PageProps) {
     maxDeposit,
     minMonthlyRent,
     maxMonthlyRent,
+    sort,
   } = await searchParams;
 
   // 잘못되거나 없는 page 값은 0페이지로 취급 - URL을 직접 건드려도 안전하게 첫 페이지를 보여준다.
@@ -79,6 +85,7 @@ export default async function Page({ searchParams }: PageProps) {
     maxDeposit: parsePositiveNumber(maxDeposit),
     minMonthlyRent: parsePositiveNumber(minMonthlyRent),
     maxMonthlyRent: parsePositiveNumber(maxMonthlyRent),
+    sort: sort && VALID_SORT_VALUES.includes(sort) ? sort : undefined,
   };
 
   const requestParams: GetPropertiesParams = { page, size: PAGE_SIZE, ...filter };

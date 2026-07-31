@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
+  ArrowUpDown,
   Building2,
   CheckCircle2,
   ChevronLeft,
@@ -34,7 +35,21 @@ export type PropertiesFilter = {
   // 전세는 monthlyRent가 항상 null이라 사실상 월세 매물에만 적용된다.
   minMonthlyRent?: number;
   maxMonthlyRent?: number;
+  // BE가 허용하는 정렬 필드는 createdAt/deposit/area 뿐이다(PageableUtils.validateSort 참고).
+  // "field,direction" 형태의 Spring Pageable Sort 문법 그대로 사용한다. 생략하면 BE 기본값인
+  // createdAt,desc(최신순)로 처리된다.
+  sort?: string;
 };
+
+type SortOption = { label: string; value?: string };
+
+const sortOptions: SortOption[] = [
+  { label: '최신순' },
+  { label: '보증금 낮은순', value: 'deposit,asc' },
+  { label: '보증금 높은순', value: 'deposit,desc' },
+  { label: '면적 좁은순', value: 'area,asc' },
+  { label: '면적 넓은순', value: 'area,desc' },
+];
 
 type PropertiesClientProps = {
   propertyPage: PropertyListPage;
@@ -78,7 +93,8 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
     filter.minDeposit !== undefined ||
     filter.maxDeposit !== undefined ||
     filter.minMonthlyRent !== undefined ||
-    filter.maxMonthlyRent !== undefined;
+    filter.maxMonthlyRent !== undefined ||
+    Boolean(filter.sort);
 
   // 현재 폼 상태(+ overrides로 넘긴 값)를 쿼리파라미터로 직렬화한다. page는 여기서 다루지 않고
   // buildPageHref가 별도로 붙인다 - 필터가 바뀌면 항상 0페이지부터 다시 보는 게 맞기 때문.
@@ -93,6 +109,7 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
       maxDeposit: maxDeposit ? Number(maxDeposit) : undefined,
       minMonthlyRent: minMonthlyRent ? Number(minMonthlyRent) : undefined,
       maxMonthlyRent: maxMonthlyRent ? Number(maxMonthlyRent) : undefined,
+      sort: filter.sort,
       ...overrides,
     };
 
@@ -116,6 +133,7 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
       params.set('minMonthlyRent', String(next.minMonthlyRent));
     if (next.maxMonthlyRent !== undefined && !Number.isNaN(next.maxMonthlyRent))
       params.set('maxMonthlyRent', String(next.maxMonthlyRent));
+    if (next.sort) params.set('sort', next.sort);
     return params;
   }
 
@@ -283,19 +301,35 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
       </div>
 
       <div className="container mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
-          {transactionTypePills.map((pill) => (
-            <button
-              key={pill.label}
-              onClick={() => applyFilter({ transactionType: pill.value })}
-              className={cn(
-                'ansim-filter-pill',
-                filter.transactionType === pill.value ? 'bg-slate-950 text-white' : 'ansim-filter-pill-muted',
-              )}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {transactionTypePills.map((pill) => (
+              <button
+                key={pill.label}
+                onClick={() => applyFilter({ transactionType: pill.value })}
+                className={cn(
+                  'ansim-filter-pill',
+                  filter.transactionType === pill.value ? 'bg-slate-950 text-white' : 'ansim-filter-pill-muted',
+                )}
+              >
+                {pill.label}
+              </button>
+            ))}
+          </div>
+          <label className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-600">
+            <ArrowUpDown className="h-4 w-4 text-slate-400" />
+            <select
+              value={filter.sort ?? ''}
+              onChange={(event) => applyFilter({ sort: event.target.value || undefined })}
+              className="ansim-input w-auto py-2 pr-8 text-sm"
             >
-              {pill.label}
-            </button>
-          ))}
+              {sortOptions.map((option) => (
+                <option key={option.label} value={option.value ?? ''}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         {notice && (

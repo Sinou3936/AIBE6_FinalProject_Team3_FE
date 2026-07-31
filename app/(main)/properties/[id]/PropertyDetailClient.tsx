@@ -5,7 +5,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  AlertTriangle,
   ArrowLeft,
   Building2,
   Calendar,
@@ -24,6 +23,7 @@ import { type PropertyDetail } from '../../../types/domain';
 import { Badge } from '../../../ui/Badge';
 import { KakaoMap } from '../../../ui/KakaoMap';
 import { NoticeBox } from '../../../ui/NoticeBox';
+import { PropertyDeleteConfirmModal } from './PropertyDeleteConfirmModal';
 import { PropertyReportModal } from './PropertyReportModal';
 
 type PropertyDetailClientProps = {
@@ -46,6 +46,7 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
 
@@ -63,11 +64,8 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
     );
   }
 
-  async function handleDelete() {
+  async function confirmDelete() {
     if (!property) return;
-    if (!window.confirm('이 매물을 삭제할까요? 삭제 후에는 되돌릴 수 없어요.')) {
-      return;
-    }
 
     setDeleteError(null);
     setIsDeleting(true);
@@ -279,11 +277,6 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
 
             <div className="ansim-card p-6">
               <h3 className="mb-4 font-bold text-slate-950">매물 관리</h3>
-              {deleteError && (
-                <NoticeBox icon={AlertTriangle} iconClassName="text-red-500" className="mb-4 bg-red-50 text-red-600">
-                  {deleteError}
-                </NoticeBox>
-              )}
               {alreadyReported && (
                 <NoticeBox
                   icon={CheckCircle2}
@@ -310,7 +303,7 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
                 </button>
                 <button
                   type="button"
-                  onClick={handleDelete}
+                  onClick={() => setIsDeleteModalOpen(true)}
                   disabled={isDeleting}
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-100 px-4 py-3 text-sm font-bold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60"
                 >
@@ -327,6 +320,14 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
         open={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
         onSuccess={() => setReportSuccess(true)}
+      />
+
+      <PropertyDeleteConfirmModal
+        open={isDeleteModalOpen}
+        isDeleting={isDeleting}
+        error={deleteError}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
       />
     </div>
   );
