@@ -89,8 +89,18 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
           <div className="space-y-1">
             {/* 이메일 없는 카카오 계정(profile_nickname 스코프만 요청 — 아직 email 동의항목 없음)은
                 비밀번호를 설정해도 로그인에 쓸 이메일이 없어 결국 비밀번호 화면에서 막힌다
-                (password/page.tsx 참고) — 여기서도 클릭 가능한 링크 대신 비활성 상태로 미리 안내한다. */}
-            {profile.hasPassword || profile.email !== null ? (
+                (password/page.tsx 참고) — 여기서도 클릭 가능한 링크 대신 비활성 상태로 미리 안내한다.
+                단, profileLoadError(일시적 조회 실패로 emptyProfile 폴백)일 땐 email이 실제로 없는
+                게 아니라 "모르는" 상태이므로 "이메일 미연동"이 아니라 조회 실패로 별도 안내한다. */}
+            {profileLoadError ? (
+              <div
+                className="flex w-full cursor-not-allowed items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-400"
+                title="새로고침하거나 잠시 후 다시 시도해 주세요"
+              >
+                <Lock className="h-4 w-4 text-slate-300" />
+                비밀번호 설정 (정보를 불러오지 못함)
+              </div>
+            ) : profile.hasPassword || profile.email !== null ? (
               <Link
                 href="/mypage/password"
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
