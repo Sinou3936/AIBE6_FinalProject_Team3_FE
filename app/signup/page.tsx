@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { Shield } from 'lucide-react';
+import Link from 'next/link';
 import { getPasswordPolicy } from '../services/auth';
 import { type PasswordPolicyDto } from '../types/api';
 import { SignupFormClient } from './SignupFormClient';
@@ -27,7 +27,7 @@ export default async function SignupPage() {
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-600">
             <Shield className="h-6 w-6 text-white" />
           </div>
-          <h1 className="mb-1 text-xl font-bold text-slate-950">안심집 회원가입</h1>
+          <h1 className="mb-1 text-xl font-bold text-slate-950">알고계약 회원가입</h1>
           <p className="text-sm text-slate-600">이메일로 가입하고 바로 시작해 보세요</p>
         </div>
 

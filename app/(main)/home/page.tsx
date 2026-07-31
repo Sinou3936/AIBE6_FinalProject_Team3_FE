@@ -6,7 +6,7 @@ import { computeHomeSummaryCounts } from '../../lib/homeSummary';
 import { getPriorityAction } from '../../lib/priorityAction';
 import { classifyProfileLoadError, redirectIfSessionInvalid } from '../../lib/sessionErrors';
 import { getActivityHistory } from '../../services/activityHistory';
-import { getMyChecklistOverviews } from '../../services/checklist';
+import { getChecklistResult, getMyChecklistOverviews } from '../../services/checklist';
 import { getProperties } from '../../services/properties';
 import { getMyProfile } from '../../services/user';
 import {
@@ -94,9 +94,33 @@ export default async function Page({ searchParams }: HomePageProps) {
     loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
+  let checklistProgressEntries: Array<{
+    propertyId: number;
+    propertyTitle: string;
+    progressPercent: number;
+    cautionCount: number;
+  }> = [];
+  try {
+    const inProgressChecklists = checklistOverviews.filter(
+      (overview): overview is ChecklistOverview & { checklistId: number } =>
+        overview.status === 'IN_PROGRESS' && overview.checklistId !== null,
+    );
+    checklistProgressEntries = await Promise.all(
+      inProgressChecklists.map(async (overview) => {
+        const summary = await getChecklistResult(overview.checklistId, cookieHeader);
+        return {
+          propertyId: overview.propertyId,
+          propertyTitle: overview.propertyTitle,
+          progressPercent: summary.progressPercent,
+          cautionCount: summary.cautionCount,
+        };
+      }),
+    );
+  } catch (error) {
+    redirectIfSessionInvalid(error);
+  }
+
   const hasProperty = propertiesTotalCount > 0;
-  // TODO: 체크리스트 항목별 저장 API가 추가되면 아래 위젯 노출 조건도 checklistOverviews 기반으로 교체하세요.
-  const hasChecklist = properties.some((property) => (property.checklist ?? 0) > 0);
 
   const priorityAction = getPriorityAction({
     currentStage: profile.currentStage,
@@ -106,18 +130,12 @@ export default async function Page({ searchParams }: HomePageProps) {
   });
 
   const summaryCounts = {
-    ...computeHomeSummaryCounts(properties, activityHistory),
+    ...computeHomeSummaryCounts(properties, activityHistory, checklistOverviews),
     // items(최대 100개)가 아니라 totalElements 기준 - 매물이 100개를 넘어도 정확한 값을 보여준다.
     interestedPropertyCount: propertiesTotalCount,
   };
   const signalProperties = properties.filter((property) => (property.checkSignalCount ?? 0) > 0);
   const specialTermsAlerts = activityHistory.filter((item) => item.type === '특약사항 분석');
-
-  // TODO: 체크리스트 항목별 확인/주의 개수는 체크리스트 저장 API가 추가되면 실제 값으로 교체하세요.
-  // 아직 항목별 진행 상태가 저장되지 않아 레이아웃 확인용 임시 값을 사용합니다.
-  const mockChecklistTotal = 20;
-  const mockChecklistChecked = 12;
-  const mockChecklistCaution = 3;
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-6 md:py-10">
@@ -183,12 +201,18 @@ export default async function Page({ searchParams }: HomePageProps) {
         </div>
       </div>
 
-      {hasChecklist && (
-        <ChecklistProgressWidget
-          checkedCount={mockChecklistChecked}
-          totalCount={mockChecklistTotal}
-          cautionCount={mockChecklistCaution}
-        />
+      {checklistProgressEntries.length > 0 && (
+        <div className="mb-10 space-y-4">
+          {checklistProgressEntries.map((entry) => (
+            <ChecklistProgressWidget
+              key={entry.propertyId}
+              propertyTitle={entry.propertyTitle}
+              progressPercent={entry.progressPercent}
+              cautionCount={entry.cautionCount}
+              href={`/properties/${entry.propertyId}/checklist`}
+            />
+          ))}
+        </div>
       )}
 
       <div className="mb-10 grid grid-cols-1 gap-6 lg:grid-cols-3">

@@ -5,7 +5,12 @@ import Link from 'next/link';
 import { ENABLE_ANALYSIS_HISTORY } from '../../config/features';
 import { hasRegisteredProfile } from '../../lib/profile';
 import { useLogout } from '../../lib/useLogout';
-import { type ActivityHistoryItem, type PropertySummary, type UserProfile } from '../../types/domain';
+import {
+  type ActivityHistoryItem,
+  type ChecklistProgress,
+  type PropertySummary,
+  type UserProfile,
+} from '../../types/domain';
 import { Badge } from '../../ui/Badge';
 import { InfoRow } from '../../ui/InfoRow';
 import { PropertyListItem } from '../../ui/PropertyListItem';
@@ -16,6 +21,7 @@ type MyPageClientProps = {
   properties: PropertySummary[];
   propertiesTotalCount: number;
   propertiesLoadError?: string;
+  checklistProgressByPropertyId: Record<number, ChecklistProgress>;
   nickname: string;
   profile: UserProfile;
   profileLoadError?: string;
@@ -27,6 +33,7 @@ export function MyPageClient({
   properties,
   propertiesTotalCount,
   propertiesLoadError,
+  checklistProgressByPropertyId,
   nickname,
   profile,
   profileLoadError,
@@ -53,7 +60,12 @@ export function MyPageClient({
               <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal-100">
                 {profile.profileImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={profile.profileImageUrl} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={profile.profileImageUrl}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   <User className="h-7 w-7 text-teal-700" />
                 )}
@@ -165,9 +177,7 @@ export function MyPageClient({
         </p>
 
         {propertiesLoadError && (
-          <div className="ansim-card mb-4 border-red-100 bg-red-50 p-4 text-sm text-red-700">
-            {propertiesLoadError}
-          </div>
+          <div className="ansim-card mb-4 border-red-100 bg-red-50 p-4 text-sm text-red-700">{propertiesLoadError}</div>
         )}
 
         {!propertiesLoadError && properties.length === 0 && (
@@ -182,7 +192,11 @@ export function MyPageClient({
         {properties.length > 0 && (
           <div className="space-y-4">
             {properties.map((property) => (
-              <PropertyListItem key={property.id} property={property} />
+              <PropertyListItem
+                key={property.id}
+                property={property}
+                checklistProgress={checklistProgressByPropertyId[property.id]}
+              />
             ))}
           </div>
         )}

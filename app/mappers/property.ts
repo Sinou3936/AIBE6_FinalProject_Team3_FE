@@ -1,10 +1,4 @@
 import {
-  type PropertyDetail,
-  type PropertyMarketComparison,
-  type PropertyTradeType,
-  type PropertySummary,
-} from '../types/domain';
-import {
   type ApiStatusTone,
   type MarketComparisonDto,
   type PropertyDetailResponseDto,
@@ -13,6 +7,12 @@ import {
   type PropertyTransactionTypeDto,
   type PropertyTypeDto,
 } from '../types/api';
+import {
+  type PropertyDetail,
+  type PropertyMarketComparison,
+  type PropertySummary,
+  type PropertyTradeType,
+} from '../types/domain';
 
 const propertyStatusColorMap: Record<ApiStatusTone, string> = {
   orange: 'bg-orange-100 text-orange-700',
@@ -94,6 +94,7 @@ export function mapPropertyListItemDto(dto: PropertyListItemDto): PropertySummar
     address: dto.roadAddress ?? dto.jibunAddress ?? '주소 정보 없음',
     type: propertyTransactionTypeLabelMap[dto.transactionType],
     deposit: formatDepositText(dto.transactionType, dto.deposit, dto.monthlyRent),
+    propertyType: propertyTypeLabelMap[dto.propertyType],
     statusColor: propertyStatusColorMap.slate,
     location: { latitude: 0, longitude: 0 },
   };
@@ -146,6 +147,7 @@ export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): Pr
     address: dto.address.roadAddress ?? dto.address.jibunAddress ?? '주소 정보 없음',
     type: propertyTransactionTypeLabelMap[dto.transactionType],
     deposit: formatDepositText(dto.transactionType, dto.deposit, dto.monthlyRent),
+    propertyType: propertyTypeLabelMap[dto.propertyType],
     depositAmount: dto.deposit,
     monthlyRentAmount: dto.monthlyRent,
     area: dto.area,
