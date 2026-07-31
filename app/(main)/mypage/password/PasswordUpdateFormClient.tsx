@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ApiError, isSessionInvalidErrorCode } from '../../../lib/api/http';
 import { updatePassword } from '../../../services/auth';
 import { type PasswordPolicyDto } from '../../../types/api';
@@ -16,12 +16,23 @@ export function PasswordUpdateFormClient({ hasPassword, passwordPolicy }: Passwo
   const router = useRouter();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string>();
   const [success, setSuccess] = useState(false);
+  const confirmNewPasswordRef = useRef<HTMLInputElement>(null);
+
+  const passwordMismatch = confirmNewPassword.length > 0 && newPassword !== confirmNewPassword;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (newPassword !== confirmNewPassword) {
+      // Enter 키로 제출된 경우 브라우저의 암묵적 제출 처리가 포커스를 되돌려놓기 때문에,
+      // 다음 tick으로 미뤄야 포커스 이동이 실제로 적용된다.
+      setTimeout(() => confirmNewPasswordRef.current?.focus(), 0);
+      return;
+    }
 
     setIsSaving(true);
     setError(undefined);
@@ -32,6 +43,7 @@ export function PasswordUpdateFormClient({ hasPassword, passwordPolicy }: Passwo
       setSuccess(true);
       setCurrentPassword('');
       setNewPassword('');
+      setConfirmNewPassword('');
     } catch (submitError) {
       // requestJson()이 이제 브라우저 컨텍스트에서 401 → refresh → 원 요청 1회 재시도를 자동으로
       // 처리하므로(app/lib/api/http.ts 참고), 정상 케이스(refresh 성공)는 이 catch까지 401이 아예
@@ -101,6 +113,20 @@ export function PasswordUpdateFormClient({ hasPassword, passwordPolicy }: Passwo
             title={passwordPolicy.message}
             required
           />
+        </label>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-bold text-slate-700">새 비밀번호 확인</span>
+          <input
+            ref={confirmNewPasswordRef}
+            className="ansim-input w-full"
+            type="password"
+            value={confirmNewPassword}
+            onChange={(event) => setConfirmNewPassword(event.target.value)}
+            placeholder="새 비밀번호를 다시 입력해 주세요"
+            autoComplete="new-password"
+            required
+          />
+          {passwordMismatch && <p className="mt-1 text-sm text-red-600">비밀번호가 일치하지 않습니다.</p>}
         </label>
 
         {error && <p className="text-sm text-red-600">{error}</p>}

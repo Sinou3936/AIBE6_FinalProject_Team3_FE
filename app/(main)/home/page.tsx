@@ -24,6 +24,7 @@ export const dynamic = 'force-dynamic';
 
 const emptyProfile: UserProfile = {
   nickname: '',
+  email: null,
   profileImageUrl: null,
   interestRegion: null,
   transactionType: null,
@@ -60,9 +61,17 @@ export default async function Page({ searchParams }: HomePageProps) {
   }
 
   let properties: PropertySummary[] = [];
+  let propertiesTotalCount = 0;
   let propertiesLoadFailed = false;
   try {
-    properties = await getProperties(cookieHeader);
+    // 백엔드가 허용하는 최대 페이지 크기(100, PropertyController@PageableDefault 검증 로직 참고)만큼
+    // 한 번에 가져온다. interestedPropertyCount/hasProperty는 아래에서 totalElements를 쓰므로
+    // 매물이 100개를 넘어도 정확하지만, "중요 확인사항" 위젯(signalProperties)과 신호/체크리스트
+    // 기반 카운트는 이 items 배열(최대 100개, createdAt DESC)만 보므로 101번째 이후 오래된 매물의
+    // 신호는 반영되지 않는다. 실사용 규모상 무시 가능하다고 판단해 별도 페이지 순회는 하지 않는다.
+    const propertiesPage = await getProperties(cookieHeader, { size: 100 });
+    properties = propertiesPage.items;
+    propertiesTotalCount = propertiesPage.totalElements;
   } catch (error) {
     redirectIfSessionInvalid(error);
     // 실패 시 "매물이 없다"고 단정하지 않도록 propertiesLoadFailed로 별도 표시하고,
@@ -89,7 +98,7 @@ export default async function Page({ searchParams }: HomePageProps) {
     loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
-  const hasProperty = properties.length > 0;
+  const hasProperty = propertiesTotalCount > 0;
   // TODO: 체크리스트 항목별 저장 API가 추가되면 아래 위젯 노출 조건도 checklistOverviews 기반으로 교체하세요.
   const hasChecklist = properties.some((property) => (property.checklist ?? 0) > 0);
 
@@ -100,7 +109,11 @@ export default async function Page({ searchParams }: HomePageProps) {
     checklistOverviews,
   });
 
-  const summaryCounts = computeHomeSummaryCounts(properties, overview.activityHistory);
+  const summaryCounts = {
+    ...computeHomeSummaryCounts(properties, overview.activityHistory),
+    // items(최대 100개)가 아니라 totalElements 기준 - 매물이 100개를 넘어도 정확한 값을 보여준다.
+    interestedPropertyCount: propertiesTotalCount,
+  };
   const signalProperties = properties.filter((property) => (property.checkSignalCount ?? 0) > 0);
   const specialTermsAlerts = overview.activityHistory.filter((item) => item.type === '특약사항 분석');
 

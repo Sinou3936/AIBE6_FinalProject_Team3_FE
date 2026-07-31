@@ -17,6 +17,7 @@ const emptyOverview: MyPageOverview = {
 
 const emptyProfile: UserProfile = {
   nickname: '',
+  email: null,
   profileImageUrl: null,
   interestRegion: null,
   transactionType: null,
