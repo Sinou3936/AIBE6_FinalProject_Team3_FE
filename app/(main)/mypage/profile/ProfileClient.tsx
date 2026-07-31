@@ -3,7 +3,7 @@
 import { ArrowLeft, Sparkles, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { regions } from '../../../data/regions_nested';
 import { userCurrentStageOptions, userTransactionTypeOptions } from '../../../data/user';
 import { ApiError } from '../../../lib/api/http';
@@ -12,6 +12,9 @@ import { type ProfileUpdateInput, type UserProfile } from '../../../types/domain
 import { NoticeBox } from '../../../ui/NoticeBox';
 
 type ProfileMode = 'register' | 'edit';
+
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png'];
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 type ProfileClientProps = {
   profile: UserProfile;
@@ -100,6 +103,11 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string>();
   const [imagePreviewError, setImagePreviewError] = useState(false);
+  // S3 업로드 연동 전까지는 파일 선택 UI/미리보기/검증만 제공한다 - 선택한 파일은 formValues에
+  // 반영하지 않으므로 저장 시에는 기존 profileImageUrl이 그대로 유지되고 실제로는 반영되지 않는다.
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string>();
+  const [imageSelectError, setImageSelectError] = useState<string>();
   const [nicknameCheckStatus, setNicknameCheckStatus] = useState<
     'idle' | 'checking' | 'available' | 'duplicate' | 'error'
   >('idle');
@@ -111,6 +119,51 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
   const title = mode === 'register' ? '프로필 등록' : '프로필 수정';
   const isNicknameUnchanged = mode === 'edit' && formValues.nickname.trim() === profile.nickname;
   const isNicknameCheckRequired = !isNicknameUnchanged && nicknameCheckStatus !== 'available';
+
+  // object URL은 브라우저 메모리에 남으므로, 새 파일을 고르거나 화면을 떠날 때 이전 URL을 해제한다.
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) {
+        URL.revokeObjectURL(imagePreviewUrl);
+      }
+    };
+  }, [imagePreviewUrl]);
+
+  const handleImageFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    // 같은 파일을 다시 골라도 onChange가 뜨도록 입력값을 매번 비운다.
+    event.target.value = '';
+    if (!file) {
+      return;
+    }
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setImageSelectError('JPG 또는 PNG 파일만 선택할 수 있어요.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      setImageSelectError('파일 크기는 5MB 이하만 가능해요.');
+      return;
+    }
+
+    setImageSelectError(undefined);
+    setSelectedImageFile(file);
+    setImagePreviewUrl((prev) => {
+      if (prev) {
+        URL.revokeObjectURL(prev);
+      }
+      return URL.createObjectURL(file);
+    });
+  };
+
+  const handleCancelImageSelection = () => {
+    if (imagePreviewUrl) {
+      URL.revokeObjectURL(imagePreviewUrl);
+    }
+    setSelectedImageFile(null);
+    setImagePreviewUrl(undefined);
+    setImageSelectError(undefined);
+  };
 
   const handleSidoChange = (nextSido: string) => {
     setSido(nextSido);
@@ -217,7 +270,10 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
               <span className="mb-2 block text-sm font-bold text-slate-700">프로필 사진</span>
               <div className="flex items-center gap-4">
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal-100">
-                  {formValues.profileImageUrl && !imagePreviewError ? (
+                  {imagePreviewUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={imagePreviewUrl} alt="프로필 사진 미리보기" className="h-full w-full object-cover" />
+                  ) : formValues.profileImageUrl && !imagePreviewError ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={formValues.profileImageUrl}
@@ -229,16 +285,33 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
                     <User className="h-8 w-8 text-teal-700" />
                   )}
                 </div>
-                <input
-                  className="ansim-input flex-1"
-                  type="url"
-                  value={formValues.profileImageUrl}
-                  onChange={(event) => {
-                    setImagePreviewError(false);
-                    setFormValues((prev) => ({ ...prev, profileImageUrl: event.target.value }));
-                  }}
-                  placeholder="https://example.com/avatar.jpg"
-                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <label className="ansim-button-secondary inline-flex cursor-pointer items-center px-4 py-2 text-sm">
+                      사진 선택
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        onChange={handleImageFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                    {selectedImageFile && (
+                      <button
+                        type="button"
+                        onClick={handleCancelImageSelection}
+                        className="text-sm font-bold text-slate-500 hover:text-slate-700"
+                      >
+                        선택 취소
+                      </button>
+                    )}
+                  </div>
+                  {selectedImageFile && <p className="mt-1.5 text-xs text-slate-500">{selectedImageFile.name}</p>}
+                  {imageSelectError && <p className="mt-1.5 text-sm text-red-600">{imageSelectError}</p>}
+                  <p className="mt-1.5 text-xs text-slate-400">
+                    JPG, PNG · 5MB 이하 · 사진 업로드 저장은 곧 지원될 예정이라 지금은 미리보기만 가능해요.
+                  </p>
+                </div>
               </div>
             </div>
 
