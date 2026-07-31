@@ -114,6 +114,9 @@ export type ChecklistItem = {
   category: ChecklistCategoryId;
   content: string;
   guideText: string | null;
+  // 질문/guideText를 읽어도 남는 배경지식(용어, 왜 문제가 되는지)을 초등학생도 이해할 수 있게 풀어주는 문구.
+  // guideText와 달리 일부 필수 항목에만 존재한다(예: 서비스 내에서 별도로 다루는 항목은 null).
+  helperText: string | null;
   importance: ChecklistImportance;
   itemType: ChecklistItemType;
   checked: boolean;
@@ -139,6 +142,9 @@ export type ChecklistOverview = {
   propertyTitle: string;
   tradeType: PropertyTradeType;
   status: ChecklistOverviewStatus;
+  // 표시용으로 이미 포맷된 문자열("2026.07.30"). 체크리스트가 있으면 마지막 항목 수정 시각,
+  // 시작 전이면 매물 등록/수정 시각으로 Backend가 대체해서 내려준다(항상 값이 있음).
+  lastCheckedAt: string;
 };
 
 export type ContractClause = {
