@@ -82,8 +82,10 @@ function formatDepositText(
 
 /**
  * 실제 GET /properties 응답(PropertyListItemDto) -> PropertySummary 변환.
- * 기능4(허위매물 신호)/기능5(전세가율)/기능2(체크리스트)/관리비는 아직 백엔드에 없어서
+ * 기능4(허위매물 신호)/기능5(전세가율)/관리비는 아직 백엔드에 없어서
  * 의도적으로 채우지 않는다 (undefined) - 화면(PropertiesClient)에서 조건부로 처리한다.
+ * 체크리스트 진행률(checklistProgress)은 체크리스트를 시작 안 한 매물이면 null로 내려오는데,
+ * PropertySummary.checklist는 undefined일 때 "준비 중"으로 표시하는 구조라 null -> undefined로 변환한다.
  * location도 목록 응답엔 좌표가 없어 0,0으로 채우는데, 목록 카드에서는 좌표를 쓰지 않는다.
  */
 export function mapPropertyListItemDto(dto: PropertyListItemDto): PropertySummary {
@@ -93,6 +95,7 @@ export function mapPropertyListItemDto(dto: PropertyListItemDto): PropertySummar
     address: dto.roadAddress ?? dto.jibunAddress ?? '주소 정보 없음',
     type: propertyTransactionTypeLabelMap[dto.transactionType],
     deposit: formatDepositText(dto.transactionType, dto.deposit, dto.monthlyRent),
+    checklist: dto.checklistProgress ?? undefined,
     statusColor: propertyStatusColorMap.slate,
     location: { latitude: 0, longitude: 0 },
   };
