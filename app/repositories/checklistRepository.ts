@@ -1,4 +1,5 @@
 import { mapChecklistDto, mapChecklistItemDto, mapChecklistResultDto } from '../mappers/checklist';
+import { formatDateText } from '../mappers/property';
 import { initChecklistItemDtos } from '../mocks/init/checklist';
 import { getMockProperties } from './propertyRepository';
 import { type ChecklistItemUpdateRequestDto, type ChecklistStatusDto } from '../types/api';
@@ -71,6 +72,8 @@ export function getMockChecklistResult(): ChecklistSummary {
     requiredMissingCount,
     issueCount,
     message: status === 'NOT_STARTED' ? '체크리스트를 시작해보세요' : undefined,
+    // Backend가 상태와 무관하게 항상 내려주는 고정 문구(ChecklistResultResponse.SAFETY_DISCLAIMER)와 동일하게 맞춘다.
+    disclaimer: '이 결과는 매물의 안전을 보장하지 않습니다.',
   });
 }
 
@@ -78,6 +81,9 @@ export function getMockChecklistResult(): ChecklistSummary {
 // 목록의 모든 매물이 같은 진행 상태를 공유한다 (실제 API 모드에서는 매물마다 실제로 다르게 나온다).
 export function getMockChecklistOverviews(): ChecklistOverview[] {
   const status = deriveMockChecklistStatus();
+  // mock에는 매물/체크리스트 각각의 실제 수정 시각이 없어, Backend의 "체크리스트 없으면 매물
+  // 수정시각으로 대체" 규칙을 흉내내는 대신 조회 시점을 그대로 쓴다.
+  const lastCheckedAt = formatDateText(new Date().toISOString());
 
   return getMockProperties().map((property) => ({
     propertyId: property.id,
@@ -86,5 +92,6 @@ export function getMockChecklistOverviews(): ChecklistOverview[] {
     propertyTitle: property.title,
     tradeType: property.type,
     status,
+    lastCheckedAt,
   }));
 }

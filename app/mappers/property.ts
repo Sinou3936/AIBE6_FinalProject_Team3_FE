@@ -100,7 +100,7 @@ export function mapPropertyListItemDto(dto: PropertyListItemDto): PropertySummar
 }
 
 // "2026-07-24T10:26:13.9" -> "2026.07.24"
-function formatDateText(isoDateTime: string): string {
+export function formatDateText(isoDateTime: string): string {
   const date = new Date(isoDateTime);
   if (Number.isNaN(date.getTime())) {
     return isoDateTime;
