@@ -120,10 +120,18 @@ export type ContractInputResponseDto = {
 };
 
 // OCR 요청은 JSON 바디가 아니라 multipart/form-data(image 파일)라 별도 request DTO가 없다.
+// OCR은 더 이상 신뢰도가 낮다고 422로 거부하지 않고 항상 200으로 응답하며, 대신 신뢰도가
+// 낮았던 구간을 uncertainFields로 같이 내려줘서 사용자가 확인 단계에서 직접 검토하게 한다.
+export type ContractOcrUncertainField = {
+  text: string;
+  index: number;
+};
+
 export type OcrExtractResponseDto = {
   extractedText: string;
   confidence: number;
   editable: boolean;
+  uncertainFields: ContractOcrUncertainField[];
 };
 
 export type ContractMaskingRequestDto = {

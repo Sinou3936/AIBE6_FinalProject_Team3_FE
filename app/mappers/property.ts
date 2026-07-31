@@ -53,8 +53,9 @@ export const propertyTransactionTypeLabelMap: Record<PropertyTransactionTypeDto,
   MONTHLY_RENT: '월세',
 };
 
-// 백엔드는 원(KRW) 단위 정수를 그대로 내려주고, 화면에는 만원 단위 한글 표기로 보여준다
-// (mock 데이터의 depositText 표기 스타일과 맞춤: "1억 8,000만원", "보증금 1,000 / 월세 55").
+// 백엔드는 원(KRW) 단위 정수를 그대로 내려주고, 화면에는 만원 단위 한글 표기로 보여준다: "1억 8,000만원".
+// 전세/월세 어느 쪽이든 항상 같은 형식으로 단위를 붙인다 - 예전엔 월세 쪽(보증금/월세 두 금액)만
+// 단위 없이 숫자만 보여줘서 "9,000만원"과 "보증금 3,000 / 월세 55"처럼 표기가 안 맞았다.
 function formatManwon(amountWon: number): string {
   const manwon = Math.round(amountWon / 10_000);
   const eok = Math.floor(manwon / 10_000);
@@ -73,9 +74,7 @@ function formatDepositText(
   monthlyRent: number | null,
 ): string {
   if (transactionType === 'MONTHLY_RENT' && monthlyRent) {
-    const depositManwon = Math.round(deposit / 10_000);
-    const rentManwon = Math.round(monthlyRent / 10_000);
-    return `보증금 ${depositManwon.toLocaleString()} / 월세 ${rentManwon.toLocaleString()}`;
+    return `보증금 ${formatManwon(deposit)} / 월세 ${formatManwon(monthlyRent)}`;
   }
 
   return formatManwon(deposit);
