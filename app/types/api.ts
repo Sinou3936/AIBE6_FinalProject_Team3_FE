@@ -345,3 +345,45 @@ export type AdminUserRoleUpdateRequestDto = {
 export type AdminUserStatusUpdateRequestDto = {
   status: 'ACTIVE' | 'SUSPENDED';
 };
+
+// --- 관리자 페이지: 매물 신고 검토 (GET/PATCH /admin/property-reports) ---
+
+export type AdminPropertyReportStatusDto = 'RECEIVED' | 'RESOLVED' | 'REJECTED';
+
+export type AdminPropertyReportListItemDto = {
+  id: number;
+  propertyId: number;
+  propertyAddress: string | null;
+  reporterId: number;
+  reporterNickname: string | null;
+  reason: PropertyReportReasonDto;
+  detail: string | null;
+  status: AdminPropertyReportStatusDto;
+  createdAt: string;
+};
+
+export type AdminPropertyReportDetailDto = {
+  id: number;
+  propertyId: number;
+  propertyType: PropertyTypeDto | null;
+  transactionType: PropertyTransactionTypeDto | null;
+  propertyAddress: string | null;
+  deposit: number | null;
+  monthlyRent: number | null;
+  reporterId: number;
+  reporterNickname: string | null;
+  reporterEmail: string | null;
+  reason: PropertyReportReasonDto;
+  detail: string | null;
+  status: AdminPropertyReportStatusDto;
+  reviewerId: number | null;
+  reviewedAt: string | null;
+  reviewMemo: string | null;
+  createdAt: string;
+};
+
+// status는 RESOLVED/REJECTED만 허용한다 - RECEIVED로 되돌리는 것은 이 API의 목적이 아니다.
+export type AdminPropertyReportReviewRequestDto = {
+  status: 'RESOLVED' | 'REJECTED';
+  memo?: string;
+};

@@ -1,5 +1,8 @@
 import { requestJson } from '../lib/api/http';
 import {
+  type AdminPropertyReportDetailDto,
+  type AdminPropertyReportListItemDto,
+  type AdminPropertyReportReviewRequestDto,
   type AdminUserDetailDto,
   type AdminUserListItemDto,
   type AdminUserRoleUpdateRequestDto,
@@ -52,6 +55,37 @@ export async function updateAdminUserStatus(
   request: AdminUserStatusUpdateRequestDto,
 ): Promise<AdminUserDetailDto> {
   return requestJson<AdminUserDetailDto>(`/admin/users/${userId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify(request),
+  });
+}
+
+export type AdminPropertyReportSearchParams = {
+  page?: number;
+  status?: string;
+  reason?: string;
+};
+
+export async function getAdminPropertyReports(
+  params: AdminPropertyReportSearchParams = {},
+  cookieHeader?: string,
+): Promise<PageResponseDto<AdminPropertyReportListItemDto>> {
+  const path = `/admin/property-reports${toQueryString(params)}`;
+  return requestJson<PageResponseDto<AdminPropertyReportListItemDto>>(
+    path,
+    cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined,
+  );
+}
+
+export async function getAdminPropertyReportDetail(reportId: number): Promise<AdminPropertyReportDetailDto> {
+  return requestJson<AdminPropertyReportDetailDto>(`/admin/property-reports/${reportId}`);
+}
+
+export async function reviewAdminPropertyReport(
+  reportId: number,
+  request: AdminPropertyReportReviewRequestDto,
+): Promise<AdminPropertyReportDetailDto> {
+  return requestJson<AdminPropertyReportDetailDto>(`/admin/property-reports/${reportId}/review`, {
     method: 'PATCH',
     body: JSON.stringify(request),
   });
