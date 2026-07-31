@@ -5,22 +5,33 @@ import Link from 'next/link';
 import { ENABLE_ANALYSIS_HISTORY } from '../../config/features';
 import { hasRegisteredProfile } from '../../lib/profile';
 import { useLogout } from '../../lib/useLogout';
-import { type MyPageOverview, type UserProfile } from '../../types/domain';
+import { type ActivityHistoryItem, type PropertySummary, type UserProfile } from '../../types/domain';
 import { Badge } from '../../ui/Badge';
 import { InfoRow } from '../../ui/InfoRow';
 import { PropertyListItem } from '../../ui/PropertyListItem';
 
 type MyPageClientProps = {
-  overview: MyPageOverview;
-  loadError?: string;
+  activityHistory: ActivityHistoryItem[];
+  activityHistoryLoadError?: string;
+  properties: PropertySummary[];
+  propertiesTotalCount: number;
+  propertiesLoadError?: string;
   nickname: string;
   profile: UserProfile;
   profileLoadError?: string;
 };
 
-export function MyPageClient({ overview, loadError, nickname, profile, profileLoadError }: MyPageClientProps) {
+export function MyPageClient({
+  activityHistory,
+  activityHistoryLoadError,
+  properties,
+  propertiesTotalCount,
+  propertiesLoadError,
+  nickname,
+  profile,
+  profileLoadError,
+}: MyPageClientProps) {
   const isRegistered = hasRegisteredProfile(profile);
-  const properties = overview.bookmarkedProperties;
   const signalCount = properties.reduce((sum, property) => sum + (property.checkSignalCount ?? 0), 0);
   const { isLoggingOut, logoutError, handleLogout } = useLogout();
 
@@ -150,14 +161,16 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
           </Link>
         </div>
         <p className="mb-4 text-sm text-slate-500">
-          등록 매물 {properties.length}개 · 확인 필요 신호 {signalCount}개
+          등록 매물 {propertiesTotalCount}개 · 확인 필요 신호 {signalCount}개
         </p>
 
-        {loadError && (
-          <div className="ansim-card mb-4 border-red-100 bg-red-50 p-4 text-sm text-red-700">{loadError}</div>
+        {propertiesLoadError && (
+          <div className="ansim-card mb-4 border-red-100 bg-red-50 p-4 text-sm text-red-700">
+            {propertiesLoadError}
+          </div>
         )}
 
-        {!loadError && properties.length === 0 && (
+        {!propertiesLoadError && properties.length === 0 && (
           <div className="ansim-card p-6 text-center text-sm text-slate-500">
             <p className="mb-4">아직 등록한 매물이 없어요</p>
             <Link href="/properties/register" className="ansim-button-primary inline-flex w-fit px-5 py-3">
@@ -183,10 +196,10 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
               <button className="text-sm font-bold text-teal-700">전체보기</button>
             </div>
             <div className="space-y-3">
-              {loadError ? (
+              {activityHistoryLoadError ? (
                 <p className="text-sm text-slate-500">이 기능은 준비 중입니다.</p>
               ) : (
-                overview.activityHistory.map((item) => (
+                activityHistory.map((item) => (
                   <div key={`${item.title}-${item.type}`} className="rounded-xl border border-slate-100 p-4">
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <p className="font-bold text-slate-950">{item.title}</p>

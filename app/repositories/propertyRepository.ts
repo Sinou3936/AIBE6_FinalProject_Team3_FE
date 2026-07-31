@@ -11,7 +11,3 @@ export function getMockProperties(): PropertySummary[] {
 export function getMockPropertyById(id: number): PropertySummary | undefined {
   return mockProperties.find((property) => property.id === id);
 }
-
-export function getMockBookmarkedProperties(limit = 3): PropertySummary[] {
-  return mockProperties.slice(0, limit);
-}

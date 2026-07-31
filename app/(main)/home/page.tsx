@@ -5,13 +5,13 @@ import { quickActions, quickActionToneMap } from '../../data/dashboard';
 import { computeHomeSummaryCounts } from '../../lib/homeSummary';
 import { getPriorityAction } from '../../lib/priorityAction';
 import { classifyProfileLoadError, redirectIfSessionInvalid } from '../../lib/sessionErrors';
+import { getActivityHistory } from '../../services/activityHistory';
 import { getMyChecklistOverviews } from '../../services/checklist';
-import { getMyPageOverview } from '../../services/mypage';
 import { getProperties } from '../../services/properties';
 import { getMyProfile } from '../../services/user';
 import {
+  type ActivityHistoryItem,
   type ChecklistOverview,
-  type MyPageOverview,
   type PropertySummary,
   type UserProfile,
 } from '../../types/domain';
@@ -30,11 +30,6 @@ const emptyProfile: UserProfile = {
   transactionType: null,
   currentStage: null,
   hasPassword: false,
-};
-
-const emptyOverview: MyPageOverview = {
-  activityHistory: [],
-  bookmarkedProperties: [],
 };
 
 type HomePageProps = {
@@ -80,13 +75,14 @@ export default async function Page({ searchParams }: HomePageProps) {
     loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
-  let overview = emptyOverview;
+  let activityHistory: ActivityHistoryItem[] = [];
   try {
-    overview = await getMyPageOverview(cookieHeader);
+    activityHistory = await getActivityHistory(cookieHeader);
   } catch (error) {
     redirectIfSessionInvalid(error);
-    // 실패 시 분석한 특약사항 카운트는 0으로 표시하고, 아래 배너로 실패 사실을 알린다.
-    loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+    // 백엔드에 이 엔드포인트가 아직 없어 항상 실패한다(app/services/activityHistory.ts 참고) -
+    // 일시적 오류가 아니라 상시 상태라 배너로 알리지 않고, 분석한 특약사항 카운트/알림만 조용히
+    // 빈 상태로 둔다. 엔드포인트가 실제로 생기면 이 catch에서도 loadError를 다시 세팅할 것.
   }
 
   let checklistOverviews: ChecklistOverview[] = [];
@@ -110,12 +106,12 @@ export default async function Page({ searchParams }: HomePageProps) {
   });
 
   const summaryCounts = {
-    ...computeHomeSummaryCounts(properties, overview.activityHistory),
+    ...computeHomeSummaryCounts(properties, activityHistory),
     // items(최대 100개)가 아니라 totalElements 기준 - 매물이 100개를 넘어도 정확한 값을 보여준다.
     interestedPropertyCount: propertiesTotalCount,
   };
   const signalProperties = properties.filter((property) => (property.checkSignalCount ?? 0) > 0);
-  const specialTermsAlerts = overview.activityHistory.filter((item) => item.type === '특약사항 분석');
+  const specialTermsAlerts = activityHistory.filter((item) => item.type === '특약사항 분석');
 
   // TODO: 체크리스트 항목별 확인/주의 개수는 체크리스트 저장 API가 추가되면 실제 값으로 교체하세요.
   // 아직 항목별 진행 상태가 저장되지 않아 레이아웃 확인용 임시 값을 사용합니다.

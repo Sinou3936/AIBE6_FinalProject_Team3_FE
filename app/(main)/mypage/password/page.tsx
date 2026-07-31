@@ -79,7 +79,7 @@ export default async function PasswordUpdatePage() {
               <p className="mb-6 text-sm text-slate-600">
                 {hasPassword
                   ? '현재 비밀번호를 확인한 뒤 새 비밀번호로 변경합니다.'
-                  : '구글/카카오로 가입하셨다면 비밀번호를 설정해 같은 이메일로 로그인할 수도 있어요.'}
+                  : '구글로 가입하셨다면 비밀번호를 설정해 같은 이메일로 로그인할 수도 있어요.'}
               </p>
               <PasswordUpdateFormClient hasPassword={hasPassword} passwordPolicy={passwordPolicy} />
             </>

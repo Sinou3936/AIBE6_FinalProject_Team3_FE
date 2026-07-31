@@ -1,19 +1,15 @@
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { classifyProfileLoadError, redirectIfSessionInvalid } from '../../lib/sessionErrors';
+import { getActivityHistory } from '../../services/activityHistory';
 import { getCurrentUser } from '../../services/auth';
-import { getMyPageOverview } from '../../services/mypage';
+import { getProperties } from '../../services/properties';
 import { getMyProfile } from '../../services/user';
-import { type MyPageOverview, type UserProfile } from '../../types/domain';
+import { type ActivityHistoryItem, type PropertySummary, type UserProfile } from '../../types/domain';
 import { AccountUnavailableRedirect } from '../../ui/AccountUnavailableRedirect';
 import { MyPageClient } from './MyPageClient';
 
 export const dynamic = 'force-dynamic';
-
-const emptyOverview: MyPageOverview = {
-  activityHistory: [],
-  bookmarkedProperties: [],
-};
 
 const emptyProfile: UserProfile = {
   nickname: '',
@@ -36,18 +32,34 @@ export default async function Page() {
     redirect('/login?error=session_expired');
   }
 
-  let overview = emptyOverview;
-  let loadError: string | undefined;
+  // 최근 활동 내역(activityHistory, 특약사항 분석 포함)은 백엔드에 아직 이 엔드포인트가 없어
+  // 항상 실패한다(app/services/activityHistory.ts 참고) - ENABLE_ANALYSIS_HISTORY가 꺼져 있어
+  // 화면에 드러나지 않으므로 지금은 그대로 둔다.
+  let activityHistory: ActivityHistoryItem[] = [];
+  let activityHistoryLoadError: string | undefined;
+  try {
+    activityHistory = await getActivityHistory(cookieHeader);
+  } catch (error) {
+    redirectIfSessionInvalid(error);
+    activityHistoryLoadError = '마이페이지 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+  }
+
+  let properties: PropertySummary[] = [];
+  let propertiesTotalCount = 0;
+  let propertiesLoadError: string | undefined;
+  try {
+    // 홈 화면과 동일한 이유(app/(main)/home/page.tsx 참고)로 최대 페이지 크기(100)만큼 가져온다.
+    const propertiesPage = await getProperties(cookieHeader, { size: 100 });
+    properties = propertiesPage.items;
+    propertiesTotalCount = propertiesPage.totalElements;
+  } catch (error) {
+    redirectIfSessionInvalid(error);
+    propertiesLoadError = '매물 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+  }
+
   let profile = emptyProfile;
   let profileLoadError: string | undefined;
   let profileNotFound = false;
-
-  try {
-    overview = await getMyPageOverview(cookieHeader);
-  } catch (error) {
-    redirectIfSessionInvalid(error);
-    loadError = '마이페이지 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
-  }
 
   try {
     const cookieHeader = (await headers()).get('cookie') ?? undefined;
@@ -64,8 +76,11 @@ export default async function Page() {
     <>
       {profileNotFound && <AccountUnavailableRedirect />}
       <MyPageClient
-        overview={overview}
-        loadError={loadError}
+        activityHistory={activityHistory}
+        activityHistoryLoadError={activityHistoryLoadError}
+        properties={properties}
+        propertiesTotalCount={propertiesTotalCount}
+        propertiesLoadError={propertiesLoadError}
         nickname={nickname}
         profile={profile}
         profileLoadError={profileLoadError}
