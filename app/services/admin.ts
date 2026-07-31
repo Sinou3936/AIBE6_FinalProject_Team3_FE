@@ -1,5 +1,6 @@
 import { requestJson } from '../lib/api/http';
 import {
+  type AdminDashboardStatsDto,
   type AdminPropertyReportDetailDto,
   type AdminPropertyReportListItemDto,
   type AdminPropertyReportReviewRequestDto,
@@ -89,4 +90,11 @@ export async function reviewAdminPropertyReport(
     method: 'PATCH',
     body: JSON.stringify(request),
   });
+}
+
+export async function getAdminDashboardStats(cookieHeader?: string): Promise<AdminDashboardStatsDto> {
+  return requestJson<AdminDashboardStatsDto>(
+    '/admin/stats/dashboard',
+    cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined,
+  );
 }

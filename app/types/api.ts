@@ -387,3 +387,32 @@ export type AdminPropertyReportReviewRequestDto = {
   status: 'RESOLVED' | 'REJECTED';
   memo?: string;
 };
+
+// --- 관리자 페이지: 통계 대시보드 (GET /admin/stats/dashboard) ---
+
+export type AdminStatsSummaryDto = {
+  totalUsers: number;
+  totalProperties: number;
+  pendingReports: number;
+};
+
+export type AdminStatsTrendPointDto = { date: string; count: number };
+
+export type AdminStatsTrendDto = {
+  signups: AdminStatsTrendPointDto[];
+  propertyRegistrations: AdminStatsTrendPointDto[];
+};
+
+export type AdminRoleCountDto = { role: AdminRoleDto; count: number };
+export type AdminReportReasonCountDto = { reason: PropertyReportReasonDto; count: number };
+
+export type AdminStatsDistributionDto = {
+  byRole: AdminRoleCountDto[];
+  byReportReason: AdminReportReasonCountDto[];
+};
+
+export type AdminDashboardStatsDto = {
+  summary: AdminStatsSummaryDto;
+  trends: AdminStatsTrendDto;
+  distributions: AdminStatsDistributionDto;
+};
