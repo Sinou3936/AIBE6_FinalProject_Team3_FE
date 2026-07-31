@@ -5,22 +5,33 @@ import Link from 'next/link';
 import { ENABLE_ANALYSIS_HISTORY } from '../../config/features';
 import { hasRegisteredProfile } from '../../lib/profile';
 import { useLogout } from '../../lib/useLogout';
-import { type MyPageOverview, type UserProfile } from '../../types/domain';
+import { type ActivityHistoryItem, type PropertySummary, type UserProfile } from '../../types/domain';
 import { Badge } from '../../ui/Badge';
 import { InfoRow } from '../../ui/InfoRow';
 import { PropertyListItem } from '../../ui/PropertyListItem';
 
 type MyPageClientProps = {
-  overview: MyPageOverview;
-  loadError?: string;
+  activityHistory: ActivityHistoryItem[];
+  activityHistoryLoadError?: string;
+  properties: PropertySummary[];
+  propertiesTotalCount: number;
+  propertiesLoadError?: string;
   nickname: string;
   profile: UserProfile;
   profileLoadError?: string;
 };
 
-export function MyPageClient({ overview, loadError, nickname, profile, profileLoadError }: MyPageClientProps) {
+export function MyPageClient({
+  activityHistory,
+  activityHistoryLoadError,
+  properties,
+  propertiesTotalCount,
+  propertiesLoadError,
+  nickname,
+  profile,
+  profileLoadError,
+}: MyPageClientProps) {
   const isRegistered = hasRegisteredProfile(profile);
-  const properties = overview.bookmarkedProperties;
   const signalCount = properties.reduce((sum, property) => sum + (property.checkSignalCount ?? 0), 0);
   const { isLoggingOut, logoutError, handleLogout } = useLogout();
 
@@ -89,8 +100,18 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
           <div className="space-y-1">
             {/* 이메일 없는 카카오 계정(profile_nickname 스코프만 요청 — 아직 email 동의항목 없음)은
                 비밀번호를 설정해도 로그인에 쓸 이메일이 없어 결국 비밀번호 화면에서 막힌다
-                (password/page.tsx 참고) — 여기서도 클릭 가능한 링크 대신 비활성 상태로 미리 안내한다. */}
-            {profile.hasPassword || profile.email !== null ? (
+                (password/page.tsx 참고) — 여기서도 클릭 가능한 링크 대신 비활성 상태로 미리 안내한다.
+                단, profileLoadError(일시적 조회 실패로 emptyProfile 폴백)일 땐 email이 실제로 없는
+                게 아니라 "모르는" 상태이므로 "이메일 미연동"이 아니라 조회 실패로 별도 안내한다. */}
+            {profileLoadError ? (
+              <div
+                className="flex w-full cursor-not-allowed items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-400"
+                title="새로고침하거나 잠시 후 다시 시도해 주세요"
+              >
+                <Lock className="h-4 w-4 text-slate-300" />
+                비밀번호 설정 (정보를 불러오지 못함)
+              </div>
+            ) : profile.hasPassword || profile.email !== null ? (
               <Link
                 href="/mypage/password"
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
@@ -140,14 +161,16 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
           </Link>
         </div>
         <p className="mb-4 text-sm text-slate-500">
-          등록 매물 {properties.length}개 · 확인 필요 신호 {signalCount}개
+          등록 매물 {propertiesTotalCount}개 · 확인 필요 신호 {signalCount}개
         </p>
 
-        {loadError && (
-          <div className="ansim-card mb-4 border-red-100 bg-red-50 p-4 text-sm text-red-700">{loadError}</div>
+        {propertiesLoadError && (
+          <div className="ansim-card mb-4 border-red-100 bg-red-50 p-4 text-sm text-red-700">
+            {propertiesLoadError}
+          </div>
         )}
 
-        {!loadError && properties.length === 0 && (
+        {!propertiesLoadError && properties.length === 0 && (
           <div className="ansim-card p-6 text-center text-sm text-slate-500">
             <p className="mb-4">아직 등록한 매물이 없어요</p>
             <Link href="/properties/register" className="ansim-button-primary inline-flex w-fit px-5 py-3">
@@ -173,10 +196,10 @@ export function MyPageClient({ overview, loadError, nickname, profile, profileLo
               <button className="text-sm font-bold text-teal-700">전체보기</button>
             </div>
             <div className="space-y-3">
-              {loadError ? (
+              {activityHistoryLoadError ? (
                 <p className="text-sm text-slate-500">이 기능은 준비 중입니다.</p>
               ) : (
-                overview.activityHistory.map((item) => (
+                activityHistory.map((item) => (
                   <div key={`${item.title}-${item.type}`} className="rounded-xl border border-slate-100 p-4">
                     <div className="mb-2 flex items-center justify-between gap-3">
                       <p className="font-bold text-slate-950">{item.title}</p>

@@ -219,11 +219,6 @@ export type ActivityHistoryItem = {
   status: string;
 };
 
-export type MyPageOverview = {
-  activityHistory: ActivityHistoryItem[];
-  bookmarkedProperties: PropertySummary[];
-};
-
 export type UserTransactionType = '전세' | '월세';
 
 export type UserCurrentStage = '자취 처음' | '자취 경험 있음';
