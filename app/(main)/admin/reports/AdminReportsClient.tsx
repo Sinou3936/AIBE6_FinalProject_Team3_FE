@@ -65,6 +65,11 @@ export function AdminReportsClient({ data, loadError, filters }: AdminReportsCli
     router.push(`/admin/reports${queryString ? `?${queryString}` : ''}`);
   }
 
+  function closeModal() {
+    setDetail(null);
+    setDetailError(undefined);
+  }
+
   async function openDetail(row: AdminPropertyReportListItemDto) {
     setDetailLoading(true);
     setDetailError(undefined);
@@ -173,8 +178,26 @@ export function AdminReportsClient({ data, loadError, filters }: AdminReportsCli
         </>
       )}
 
-      <Modal open={detail !== null || detailLoading} onClose={() => (submitting ? undefined : setDetail(null))}>
+      <Modal
+        open={detail !== null || detailLoading || detailError !== undefined}
+        onClose={() => {
+          if (!submitting) closeModal();
+        }}
+      >
         {detailLoading && <p className="text-sm text-slate-500">불러오는 중...</p>}
+        {!detailLoading && !detail && detailError && (
+          <div>
+            <p className="mb-4 text-sm text-red-600">{detailError}</p>
+            <div className="flex justify-end">
+              <button
+                onClick={closeModal}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        )}
         {detail && !detailLoading && (
           <div>
             <div className="mb-4 flex items-center justify-between">
@@ -220,7 +243,7 @@ export function AdminReportsClient({ data, loadError, filters }: AdminReportsCli
                 />
                 <div className="flex justify-end gap-2">
                   <button
-                    onClick={() => setDetail(null)}
+                    onClick={closeModal}
                     disabled={submitting}
                     className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
                   >
@@ -245,7 +268,7 @@ export function AdminReportsClient({ data, loadError, filters }: AdminReportsCli
             ) : (
               <div className="flex justify-end">
                 <button
-                  onClick={() => setDetail(null)}
+                  onClick={closeModal}
                   className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
                 >
                   닫기
