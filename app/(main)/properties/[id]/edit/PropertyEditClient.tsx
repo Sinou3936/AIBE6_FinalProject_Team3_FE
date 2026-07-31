@@ -4,8 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { formatDecimalInput, formatIntegerInput } from '../../../../lib/numberFormat';
 import { updateProperty } from '../../../../services/properties';
 import { type PropertyDetail } from '../../../../types/domain';
+import { LoadingOverlay } from '../../../../ui/LoadingOverlay';
 
 type PropertyEditClientProps = {
   propertyId: number;
@@ -16,9 +18,13 @@ type PropertyEditClientProps = {
 export function PropertyEditClient({ propertyId, property, loadError }: PropertyEditClientProps) {
   const router = useRouter();
 
-  const [deposit, setDeposit] = useState(String(property?.depositAmount ?? ''));
-  const [monthlyRent, setMonthlyRent] = useState(property?.monthlyRentAmount ? String(property.monthlyRentAmount) : '');
-  const [area, setArea] = useState(property?.area !== undefined ? String(property.area) : '');
+  const [deposit, setDeposit] = useState(
+    property?.depositAmount !== undefined ? formatIntegerInput(String(property.depositAmount)) : '',
+  );
+  const [monthlyRent, setMonthlyRent] = useState(
+    property?.monthlyRentAmount ? formatIntegerInput(String(property.monthlyRentAmount)) : '',
+  );
+  const [area, setArea] = useState(property?.area !== undefined ? formatDecimalInput(String(property.area)) : '');
   const [description, setDescription] = useState(property?.description ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +56,7 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
       return;
     }
     if (!area || Number.isNaN(areaNumber) || areaNumber <= 0) {
-      setError('면적을 올바르게 입력해주세요.');
+      setError('전용면적을 올바르게 입력해주세요.');
       return;
     }
 
@@ -91,7 +97,9 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
       </div>
 
       <div className="container mx-auto max-w-3xl px-4 py-8">
-        <div className="ansim-card mb-6 p-6">
+        <div className="ansim-card relative mb-6 p-6">
+          {isSubmitting && <LoadingOverlay message="실거래가 비교를 다시 계산하고 있어요. 몇 초 정도 걸릴 수 있어요." />}
+
           <h2 className="mb-2 text-xl font-bold text-slate-950">가격/면적/설명을 수정하세요</h2>
           <p className="mb-6 text-sm text-slate-600">
             주소와 매물·거래 유형은 등록 시 확정된 값이라 수정할 수 없어요. 변경이 필요하면 매물을 새로 등록해주세요.
@@ -115,10 +123,11 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
                 <span className="mb-2 block text-sm font-bold text-slate-700">보증금 (원)</span>
                 <input
                   value={deposit}
-                  onChange={(event) => setDeposit(event.target.value)}
+                  onChange={(event) => setDeposit(formatIntegerInput(event.target.value))}
                   inputMode="numeric"
-                  className="ansim-input"
-                  placeholder="예: 180000000"
+                  disabled={isSubmitting}
+                  className="ansim-input disabled:opacity-60"
+                  placeholder="예: 180,000,000"
                 />
               </label>
               {isMonthlyRent && (
@@ -126,20 +135,22 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
                   <span className="mb-2 block text-sm font-bold text-slate-700">월세 (원)</span>
                   <input
                     value={monthlyRent}
-                    onChange={(event) => setMonthlyRent(event.target.value)}
+                    onChange={(event) => setMonthlyRent(formatIntegerInput(event.target.value))}
                     inputMode="numeric"
-                    className="ansim-input"
-                    placeholder="예: 550000"
+                    disabled={isSubmitting}
+                    className="ansim-input disabled:opacity-60"
+                    placeholder="예: 550,000"
                   />
                 </label>
               )}
               <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-700">면적 (㎡)</span>
+                <span className="mb-2 block text-sm font-bold text-slate-700">전용면적 (㎡)</span>
                 <input
                   value={area}
-                  onChange={(event) => setArea(event.target.value)}
-                  inputMode="numeric"
-                  className="ansim-input"
+                  onChange={(event) => setArea(formatDecimalInput(event.target.value))}
+                  inputMode="decimal"
+                  disabled={isSubmitting}
+                  className="ansim-input disabled:opacity-60"
                   placeholder="예: 42.5"
                 />
               </label>
@@ -150,7 +161,8 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
               <input
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                className="ansim-input"
+                disabled={isSubmitting}
+                className="ansim-input disabled:opacity-60"
                 placeholder="예: 역세권, 신축 오피스텔"
               />
             </label>
