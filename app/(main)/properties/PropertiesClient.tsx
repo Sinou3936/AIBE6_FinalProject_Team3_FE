@@ -202,7 +202,7 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
                 </select>
               </label>
               <label className="block">
-                <span className="mb-2 block text-xs font-bold text-slate-600">면적 (㎡)</span>
+                <span className="mb-2 block text-xs font-bold text-slate-600">전용면적 (㎡)</span>
                 <div className="flex items-center gap-2">
                   <input
                     value={minArea}

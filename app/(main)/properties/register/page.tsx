@@ -9,9 +9,11 @@ import {
   propertyTransactionTypeOptions,
   propertyTypeOptions,
 } from '../../../data/property-register';
+import { formatDecimalInput, formatIntegerInput } from '../../../lib/numberFormat';
 import { createProperty } from '../../../services/properties';
 import { type PropertyTransactionTypeDto, type PropertyTypeDto } from '../../../types/api';
 import { FeatureCard } from '../../../ui/FeatureCard';
+import { LoadingOverlay } from '../../../ui/LoadingOverlay';
 
 export default function Page() {
   const router = useRouter();
@@ -43,7 +45,7 @@ export default function Page() {
       return;
     }
     if (!area || Number.isNaN(areaNumber) || areaNumber <= 0) {
-      setError('면적을 올바르게 입력해주세요.');
+      setError('전용면적을 올바르게 입력해주세요.');
       return;
     }
 
@@ -91,7 +93,9 @@ export default function Page() {
       </div>
 
       <div className="container mx-auto max-w-3xl px-4 py-8">
-        <div className="ansim-card mb-6 p-6">
+        <div className="ansim-card relative mb-6 p-6">
+          {isSubmitting && <LoadingOverlay message="실거래가 비교를 계산하고 있어요. 몇 초 정도 걸릴 수 있어요." />}
+
           <h2 className="mb-2 text-xl font-bold text-slate-950">검증할 매물 정보를 입력하세요</h2>
           <p className="mb-6 text-sm text-slate-600">입력된 값은 실거래가 비교와 보증금 안전성 계산에 사용됩니다.</p>
 
@@ -101,7 +105,8 @@ export default function Page() {
               <input
                 value={address}
                 onChange={(event) => setAddress(event.target.value)}
-                className="ansim-input"
+                disabled={isSubmitting}
+                className="ansim-input disabled:opacity-60"
                 placeholder="예: 서울시 강남구 테헤란로 123"
               />
             </label>
@@ -114,7 +119,8 @@ export default function Page() {
                     key={option.value}
                     type="button"
                     onClick={() => setPropertyType(option.value)}
-                    className={`rounded-xl border py-3 text-sm font-bold transition ${
+                    disabled={isSubmitting}
+                    className={`rounded-xl border py-3 text-sm font-bold transition disabled:opacity-60 ${
                       propertyType === option.value
                         ? 'border-teal-500 bg-teal-50 text-teal-700'
                         : 'border-slate-200 bg-white text-slate-600'
@@ -139,7 +145,8 @@ export default function Page() {
                     key={option.value}
                     type="button"
                     onClick={() => setTransactionType(option.value)}
-                    className={`rounded-xl border py-3 text-sm font-bold transition ${
+                    disabled={isSubmitting}
+                    className={`rounded-xl border py-3 text-sm font-bold transition disabled:opacity-60 ${
                       transactionType === option.value
                         ? 'border-teal-500 bg-teal-50 text-teal-700'
                         : 'border-slate-200 bg-white text-slate-600'
@@ -156,10 +163,11 @@ export default function Page() {
                 <span className="mb-2 block text-sm font-bold text-slate-700">보증금 (원)</span>
                 <input
                   value={deposit}
-                  onChange={(event) => setDeposit(event.target.value)}
+                  onChange={(event) => setDeposit(formatIntegerInput(event.target.value))}
                   inputMode="numeric"
-                  className="ansim-input"
-                  placeholder="예: 180000000"
+                  disabled={isSubmitting}
+                  className="ansim-input disabled:opacity-60"
+                  placeholder="예: 180,000,000"
                 />
               </label>
               {isMonthlyRent && (
@@ -167,20 +175,22 @@ export default function Page() {
                   <span className="mb-2 block text-sm font-bold text-slate-700">월세 (원)</span>
                   <input
                     value={monthlyRent}
-                    onChange={(event) => setMonthlyRent(event.target.value)}
+                    onChange={(event) => setMonthlyRent(formatIntegerInput(event.target.value))}
                     inputMode="numeric"
-                    className="ansim-input"
-                    placeholder="예: 550000"
+                    disabled={isSubmitting}
+                    className="ansim-input disabled:opacity-60"
+                    placeholder="예: 550,000"
                   />
                 </label>
               )}
               <label className="block">
-                <span className="mb-2 block text-sm font-bold text-slate-700">면적 (㎡)</span>
+                <span className="mb-2 block text-sm font-bold text-slate-700">전용면적 (㎡)</span>
                 <input
                   value={area}
-                  onChange={(event) => setArea(event.target.value)}
-                  inputMode="numeric"
-                  className="ansim-input"
+                  onChange={(event) => setArea(formatDecimalInput(event.target.value))}
+                  inputMode="decimal"
+                  disabled={isSubmitting}
+                  className="ansim-input disabled:opacity-60"
                   placeholder="예: 42.5"
                 />
               </label>
@@ -191,7 +201,8 @@ export default function Page() {
               <input
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                className="ansim-input"
+                disabled={isSubmitting}
+                className="ansim-input disabled:opacity-60"
                 placeholder="예: 역세권, 신축 오피스텔"
               />
             </label>
@@ -212,7 +223,7 @@ export default function Page() {
           disabled={isSubmitting}
           className="ansim-button-primary w-full py-4 text-base disabled:opacity-60"
         >
-          {isSubmitting ? '저장 중...' : '매물 저장 후 검증 결과 보기'}
+          {isSubmitting ? '실거래가 비교 중...' : '매물 저장 후 검증 결과 보기'}
         </button>
       </div>
     </div>
