@@ -53,9 +53,12 @@ export function ChecklistOverviewClient({ overviews, loadError }: ChecklistOverv
               href={`/properties/${overview.propertyId}/checklist`}
               className="ansim-card group block p-5 transition hover:border-teal-200"
             >
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <Badge className="bg-teal-50 text-teal-700">{overview.tradeType}</Badge>
-                <Badge className={statusColorMap[overview.status]}>{statusLabelMap[overview.status]}</Badge>
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-teal-50 text-teal-700">{overview.tradeType}</Badge>
+                  <Badge className={statusColorMap[overview.status]}>{statusLabelMap[overview.status]}</Badge>
+                </div>
+                <span className="shrink-0 text-xs text-slate-400">최종 점검일: {overview.lastCheckedAt}</span>
               </div>
               <h2 className="mb-1 text-lg font-bold text-slate-950 group-hover:text-teal-700">
                 {overview.propertyTitle}

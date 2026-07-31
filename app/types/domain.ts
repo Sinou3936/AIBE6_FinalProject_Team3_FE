@@ -55,6 +55,23 @@ export type PropertyDetail = {
   // 실거래가 비교(market-data) 결과. 실제 API는 항상 채워진다(status가 AVAILABLE/UNAVAILABLE
   // 둘 중 하나) - "정보 없음"이 아니라 판정 결과 자체가 항상 존재한다는 뜻.
   marketComparison?: PropertyMarketComparison;
+  // 로그인한 사용자 본인 기준 체크리스트 생성 여부 / 신고 여부. mock 데이터는 이 필드 자체가
+  // 없어 undefined이고, 실제 API는 항상 boolean으로 채워진다.
+  checklistCreated?: boolean;
+  reported?: boolean;
+};
+
+/**
+ * 목록 조회(GET /properties) 페이지네이션 결과. BE PageResponse를 그대로 옮기되 content만
+ * PropertySummary로 매핑한다. mock 모드는 전체 목록을 단일 페이지로 감싸서 동일한 형태로 맞춘다.
+ */
+export type PropertyListPage = {
+  items: PropertySummary[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
 };
 
 /**
@@ -97,6 +114,9 @@ export type ChecklistItem = {
   category: ChecklistCategoryId;
   content: string;
   guideText: string | null;
+  // 질문/guideText를 읽어도 남는 배경지식(용어, 왜 문제가 되는지)을 초등학생도 이해할 수 있게 풀어주는 문구.
+  // guideText와 달리 일부 필수 항목에만 존재한다(예: 서비스 내에서 별도로 다루는 항목은 null).
+  helperText: string | null;
   importance: ChecklistImportance;
   itemType: ChecklistItemType;
   checked: boolean;
@@ -122,6 +142,9 @@ export type ChecklistOverview = {
   propertyTitle: string;
   tradeType: PropertyTradeType;
   status: ChecklistOverviewStatus;
+  // 표시용으로 이미 포맷된 문자열("2026.07.30"). 체크리스트가 있으면 마지막 항목 수정 시각,
+  // 시작 전이면 매물 등록/수정 시각으로 Backend가 대체해서 내려준다(항상 값이 있음).
+  lastCheckedAt: string;
 };
 
 export type ContractClause = {
@@ -196,17 +219,16 @@ export type ActivityHistoryItem = {
   status: string;
 };
 
-export type MyPageOverview = {
-  activityHistory: ActivityHistoryItem[];
-  bookmarkedProperties: PropertySummary[];
-};
-
 export type UserTransactionType = '전세' | '월세';
 
 export type UserCurrentStage = '자취 처음' | '자취 경험 있음';
 
 export type UserProfile = {
   nickname: string;
+  // 소셜 로그인 provider가 이메일 동의항목을 요청하지 않았거나(카카오, 2026-07-29 기준
+  // profile_nickname만 요청) 검증되지 않은 이메일이면 null — 이 경우 비밀번호를 설정해도
+  // 로그인에 쓸 이메일이 없다(services/user.ts 비밀번호 설정 관련 화면 참고).
+  email: string | null;
   profileImageUrl: string | null;
   interestRegion: string | null;
   transactionType: UserTransactionType | null;

@@ -53,8 +53,9 @@ export const propertyTransactionTypeLabelMap: Record<PropertyTransactionTypeDto,
   MONTHLY_RENT: '월세',
 };
 
-// 백엔드는 원(KRW) 단위 정수를 그대로 내려주고, 화면에는 만원 단위 한글 표기로 보여준다
-// (mock 데이터의 depositText 표기 스타일과 맞춤: "1억 8,000만원", "보증금 1,000 / 월세 55").
+// 백엔드는 원(KRW) 단위 정수를 그대로 내려주고, 화면에는 만원 단위 한글 표기로 보여준다: "1억 8,000만원".
+// 전세/월세 어느 쪽이든 항상 같은 형식으로 단위를 붙인다 - 예전엔 월세 쪽(보증금/월세 두 금액)만
+// 단위 없이 숫자만 보여줘서 "9,000만원"과 "보증금 3,000 / 월세 55"처럼 표기가 안 맞았다.
 function formatManwon(amountWon: number): string {
   const manwon = Math.round(amountWon / 10_000);
   const eok = Math.floor(manwon / 10_000);
@@ -73,9 +74,7 @@ function formatDepositText(
   monthlyRent: number | null,
 ): string {
   if (transactionType === 'MONTHLY_RENT' && monthlyRent) {
-    const depositManwon = Math.round(deposit / 10_000);
-    const rentManwon = Math.round(monthlyRent / 10_000);
-    return `보증금 ${depositManwon.toLocaleString()} / 월세 ${rentManwon.toLocaleString()}`;
+    return `보증금 ${formatManwon(deposit)} / 월세 ${formatManwon(monthlyRent)}`;
   }
 
   return formatManwon(deposit);
@@ -100,7 +99,7 @@ export function mapPropertyListItemDto(dto: PropertyListItemDto): PropertySummar
 }
 
 // "2026-07-24T10:26:13.9" -> "2026.07.24"
-function formatDateText(isoDateTime: string): string {
+export function formatDateText(isoDateTime: string): string {
   const date = new Date(isoDateTime);
   if (Number.isNaN(date.getTime())) {
     return isoDateTime;
@@ -136,8 +135,8 @@ function mapMarketComparisonDto(dto: MarketComparisonDto): PropertyMarketCompari
 /**
  * 실제 GET /properties/{id} 응답(PropertyDetailResponseDto) -> PropertyDetail 변환.
  * marketComparison은 BE의 실거래가 비교 로직이 실제로 계산한 결과(AVAILABLE/UNAVAILABLE)를
- * 그대로 옮겨 담는다. 신호(기능4)/전세가율(기능5)/체크리스트(기능2)/관리비는 아직 API 자체가
- * 없어 항상 undefined.
+ * 그대로 옮겨 담는다. 신호(기능4)/전세가율(기능5)/관리비는 아직 API 자체가 없어 항상 undefined.
+ * checklistCreated/reported는 체크리스트 생성 여부·본인 신고 여부 필드가 추가되면서 함께 반영된다.
  */
 export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): PropertyDetail {
   return {
@@ -158,6 +157,8 @@ export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): Pr
       longitude: dto.address.longitude ?? 0,
     },
     createdAt: formatDateText(dto.createdAt),
+    checklistCreated: dto.checklistCreated,
+    reported: dto.reported,
   };
 }
 
