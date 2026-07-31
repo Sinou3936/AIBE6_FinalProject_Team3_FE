@@ -13,6 +13,8 @@ import {
   type PropertyDetailResponseDto,
   type PropertyListItemDto,
   type PropertyReportResponseDto,
+  type PropertyTransactionTypeDto,
+  type PropertyTypeDto,
   type ReportPropertyRequestDto,
   type UpdatePropertyRequestDto,
 } from '../types/api';
@@ -23,6 +25,18 @@ export type GetPropertiesParams = {
   size?: number;
   // BE가 허용하는 정렬 필드는 createdAt/deposit/area 뿐이다 (PageableUtils.validateSort 참고).
   sort?: string;
+  // 아래 6개는 전부 선택값 - BE PropertySearchCondition과 1:1 대응. region은 도로명/지번주소
+  // 부분일치(LIKE) 검색이다.
+  region?: string;
+  minArea?: number;
+  maxArea?: number;
+  transactionType?: PropertyTransactionTypeDto;
+  propertyType?: PropertyTypeDto;
+  minDeposit?: number;
+  maxDeposit?: number;
+  // 전세는 monthlyRent가 항상 null이라 사실상 월세 매물에만 적용된다.
+  minMonthlyRent?: number;
+  maxMonthlyRent?: number;
 };
 
 // mock 모드는 페이지 개념이 없어 전체 목록을 크기 1짜리 단일 페이지로 감싼다 - 호출부가
@@ -40,6 +54,15 @@ export async function getProperties(cookieHeader?: string, params?: GetPropertie
   if (params?.page !== undefined) query.set('page', String(params.page));
   if (params?.size !== undefined) query.set('size', String(params.size));
   if (params?.sort) query.set('sort', params.sort);
+  if (params?.region) query.set('region', params.region);
+  if (params?.minArea !== undefined) query.set('minArea', String(params.minArea));
+  if (params?.maxArea !== undefined) query.set('maxArea', String(params.maxArea));
+  if (params?.transactionType) query.set('transactionType', params.transactionType);
+  if (params?.propertyType) query.set('propertyType', params.propertyType);
+  if (params?.minDeposit !== undefined) query.set('minDeposit', String(params.minDeposit));
+  if (params?.maxDeposit !== undefined) query.set('maxDeposit', String(params.maxDeposit));
+  if (params?.minMonthlyRent !== undefined) query.set('minMonthlyRent', String(params.minMonthlyRent));
+  if (params?.maxMonthlyRent !== undefined) query.set('maxMonthlyRent', String(params.maxMonthlyRent));
   const queryString = query.toString();
 
   const page = await requestJson<PageResponseDto<PropertyListItemDto>>(
