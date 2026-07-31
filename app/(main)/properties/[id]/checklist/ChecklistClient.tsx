@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, HelpCircle, Info } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -22,6 +22,20 @@ const EMPTY_SUMMARY: ChecklistSummary = {
   hasStarted: false,
 };
 
+// helperText 안의 **텍스트**만 굵게 렌더링한다. 서버가 보내는 문자열에 마크다운 스타일 표시만
+// 넣으면 되고, 그 외 나머지는 일반 텍스트(줄바꿈 포함)로 그대로 둔다.
+function renderWithBold(text: string) {
+  return text.split(/(\*\*.+?\*\*)/g).map((part, index) =>
+    part.startsWith('**') && part.endsWith('**') ? (
+      <strong key={index} className="font-semibold text-slate-900">
+        {part.slice(2, -2)}
+      </strong>
+    ) : (
+      part
+    ),
+  );
+}
+
 type ChecklistClientProps = {
   propertyId: number;
   checklist?: Checklist;
@@ -38,9 +52,24 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
   const [itemErrors, setItemErrors] = useState<Record<number, string>>({});
   const [helperItemId, setHelperItemId] = useState<number | null>(null);
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const openHelperRef = useRef<HTMLSpanElement | null>(null);
 
   const checklistId = checklist?.id;
   const activeItems = items.filter((item) => item.category === activeCategory);
+  const uncheckedCount = items.filter((item) => !item.checked).length;
+
+  useEffect(() => {
+    if (helperItemId === null) {
+      return;
+    }
+    function handleClickOutside(event: MouseEvent) {
+      if (openHelperRef.current && !openHelperRef.current.contains(event.target as Node)) {
+        setHelperItemId(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [helperItemId]);
 
   async function applyUpdate(
     item: ChecklistItem,
@@ -99,11 +128,25 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
   }
 
   const handleComplete = (item: ChecklistItem) => {
+    if (item.checked && item.userNote === null) {
+      // 이미 완료 상태에서 다시 누르면 실수로 누른 걸로 보고 미확인 상태로 되돌린다.
+      void applyUpdate(item, { checked: false, userNote: null }, { checked: false });
+      return;
+    }
     void applyUpdate(item, { checked: true, userNote: null }, { checked: true });
   };
 
   const handleMarkInsufficient = (item: ChecklistItem, note: string) => {
     void applyUpdate(item, { checked: true, userNote: note }, { userNote: note });
+  };
+
+  const handleToggleInsufficient = (item: ChecklistItem) => {
+    if (item.userNote !== null) {
+      // 이미 미흡 상태에서 다시 누르면 실수로 누른 걸로 보고 미확인 상태로 되돌린다.
+      void applyUpdate(item, { checked: false, userNote: null }, { checked: false });
+      return;
+    }
+    handleMarkInsufficient(item, item.userNote ?? '');
   };
 
   const handleAnswer = (item: ChecklistItem, value: string) => {
@@ -179,7 +222,10 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
           {activeItems.map((item) => (
             <div
               key={item.id}
-              className={cn('ansim-card bg-white p-4', item.issueFound && 'border-orange-200 bg-orange-50/40')}
+              className={cn(
+                'ansim-card overflow-visible bg-white p-4',
+                item.issueFound && 'border-orange-200 bg-orange-50/40',
+              )}
             >
               <div className="mb-1 flex items-start gap-2">
                 {item.importance === 'required' && (
@@ -188,20 +234,28 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
                 <p className="flex items-start gap-1 font-medium leading-relaxed text-slate-900">
                   {item.content}
                   {item.helperText && (
-                    <button
-                      type="button"
-                      onClick={() => setHelperItemId((current) => (current === item.id ? null : item.id))}
-                      className="mt-0.5 shrink-0 text-slate-400 hover:text-slate-600"
-                      aria-label="쉬운 설명 보기"
+                    <span
+                      ref={helperItemId === item.id ? openHelperRef : undefined}
+                      className="relative inline-block shrink-0"
                     >
-                      <HelpCircle className="h-3.5 w-3.5" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setHelperItemId((current) => (current === item.id ? null : item.id))}
+                        className="mt-0.5 text-slate-400 hover:text-slate-600"
+                        aria-label="쉬운 설명 보기"
+                      >
+                        <HelpCircle className="h-3.5 w-3.5" />
+                      </button>
+                      {helperItemId === item.id && (
+                        <span className="absolute left-0 top-full z-10 mt-2 w-64 max-w-[80vw] whitespace-pre-line rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-normal leading-relaxed text-slate-600 shadow-lg">
+                          <span className="absolute -top-[5px] left-2 h-2.5 w-2.5 rotate-45 border-l border-t border-slate-200 bg-white" />
+                          {renderWithBold(item.helperText)}
+                        </span>
+                      )}
+                    </span>
                   )}
                 </p>
               </div>
-              {helperItemId === item.id && item.helperText && (
-                <p className="mb-3 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">{item.helperText}</p>
-              )}
               {item.guideText && <p className="mb-3 text-xs text-slate-500">{item.guideText}</p>}
 
               {item.itemType === 'check' && (
@@ -219,7 +273,7 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
                       완료
                     </button>
                     <button
-                      onClick={() => handleMarkInsufficient(item, item.userNote ?? '')}
+                      onClick={() => handleToggleInsufficient(item)}
                       className={cn(
                         'rounded-lg border px-3 py-2 text-sm font-bold transition',
                         item.userNote !== null
@@ -300,7 +354,13 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
           ))}
         </div>
 
-        <div className="mt-6 flex flex-col gap-3 md:flex-row">
+        {uncheckedCount > 0 && (
+          <p className="mt-6 text-center text-xs text-slate-400">
+            아직 확인하지 않은 항목이 {uncheckedCount}개 남았어요 (일반 항목 포함 전체 확인 시 완료 가능)
+          </p>
+        )}
+
+        <div className={cn('flex flex-col gap-3 md:flex-row', uncheckedCount > 0 ? 'mt-2' : 'mt-6')}>
           <button
             type="button"
             disabled={summary.progressPercent < 100}
