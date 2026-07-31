@@ -58,8 +58,7 @@ export function ChecklistOverviewClient({ overviews, loadError }: ChecklistOverv
                   <Badge className="bg-teal-50 text-teal-700">{overview.tradeType}</Badge>
                   <Badge className={statusColorMap[overview.status]}>{statusLabelMap[overview.status]}</Badge>
                 </div>
-                {/* TODO: 실제 최종 점검일 데이터 연동 필요 — Backend GET /checklists 응답에 필드 추가 후 채움 */}
-                <span className="shrink-0 text-xs text-slate-400">최종 점검일: -</span>
+                <span className="shrink-0 text-xs text-slate-400">최종 점검일: {overview.lastCheckedAt}</span>
               </div>
               <h2 className="mb-1 text-lg font-bold text-slate-950 group-hover:text-teal-700">
                 {overview.propertyTitle}

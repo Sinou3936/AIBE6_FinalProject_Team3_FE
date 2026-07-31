@@ -85,6 +85,8 @@ export type ChecklistOverviewDto = {
   propertyType: PropertyTypeDto;
   transactionType: PropertyTransactionTypeDto;
   status: ChecklistStatusDto;
+  // 체크리스트가 있으면 checklist.updatedAt, 없으면 property.updatedAt으로 Backend가 대체해서 내려준다.
+  lastCheckedAt: string;
 };
 
 // 계약 문구 분석 4단계 파이프라인: 입력 제출 -> OCR -> 마스킹 -> AI 분석.
