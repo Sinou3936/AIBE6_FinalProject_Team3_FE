@@ -192,17 +192,17 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
         </div>
       </div>
 
-      <div className="ansim-card p-5 lg:w-1/2">
+      <div className="ansim-card p-5 lg:w-2/3">
         <h2 className="text-sm font-bold text-slate-700">매물 등록 여부별 유저 분포</h2>
         <p className="mb-4 text-xs text-slate-400">선택한 기간에 가입한 사람 중, 매물을 등록한 사람 vs 등록하지 않은 사람</p>
-        <ResponsiveContainer width="100%" height={220}>
-          <PieChart>
+        <ResponsiveContainer width="100%" height={280}>
+          <PieChart margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
             <Pie
               data={registrationData}
               dataKey="value"
               nameKey="name"
-              innerRadius={50}
-              outerRadius={80}
+              innerRadius={60}
+              outerRadius={90}
               label={({ name, value }) => `${name} ${value}`}
             >
               {registrationData.map((entry) => (
