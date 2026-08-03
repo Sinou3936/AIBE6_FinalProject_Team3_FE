@@ -22,6 +22,45 @@ function notFound(message: string) {
   return NextResponse.json({ message }, { status: 404 });
 }
 
+function badRequest(message: string) {
+  return NextResponse.json({ message }, { status: 400 });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+// 내부 mock 전용 엔드포인트라 인증 토큰 검증 같은 건 없지만, 잘못된 body(필드 누락/타입 오류)로
+// 500이 나면 실제 문제(mock 로직 버그)와 구분하기 어려워진다 - action별로 필요한 필드만 최소
+// 검증해 400으로 걸러낸다.
+function validateRequest(body: unknown): MockAdminActionRequest | null {
+  if (!isRecord(body) || typeof body.action !== 'string') return null;
+
+  switch (body.action) {
+    case 'USER_ROLE': {
+      if (typeof body.userId !== 'number' || (body.role !== 'USER' && body.role !== 'ADMIN')) return null;
+      return { action: 'USER_ROLE', userId: body.userId, role: body.role };
+    }
+    case 'USER_STATUS': {
+      if (typeof body.userId !== 'number' || (body.status !== 'ACTIVE' && body.status !== 'SUSPENDED')) return null;
+      return { action: 'USER_STATUS', userId: body.userId, status: body.status };
+    }
+    case 'REPORT_REVIEW': {
+      if (typeof body.reportId !== 'number' || !isRecord(body.request)) return null;
+      const { status, memo } = body.request;
+      if (status !== 'RESOLVED' && status !== 'REJECTED') return null;
+      if (memo !== undefined && typeof memo !== 'string') return null;
+      return { action: 'REPORT_REVIEW', reportId: body.reportId, request: { status, memo } };
+    }
+    case 'REPORT_DETAIL': {
+      if (typeof body.reportId !== 'number') return null;
+      return { action: 'REPORT_DETAIL', reportId: body.reportId };
+    }
+    default:
+      return null;
+  }
+}
+
 // mock 전용 내부 엔드포인트. 'use client' 컴포넌트(AdminUsersClient/AdminReportsClient)가
 // adminRepository.ts의 mock mutation/단건 조회를 직접 호출하면 브라우저 번들 쪽 별도 모듈
 // 인스턴스를 바꿔서, page.tsx(Server Component)가 읽는 서버 쪽 복사본에는 반영되지 않는다
@@ -33,7 +72,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'mock 모드에서만 사용할 수 있습니다.' }, { status: 404 });
   }
 
-  const body = (await request.json()) as MockAdminActionRequest;
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return badRequest('요청 본문을 읽을 수 없습니다.');
+  }
+
+  const body = validateRequest(rawBody);
+  if (!body) {
+    return badRequest('요청 형식이 올바르지 않습니다.');
+  }
 
   switch (body.action) {
     case 'USER_ROLE': {
@@ -52,7 +101,5 @@ export async function POST(request: Request) {
       const detail = getMockAdminPropertyReportDetail(body.reportId);
       return detail ? NextResponse.json(detail) : notFound('신고를 찾을 수 없습니다.');
     }
-    default:
-      return NextResponse.json({ message: '알 수 없는 action입니다.' }, { status: 400 });
   }
 }
