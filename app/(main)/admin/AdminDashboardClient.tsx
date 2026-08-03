@@ -133,11 +133,15 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
 
       {rangeForm}
 
+      <p className="mb-4 text-xs text-slate-400">
+        아래 통계는 {formatDate(startDate)}~{formatDate(endDate)} 기간 기준입니다.
+      </p>
+
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <SummaryCard label="총 회원수" value={`${stats.summary.totalUsers.toLocaleString()}명`} icon={Users} />
-        <SummaryCard label="활성 매물수" value={`${stats.summary.totalProperties.toLocaleString()}건`} icon={Home} />
+        <SummaryCard label="신규 가입자" value={`${stats.summary.totalUsers.toLocaleString()}명`} icon={Users} />
+        <SummaryCard label="신규 등록 매물" value={`${stats.summary.totalProperties.toLocaleString()}건`} icon={Home} />
         <SummaryCard
-          label="처리 대기 신고"
+          label="신규 대기 신고"
           value={`${stats.summary.pendingReports.toLocaleString()}건`}
           icon={FileWarning}
           tone={stats.summary.pendingReports > 0 ? 'orange' : 'default'}
@@ -163,7 +167,8 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
         </div>
 
         <div className="ansim-card p-5">
-          <h2 className="mb-4 text-sm font-bold text-slate-700">신고 사유별 분포</h2>
+          <h2 className="text-sm font-bold text-slate-700">신고 사유별 분포</h2>
+          <p className="mb-4 text-xs text-slate-400">선택한 기간에 접수된 신고 기준</p>
           {reasonData.every((item) => item.value === 0) ? (
             <p className="flex h-[260px] items-center justify-center text-sm text-slate-400">신고 데이터가 없습니다.</p>
           ) : (
@@ -185,7 +190,8 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
       </div>
 
       <div className="ansim-card p-5 lg:w-1/2">
-        <h2 className="mb-4 text-sm font-bold text-slate-700">매물 등록 여부별 유저 분포</h2>
+        <h2 className="text-sm font-bold text-slate-700">매물 등록 여부별 유저 분포</h2>
+        <p className="mb-4 text-xs text-slate-400">전체 유저 중, 선택한 기간에 매물을 등록한 사람 vs 등록하지 않은 사람</p>
         <ResponsiveContainer width="100%" height={220}>
           <PieChart>
             <Pie
