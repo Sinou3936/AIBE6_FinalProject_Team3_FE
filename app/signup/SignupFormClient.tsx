@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { ApiError } from '../lib/api/http';
 import { signup } from '../services/auth';
+import { checkNicknameAvailability } from '../services/user';
 import { type PasswordPolicyDto } from '../types/api';
 
 type SignupFormClientProps = {
@@ -18,9 +19,30 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
   const [nickname, setNickname] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string>();
+  const [nicknameCheckStatus, setNicknameCheckStatus] = useState<
+    'idle' | 'checking' | 'available' | 'duplicate' | 'error'
+  >('idle');
+  const [nicknameRequiredError, setNicknameRequiredError] = useState(false);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
 
   const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
+
+  const handleCheckNickname = async () => {
+    const trimmed = nickname.trim();
+    if (trimmed.length < 2) {
+      setNicknameCheckStatus('error');
+      return;
+    }
+
+    setNicknameCheckStatus('checking');
+    setNicknameRequiredError(false);
+    try {
+      const available = await checkNicknameAvailability(trimmed);
+      setNicknameCheckStatus(available ? 'available' : 'duplicate');
+    } catch {
+      setNicknameCheckStatus('error');
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -29,6 +51,11 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
       // 폼의 암묵적 제출(입력란에서 Enter) 경로는 브라우저가 포커스를 되돌릴 수 있어,
       // 다음 tick으로 미뤄야 포커스 이동이 안정적으로 적용된다.
       setTimeout(() => confirmPasswordRef.current?.focus(), 0);
+      return;
+    }
+
+    if (nicknameCheckStatus !== 'available') {
+      setNicknameRequiredError(true);
       return;
     }
 
@@ -42,9 +69,7 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
       router.refresh();
     } catch (submitError) {
       setError(
-        submitError instanceof ApiError
-          ? submitError.message
-          : '회원가입에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+        submitError instanceof ApiError ? submitError.message : '회원가입에 실패했습니다. 잠시 후 다시 시도해 주세요.',
       );
     } finally {
       setIsSubmitting(false);
@@ -97,15 +122,41 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
       </label>
       <label className="block">
         <span className="mb-1.5 block text-sm font-bold text-slate-700">닉네임</span>
-        <input
-          className="ansim-input w-full"
-          value={nickname}
-          onChange={(event) => setNickname(event.target.value)}
-          placeholder="2~20자로 입력해 주세요"
-          minLength={2}
-          maxLength={20}
-          required
-        />
+        <div className="flex gap-2">
+          <input
+            className="ansim-input flex-1"
+            value={nickname}
+            onChange={(event) => {
+              setNicknameCheckStatus('idle');
+              setNicknameRequiredError(false);
+              setNickname(event.target.value);
+            }}
+            placeholder="2~20자로 입력해 주세요"
+            minLength={2}
+            maxLength={20}
+            required
+          />
+          <button
+            type="button"
+            onClick={handleCheckNickname}
+            disabled={nicknameCheckStatus === 'checking' || nickname.trim().length < 2}
+            className="shrink-0 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+          >
+            {nicknameCheckStatus === 'checking' ? '확인 중...' : '중복확인'}
+          </button>
+        </div>
+        {nicknameCheckStatus === 'available' && (
+          <p className="mt-1.5 text-sm font-bold text-teal-700">사용 가능한 닉네임입니다.</p>
+        )}
+        {nicknameCheckStatus === 'duplicate' && (
+          <p className="mt-1.5 text-sm font-bold text-red-600">이미 사용 중인 닉네임입니다.</p>
+        )}
+        {nicknameCheckStatus === 'error' && (
+          <p className="mt-1.5 text-sm text-red-600">닉네임 확인에 실패했습니다. 다시 시도해 주세요.</p>
+        )}
+        {nicknameRequiredError && nicknameCheckStatus === 'idle' && (
+          <p className="mt-1.5 text-sm font-bold text-red-600">닉네임 중복 확인을 먼저 진행해 주세요.</p>
+        )}
       </label>
 
       {error && <p className="text-sm text-red-600">{error}</p>}

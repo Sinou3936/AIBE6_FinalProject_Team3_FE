@@ -118,7 +118,7 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
 
   const title = mode === 'register' ? '프로필 등록' : '프로필 수정';
   const isNicknameUnchanged = mode === 'edit' && formValues.nickname.trim() === profile.nickname;
-  const isNicknameCheckRequired = !isNicknameUnchanged && nicknameCheckStatus !== 'available';
+  const isNicknameCheckRequired = mode === 'edit' && !isNicknameUnchanged && nicknameCheckStatus !== 'available';
 
   // object URL은 브라우저 메모리에 남으므로, 새 파일을 고르거나 화면을 떠날 때 이전 URL을 해제한다.
   useEffect(() => {
@@ -278,6 +278,7 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
                     <img
                       src={formValues.profileImageUrl}
                       alt="프로필 사진 미리보기"
+                      referrerPolicy="no-referrer"
                       className="h-full w-full object-cover"
                       onError={() => setImagePreviewError(true)}
                     />
@@ -315,44 +316,46 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
               </div>
             </div>
 
-            <div>
-              <span className="mb-2 block text-sm font-bold text-slate-700">닉네임</span>
-              <div className="flex gap-2">
-                <input
-                  className="ansim-input flex-1"
-                  value={formValues.nickname}
-                  onChange={(event) => {
-                    setNicknameCheckStatus('idle');
-                    setNicknameRequiredError(false);
-                    setFormValues((prev) => ({ ...prev, nickname: event.target.value }));
-                  }}
-                  placeholder="2~20자로 입력해 주세요"
-                  minLength={2}
-                  maxLength={20}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={handleCheckNickname}
-                  disabled={nicknameCheckStatus === 'checking' || formValues.nickname.trim().length < 2}
-                  className="shrink-0 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-                >
-                  {nicknameCheckStatus === 'checking' ? '확인 중...' : '중복확인'}
-                </button>
+            {mode === 'edit' && (
+              <div>
+                <span className="mb-2 block text-sm font-bold text-slate-700">닉네임</span>
+                <div className="flex gap-2">
+                  <input
+                    className="ansim-input flex-1"
+                    value={formValues.nickname}
+                    onChange={(event) => {
+                      setNicknameCheckStatus('idle');
+                      setNicknameRequiredError(false);
+                      setFormValues((prev) => ({ ...prev, nickname: event.target.value }));
+                    }}
+                    placeholder="2~20자로 입력해 주세요"
+                    minLength={2}
+                    maxLength={20}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCheckNickname}
+                    disabled={nicknameCheckStatus === 'checking' || formValues.nickname.trim().length < 2}
+                    className="shrink-0 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    {nicknameCheckStatus === 'checking' ? '확인 중...' : '중복확인'}
+                  </button>
+                </div>
+                {nicknameCheckStatus === 'available' && (
+                  <p className="mt-1.5 text-sm font-bold text-teal-700">사용 가능한 닉네임입니다.</p>
+                )}
+                {nicknameCheckStatus === 'duplicate' && (
+                  <p className="mt-1.5 text-sm font-bold text-red-600">이미 사용 중인 닉네임입니다.</p>
+                )}
+                {nicknameCheckStatus === 'error' && (
+                  <p className="mt-1.5 text-sm text-red-600">닉네임 확인에 실패했습니다. 다시 시도해 주세요.</p>
+                )}
+                {nicknameRequiredError && nicknameCheckStatus === 'idle' && (
+                  <p className="mt-1.5 text-sm font-bold text-red-600">닉네임 중복 확인을 먼저 진행해 주세요.</p>
+                )}
               </div>
-              {nicknameCheckStatus === 'available' && (
-                <p className="mt-1.5 text-sm font-bold text-teal-700">사용 가능한 닉네임입니다.</p>
-              )}
-              {nicknameCheckStatus === 'duplicate' && (
-                <p className="mt-1.5 text-sm font-bold text-red-600">이미 사용 중인 닉네임입니다.</p>
-              )}
-              {nicknameCheckStatus === 'error' && (
-                <p className="mt-1.5 text-sm text-red-600">닉네임 확인에 실패했습니다. 다시 시도해 주세요.</p>
-              )}
-              {nicknameRequiredError && nicknameCheckStatus === 'idle' && (
-                <p className="mt-1.5 text-sm font-bold text-red-600">닉네임 중복 확인을 먼저 진행해 주세요.</p>
-              )}
-            </div>
+            )}
 
             <div>
               <span className="mb-2 block text-sm font-bold text-slate-700">관심 지역</span>

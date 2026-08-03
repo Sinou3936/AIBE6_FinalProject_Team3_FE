@@ -14,7 +14,8 @@ export type PropertySummary = {
   address: string;
   type: PropertyTradeType;
   deposit: string;
-  // 아래 필드들은 기능4(허위매물 신호)/기능5(전세가율)/기능2(체크리스트)가 아직 백엔드에 없어서
+  propertyType?: string;
+  // 아래 필드들은 기능4(허위매물 신호)/기능5(전세가율)가 아직 백엔드에 없어서
   // 실제 API로 받아온 매물은 undefined다. mock 데이터는 계속 값을 채워서 내려준다.
   maintenance?: string;
   marketDelta?: string;
@@ -37,6 +38,7 @@ export type PropertyDetail = {
   type: PropertyTradeType;
   address: string;
   deposit: string;
+  propertyType?: string;
   // 수정 폼 입력값 프리필용 원시 금액(원 단위). 실제 API는 항상 채워지고, mock은 표시용 문자열만
   // 갖고 있어 원본 금액을 복원할 수 없으므로 undefined로 둔다(수정 화면은 실제 API 기준으로 검증).
   depositAmount?: number;
@@ -145,6 +147,18 @@ export type ChecklistOverview = {
   // 표시용으로 이미 포맷된 문자열("2026.07.30"). 체크리스트가 있으면 마지막 항목 수정 시각,
   // 시작 전이면 매물 등록/수정 시각으로 Backend가 대체해서 내려준다(항상 값이 있음).
   lastCheckedAt: string;
+};
+
+/**
+ * 매물별 체크리스트 진행 상태를 요약 화면(홈/마이페이지)에 표시하기 위한 집계 타입.
+ * status는 항상 알 수 있지만(ChecklistOverview 조회 한 번으로 끝남), progressPercent/cautionCount는
+ * 체크리스트별로 getChecklistResult()를 추가 호출해야 해서 그 호출이 실패하면 undefined로 빠질 수 있다
+ * - 이 경우 상태 문구만 보여주고 숫자는 생략한다(잘못된 숫자를 보여주는 것보다 안전).
+ */
+export type ChecklistProgress = {
+  status: ChecklistOverviewStatus;
+  progressPercent?: number;
+  cautionCount?: number;
 };
 
 export type ContractClause = {
