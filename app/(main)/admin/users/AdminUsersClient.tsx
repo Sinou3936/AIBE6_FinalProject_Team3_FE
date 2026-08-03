@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
-import { updateAdminUserRole, updateAdminUserStatus } from '../../../services/admin';
+import { updateAdminUserRole, updateAdminUserStatus } from '../../../services/adminActions';
 import { type AdminUserListItemDto, type PageResponseDto } from '../../../types/api';
 import { Badge } from '../../../ui/Badge';
 import { Modal } from '../../../ui/Modal';

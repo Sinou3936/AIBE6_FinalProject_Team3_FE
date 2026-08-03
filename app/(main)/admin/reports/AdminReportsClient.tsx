@@ -2,10 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  getAdminPropertyReportDetail,
-  reviewAdminPropertyReport,
-} from '../../../services/admin';
+import { getAdminPropertyReportDetail, reviewAdminPropertyReport } from '../../../services/adminActions';
 import {
   type AdminPropertyReportDetailDto,
   type AdminPropertyReportListItemDto,
