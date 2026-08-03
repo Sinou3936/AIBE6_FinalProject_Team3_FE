@@ -1,4 +1,14 @@
+import { useMockData } from '../config/dataSource';
 import { requestJson } from '../lib/api/http';
+import {
+  getMockAdminDashboardStats,
+  getMockAdminPropertyReportDetail,
+  getMockAdminPropertyReports,
+  getMockAdminUsers,
+  reviewMockAdminPropertyReport,
+  updateMockAdminUserRole,
+  updateMockAdminUserStatus,
+} from '../repositories/adminRepository';
 import {
   type AdminDashboardStatsDto,
   type AdminPropertyReportDetailDto,
@@ -34,6 +44,9 @@ export async function getAdminUsers(
   params: AdminUserSearchParams = {},
   cookieHeader?: string,
 ): Promise<PageResponseDto<AdminUserListItemDto>> {
+  if (useMockData) {
+    return getMockAdminUsers(params);
+  }
   const path = `/admin/users${toQueryString(params)}`;
   return requestJson<PageResponseDto<AdminUserListItemDto>>(
     path,
@@ -45,6 +58,13 @@ export async function updateAdminUserRole(
   userId: number,
   request: AdminUserRoleUpdateRequestDto,
 ): Promise<AdminUserDetailDto> {
+  if (useMockData) {
+    const updated = updateMockAdminUserRole(userId, request.role);
+    if (!updated) {
+      throw new Error('유저를 찾을 수 없습니다.');
+    }
+    return updated;
+  }
   return requestJson<AdminUserDetailDto>(`/admin/users/${userId}/role`, {
     method: 'PATCH',
     body: JSON.stringify(request),
@@ -55,6 +75,13 @@ export async function updateAdminUserStatus(
   userId: number,
   request: AdminUserStatusUpdateRequestDto,
 ): Promise<AdminUserDetailDto> {
+  if (useMockData) {
+    const updated = updateMockAdminUserStatus(userId, request.status);
+    if (!updated) {
+      throw new Error('유저를 찾을 수 없습니다.');
+    }
+    return updated;
+  }
   return requestJson<AdminUserDetailDto>(`/admin/users/${userId}/status`, {
     method: 'PATCH',
     body: JSON.stringify(request),
@@ -71,6 +98,9 @@ export async function getAdminPropertyReports(
   params: AdminPropertyReportSearchParams = {},
   cookieHeader?: string,
 ): Promise<PageResponseDto<AdminPropertyReportListItemDto>> {
+  if (useMockData) {
+    return getMockAdminPropertyReports(params);
+  }
   const path = `/admin/property-reports${toQueryString(params)}`;
   return requestJson<PageResponseDto<AdminPropertyReportListItemDto>>(
     path,
@@ -79,6 +109,13 @@ export async function getAdminPropertyReports(
 }
 
 export async function getAdminPropertyReportDetail(reportId: number): Promise<AdminPropertyReportDetailDto> {
+  if (useMockData) {
+    const detail = getMockAdminPropertyReportDetail(reportId);
+    if (!detail) {
+      throw new Error('신고를 찾을 수 없습니다.');
+    }
+    return detail;
+  }
   return requestJson<AdminPropertyReportDetailDto>(`/admin/property-reports/${reportId}`);
 }
 
@@ -86,6 +123,13 @@ export async function reviewAdminPropertyReport(
   reportId: number,
   request: AdminPropertyReportReviewRequestDto,
 ): Promise<AdminPropertyReportDetailDto> {
+  if (useMockData) {
+    const detail = reviewMockAdminPropertyReport(reportId, request);
+    if (!detail) {
+      throw new Error('신고를 찾을 수 없습니다.');
+    }
+    return detail;
+  }
   return requestJson<AdminPropertyReportDetailDto>(`/admin/property-reports/${reportId}/review`, {
     method: 'PATCH',
     body: JSON.stringify(request),
@@ -101,6 +145,9 @@ export async function getAdminDashboardStats(
   params: AdminDashboardStatsParams = {},
   cookieHeader?: string,
 ): Promise<AdminDashboardStatsDto> {
+  if (useMockData) {
+    return getMockAdminDashboardStats(params);
+  }
   const path = `/admin/stats/dashboard${toQueryString(params)}`;
   return requestJson<AdminDashboardStatsDto>(path, cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined);
 }
