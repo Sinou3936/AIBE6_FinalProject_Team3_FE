@@ -65,7 +65,12 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl }
               <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200">
                 {profileImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={profileImageUrl} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={profileImageUrl}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="h-full w-full object-cover"
+                  />
                 ) : (
                   <User className="h-5 w-5 text-slate-500" />
                 )}
@@ -89,7 +94,7 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl }
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-600">
               <Home className="h-4 w-4 text-white" />
             </div>
-            <span className="text-lg font-bold tracking-tight text-slate-950">안심집</span>
+            <span className="text-lg font-bold tracking-tight text-slate-950">알고계약</span>
           </Link>
           <div className="flex items-center gap-2">
             <button className="p-2 text-slate-500">

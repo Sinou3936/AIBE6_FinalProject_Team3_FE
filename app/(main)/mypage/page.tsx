@@ -3,9 +3,16 @@ import { redirect } from 'next/navigation';
 import { classifyProfileLoadError, redirectIfSessionInvalid } from '../../lib/sessionErrors';
 import { getActivityHistory } from '../../services/activityHistory';
 import { getCurrentUser } from '../../services/auth';
+import { getChecklistResult, getMyChecklistOverviews } from '../../services/checklist';
 import { getProperties } from '../../services/properties';
 import { getMyProfile } from '../../services/user';
-import { type ActivityHistoryItem, type PropertySummary, type UserProfile } from '../../types/domain';
+import {
+  type ActivityHistoryItem,
+  type ChecklistOverview,
+  type ChecklistProgress,
+  type PropertySummary,
+  type UserProfile,
+} from '../../types/domain';
 import { AccountUnavailableRedirect } from '../../ui/AccountUnavailableRedirect';
 import { MyPageClient } from './MyPageClient';
 
@@ -57,6 +64,35 @@ export default async function Page() {
     propertiesLoadError = '매물 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
   }
 
+  const checklistProgressByPropertyId: Record<number, ChecklistProgress> = {};
+  try {
+    const checklistOverviews = await getMyChecklistOverviews(cookieHeader);
+    checklistOverviews.forEach((overview) => {
+      checklistProgressByPropertyId[overview.propertyId] = { status: overview.status };
+    });
+
+    const withResult = checklistOverviews.filter(
+      (overview): overview is ChecklistOverview & { checklistId: number } =>
+        overview.status !== 'NOT_STARTED' && overview.checklistId !== null,
+    );
+    try {
+      const summaries = await Promise.all(
+        withResult.map((overview) => getChecklistResult(overview.checklistId, cookieHeader)),
+      );
+      withResult.forEach((overview, index) => {
+        checklistProgressByPropertyId[overview.propertyId] = {
+          status: overview.status,
+          progressPercent: summaries[index].progressPercent,
+          cautionCount: summaries[index].cautionCount,
+        };
+      });
+    } catch (error) {
+      redirectIfSessionInvalid(error);
+    }
+  } catch (error) {
+    redirectIfSessionInvalid(error);
+  }
+
   let profile = emptyProfile;
   let profileLoadError: string | undefined;
   let profileNotFound = false;
@@ -81,6 +117,7 @@ export default async function Page() {
         properties={properties}
         propertiesTotalCount={propertiesTotalCount}
         propertiesLoadError={propertiesLoadError}
+        checklistProgressByPropertyId={checklistProgressByPropertyId}
         nickname={nickname}
         profile={profile}
         profileLoadError={profileLoadError}

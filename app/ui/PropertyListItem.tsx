@@ -1,28 +1,40 @@
 import { MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { getJeonseRatioDisplay } from '../lib/jeonseRatio';
-import { type PropertySummary } from '../types/domain';
+import { type ChecklistProgress, type PropertySummary } from '../types/domain';
 import { Badge } from './Badge';
 
 type PropertyListItemProps = {
   property: PropertySummary;
+  // undefined는 "시작 전"이 아니라 조회 자체에 실패했다는 뜻이다(mypage/page.tsx 참고) -
+  // 성공했다면 활성 매물마다 최소 NOT_STARTED 항목이라도 항상 들어있다.
+  checklistProgress?: ChecklistProgress;
 };
 
-// TODO: 체크리스트 항목별 저장 API가 추가되면 실제 전체 문항 수/확인 개수/주의 개수로 교체하세요.
-const CHECKLIST_TOTAL_ITEMS_MOCK = 20;
+function getChecklistStatusText(checklistProgress: ChecklistProgress | undefined): string {
+  if (!checklistProgress) {
+    return '체크리스트 상태를 불러오지 못함';
+  }
+  if (checklistProgress.status === 'NOT_STARTED') {
+    return '체크리스트 시작 전';
+  }
+  if (checklistProgress.progressPercent === undefined) {
+    // status는 확보했지만 진행률(%) 조회는 실패한 경우 - 숫자 없이 상태만 보여준다.
+    return checklistProgress.status === 'COMPLETED' ? '체크리스트 완료' : '체크리스트 진행 중';
+  }
+  return `${checklistProgress.progressPercent}% 확인, 주의 ${checklistProgress.cautionCount ?? 0}개`;
+}
 
-export function PropertyListItem({ property }: PropertyListItemProps) {
-  const checklist = property.checklist ?? 0;
-  const checklistStarted = checklist > 0;
-  const checkedCount = Math.round((checklist / 100) * CHECKLIST_TOTAL_ITEMS_MOCK);
-  const cautionCount = property.checkSignalCount ?? 0;
-
+export function PropertyListItem({ property, checklistProgress }: PropertyListItemProps) {
   return (
     <Link href={`/properties/${property.id}`} className="ansim-card block p-4 transition hover:border-teal-200">
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Badge className="bg-teal-50 text-teal-700">{property.type}</Badge>
-        {/* TODO: 백엔드에 주택유형(원룸/오피스텔 등) 필드가 추가되면 실제 값으로 교체하세요. */}
-        <Badge className="bg-slate-100 text-slate-400">주택유형 정보 준비 중</Badge>
+        {property.propertyType ? (
+          <Badge className="bg-slate-100 text-slate-600">{property.propertyType}</Badge>
+        ) : (
+          <Badge className="bg-slate-100 text-slate-400">주택유형 정보 없음</Badge>
+        )}
         <Badge className={property.statusColor}>
           {property.checkSignalCount !== undefined
             ? `확인 필요 신호 ${property.checkSignalCount}개`
@@ -42,11 +54,7 @@ export function PropertyListItem({ property }: PropertyListItemProps) {
         </div>
         <div className="rounded-xl bg-slate-50 p-3">
           <p className="mb-1 text-xs text-slate-400">체크리스트</p>
-          <p className="text-sm font-bold text-slate-950">
-            {checklistStarted
-              ? `${checkedCount}/${CHECKLIST_TOTAL_ITEMS_MOCK} 확인, 주의 ${cautionCount}개`
-              : '체크리스트 시작 전'}
-          </p>
+          <p className="text-sm font-bold text-slate-950">{getChecklistStatusText(checklistProgress)}</p>
         </div>
       </div>
     </Link>

@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { AlertCircle, Shield } from 'lucide-react';
+import Link from 'next/link';
 import { getGoogleLoginUrl, getKakaoLoginUrl } from '../services/auth';
 import { NoticeBox } from '../ui/NoticeBox';
 import { LoginFormClient } from './LoginFormClient';
@@ -25,7 +25,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   // /auth/session-recover를 다시 태워서 그 사이 서버가 복구됐으면 세션을 그대로 이어가게 한다.
   // next는 session-recover가 자체적으로 다시 검증(sanitizeNextPath)하므로 여기서 추가 검증은
   // 불필요하다.
-  const retryHref = error === 'session_unavailable' && next ? `/auth/session-recover?next=${encodeURIComponent(next)}` : undefined;
+  const retryHref =
+    error === 'session_unavailable' && next ? `/auth/session-recover?next=${encodeURIComponent(next)}` : undefined;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
@@ -34,7 +35,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-600">
             <Shield className="h-6 w-6 text-white" />
           </div>
-          <h1 className="mb-1 text-xl font-bold text-slate-950">안심집 로그인</h1>
+          <h1 className="mb-1 text-xl font-bold text-slate-950">알고계약 로그인</h1>
           <p className="text-sm text-slate-600">사회초년생과 대학생을 위한 부동산 계약 안전 도우미</p>
         </div>
 
