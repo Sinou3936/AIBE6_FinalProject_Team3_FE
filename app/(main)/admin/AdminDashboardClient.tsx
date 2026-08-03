@@ -32,7 +32,7 @@ const CHART_AQUA = '#1baf7a';
 const CHART_YELLOW = '#eda100';
 const CHART_MAGENTA = '#e87ba4';
 
-const ROLE_LABEL: Record<string, string> = { USER: '일반', ADMIN: '관리자' };
+const REGISTRATION_LABEL: Record<'true' | 'false', string> = { true: '매물 등록자', false: '미등록자' };
 const REASON_LABEL: Record<PropertyReportReasonDto, string> = {
   ALREADY_CONTRACTED: '이미 계약된 매물',
   PRICE_MISMATCH: '실제 가격과 다름',
@@ -67,10 +67,10 @@ export function AdminDashboardClient({ stats, loadError }: AdminDashboardClientP
     매물등록: stats.trends.propertyRegistrations[index]?.count ?? 0,
   }));
 
-  const roleData = stats.distributions.byRole.map((item) => ({
-    name: ROLE_LABEL[item.role] ?? item.role,
+  const registrationData = stats.distributions.byPropertyRegistration.map((item) => ({
+    name: REGISTRATION_LABEL[item.registered ? 'true' : 'false'],
     value: item.count,
-    color: item.role === 'ADMIN' ? CHART_ORANGE : CHART_BLUE,
+    color: item.registered ? CHART_ORANGE : CHART_BLUE,
   }));
 
   const reasonData = stats.distributions.byReportReason.map((item) => ({
@@ -133,18 +133,18 @@ export function AdminDashboardClient({ stats, loadError }: AdminDashboardClientP
       </div>
 
       <div className="ansim-card p-5 lg:w-1/2">
-        <h2 className="mb-4 text-sm font-bold text-slate-700">역할별 유저 분포</h2>
+        <h2 className="mb-4 text-sm font-bold text-slate-700">매물 등록 여부별 유저 분포</h2>
         <ResponsiveContainer width="100%" height={220}>
           <PieChart>
             <Pie
-              data={roleData}
+              data={registrationData}
               dataKey="value"
               nameKey="name"
               innerRadius={50}
               outerRadius={80}
               label={({ name, value }) => `${name} ${value}`}
             >
-              {roleData.map((entry) => (
+              {registrationData.map((entry) => (
                 <Cell key={entry.name} fill={entry.color} />
               ))}
             </Pie>

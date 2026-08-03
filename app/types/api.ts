@@ -403,11 +403,11 @@ export type AdminStatsTrendDto = {
   propertyRegistrations: AdminStatsTrendPointDto[];
 };
 
-export type AdminRoleCountDto = { role: AdminRoleDto; count: number };
+export type AdminPropertyRegistrationCountDto = { registered: boolean; count: number };
 export type AdminReportReasonCountDto = { reason: PropertyReportReasonDto; count: number };
 
 export type AdminStatsDistributionDto = {
-  byRole: AdminRoleCountDto[];
+  byPropertyRegistration: AdminPropertyRegistrationCountDto[];
   byReportReason: AdminReportReasonCountDto[];
 };
 
