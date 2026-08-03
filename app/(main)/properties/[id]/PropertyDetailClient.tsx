@@ -10,11 +10,9 @@ import {
   Calendar,
   CheckCircle2,
   Flag,
-  Heart,
   ImageOff,
   Maximize,
   Pencil,
-  Share2,
   Trash2,
 } from 'lucide-react';
 import { riskSummaries } from '../../../data/property-detail';
@@ -85,18 +83,10 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
 
   return (
     <div className="min-h-screen bg-white pb-24">
-      <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-100 bg-white/90 px-4 backdrop-blur md:hidden">
+      <div className="sticky top-0 z-30 flex h-14 items-center border-b border-slate-100 bg-white/90 px-4 backdrop-blur md:hidden">
         <Link href="/properties" className="-ml-2 p-2 text-slate-600">
           <ArrowLeft className="h-6 w-6" />
         </Link>
-        <div className="flex items-center gap-2">
-          <button className="p-2 text-slate-600">
-            <Share2 className="h-5 w-5" />
-          </button>
-          <button className="p-2 text-slate-600">
-            <Heart className="h-5 w-5" />
-          </button>
-        </div>
       </div>
 
       <div className="container mx-auto max-w-5xl px-0 md:px-4 md:pt-8">
