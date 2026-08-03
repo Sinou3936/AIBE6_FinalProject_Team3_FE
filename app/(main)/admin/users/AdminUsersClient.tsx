@@ -21,6 +21,7 @@ type AdminUsersClientProps = {
   data?: PageResponseDto<AdminUserListItemDto>;
   loadError?: string;
   filters: Filters;
+  currentUserId: number;
 };
 
 const ROLE_LABEL: Record<string, string> = { USER: '일반', ADMIN: '관리자' };
@@ -35,7 +36,7 @@ type ActiveAction =
   | { type: 'role'; user: AdminUserListItemDto }
   | { type: 'status'; user: AdminUserListItemDto };
 
-export function AdminUsersClient({ data, loadError, filters }: AdminUsersClientProps) {
+export function AdminUsersClient({ data, loadError, filters, currentUserId }: AdminUsersClientProps) {
   const router = useRouter();
   const [email, setEmail] = useState(filters.email);
   const [nickname, setNickname] = useState(filters.nickname);
@@ -158,8 +159,14 @@ export function AdminUsersClient({ data, loadError, filters }: AdminUsersClientP
               {
                 key: 'actions',
                 header: '',
-                render: (row) =>
-                  row.status === 'WITHDRAWN' ? null : (
+                render: (row) => {
+                  if (row.status === 'WITHDRAWN') return null;
+                  // 자기 자신의 권한/상태는 백엔드가 항상 거부한다(스스로 잠기는 사고 방지) — 실패할
+                  // 액션을 보여주지 않고 여기서 숨긴다.
+                  if (row.id === currentUserId) {
+                    return <span className="text-xs text-slate-400">본인 계정</span>;
+                  }
+                  return (
                     <div className="flex gap-2">
                       <button
                         onClick={() => setAction({ type: 'role', user: row })}
@@ -174,7 +181,8 @@ export function AdminUsersClient({ data, loadError, filters }: AdminUsersClientP
                         {row.status === 'SUSPENDED' ? '정지 해제' : '정지'}
                       </button>
                     </div>
-                  ),
+                  );
+                },
               },
             ]}
             rows={data.content}
