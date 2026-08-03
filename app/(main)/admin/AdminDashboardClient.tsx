@@ -64,6 +64,7 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
 
   function handleRangeSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (!rangeStart || !rangeEnd) return;
     const query = new URLSearchParams({ startDate: rangeStart, endDate: rangeEnd });
     router.push(`/admin?${query.toString()}`);
   }
@@ -74,6 +75,7 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
         시작일
         <input
           type="date"
+          required
           value={rangeStart}
           max={rangeEnd}
           onChange={(event) => setRangeStart(event.target.value)}
@@ -84,6 +86,7 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
         종료일
         <input
           type="date"
+          required
           value={rangeEnd}
           min={rangeStart}
           onChange={(event) => setRangeEnd(event.target.value)}
