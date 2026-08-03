@@ -23,6 +23,16 @@ export type PageResponseDto<T> = {
 
 export type ApiStatusTone = 'orange' | 'emerald' | 'red' | 'slate';
 
+// 백엔드 global/response/PageResponse.java와 필드가 1:1 대응한다 (관리자 목록 화면에서 최초로 쓰임).
+export type PageResponseDto<T> = {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+};
+
 export type PropertySummaryDto = {
   id: number;
   title: string;
@@ -331,4 +341,103 @@ export type PropertyReportResponseDto = {
   detail: string | null;
   status: string;
   createdAt: string;
+};
+
+// --- 관리자 페이지: 유저 관리 (GET/PATCH /admin/users) ---
+
+export type AdminRoleDto = 'USER' | 'ADMIN';
+export type AdminUserStatusDto = 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN';
+
+export type AdminUserListItemDto = {
+  id: number;
+  email: string | null;
+  nickname: string;
+  role: AdminRoleDto;
+  status: AdminUserStatusDto;
+  createdAt: string;
+};
+
+export type AdminUserDetailDto = AdminUserListItemDto & {
+  profileImageUrl: string | null;
+  updatedAt: string;
+};
+
+export type AdminUserRoleUpdateRequestDto = {
+  role: AdminRoleDto;
+};
+
+// WITHDRAWN은 본인 탈퇴 플로우 전용이라 관리자 페이지에서는 ACTIVE/SUSPENDED만 보낸다.
+export type AdminUserStatusUpdateRequestDto = {
+  status: 'ACTIVE' | 'SUSPENDED';
+};
+
+// --- 관리자 페이지: 매물 신고 검토 (GET/PATCH /admin/property-reports) ---
+
+export type AdminPropertyReportStatusDto = 'RECEIVED' | 'RESOLVED' | 'REJECTED';
+
+export type AdminPropertyReportListItemDto = {
+  id: number;
+  propertyId: number;
+  propertyAddress: string | null;
+  reporterId: number;
+  reporterNickname: string | null;
+  reason: PropertyReportReasonDto;
+  detail: string | null;
+  status: AdminPropertyReportStatusDto;
+  createdAt: string;
+};
+
+export type AdminPropertyReportDetailDto = {
+  id: number;
+  propertyId: number;
+  propertyType: PropertyTypeDto | null;
+  transactionType: PropertyTransactionTypeDto | null;
+  propertyAddress: string | null;
+  deposit: number | null;
+  monthlyRent: number | null;
+  reporterId: number;
+  reporterNickname: string | null;
+  reporterEmail: string | null;
+  reason: PropertyReportReasonDto;
+  detail: string | null;
+  status: AdminPropertyReportStatusDto;
+  reviewerId: number | null;
+  reviewedAt: string | null;
+  reviewMemo: string | null;
+  createdAt: string;
+};
+
+// status는 RESOLVED/REJECTED만 허용한다 - RECEIVED로 되돌리는 것은 이 API의 목적이 아니다.
+export type AdminPropertyReportReviewRequestDto = {
+  status: 'RESOLVED' | 'REJECTED';
+  memo?: string;
+};
+
+// --- 관리자 페이지: 통계 대시보드 (GET /admin/stats/dashboard) ---
+
+export type AdminStatsSummaryDto = {
+  totalUsers: number;
+  totalProperties: number;
+  pendingReports: number;
+};
+
+export type AdminStatsTrendPointDto = { date: string; count: number };
+
+export type AdminStatsTrendDto = {
+  signups: AdminStatsTrendPointDto[];
+  propertyRegistrations: AdminStatsTrendPointDto[];
+};
+
+export type AdminPropertyRegistrationCountDto = { registered: boolean; count: number };
+export type AdminReportReasonCountDto = { reason: PropertyReportReasonDto; count: number };
+
+export type AdminStatsDistributionDto = {
+  byPropertyRegistration: AdminPropertyRegistrationCountDto[];
+  byReportReason: AdminReportReasonCountDto[];
+};
+
+export type AdminDashboardStatsDto = {
+  summary: AdminStatsSummaryDto;
+  trends: AdminStatsTrendDto;
+  distributions: AdminStatsDistributionDto;
 };

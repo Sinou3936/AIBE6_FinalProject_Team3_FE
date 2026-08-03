@@ -93,5 +93,6 @@ export const config = {
     '/checklists/:path*',
     '/contract/:path*',
     '/mypage/:path*',
+    '/admin/:path*',
   ],
 };
