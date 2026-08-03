@@ -1,14 +1,6 @@
 import { useMockData } from '../config/dataSource';
 import { requestJson } from '../lib/api/http';
-import {
-  getMockAdminDashboardStats,
-  getMockAdminPropertyReportDetail,
-  getMockAdminPropertyReports,
-  getMockAdminUsers,
-  reviewMockAdminPropertyReport,
-  updateMockAdminUserRole,
-  updateMockAdminUserStatus,
-} from '../repositories/adminRepository';
+import { getMockAdminDashboardStats, getMockAdminPropertyReports, getMockAdminUsers } from '../repositories/adminRepository';
 import {
   type AdminDashboardStatsDto,
   type AdminPropertyReportDetailDto,
@@ -28,6 +20,22 @@ export type AdminUserSearchParams = {
   role?: string;
   status?: string;
 };
+
+// mock 모드에서 'use client' 컴포넌트가 부르는 admin mutation/단건 조회는 이 Route Handler를
+// 거친다 - adminRepository.ts를 브라우저에서 직접 호출하면 서버(Server Component)가 읽는
+// 모듈 인스턴스와 다른 복사본을 바꾸게 돼서, router.refresh() 후 반영되지 않기 때문이다.
+async function postMockAdminAction<T>(body: unknown): Promise<T> {
+  const response = await fetch('/api/mock/admin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message ?? '요청을 처리하지 못했습니다.');
+  }
+  return response.json();
+}
 
 function toQueryString(params: Record<string, string | number | undefined>): string {
   const query = new URLSearchParams();
@@ -59,11 +67,7 @@ export async function updateAdminUserRole(
   request: AdminUserRoleUpdateRequestDto,
 ): Promise<AdminUserDetailDto> {
   if (useMockData) {
-    const updated = updateMockAdminUserRole(userId, request.role);
-    if (!updated) {
-      throw new Error('유저를 찾을 수 없습니다.');
-    }
-    return updated;
+    return postMockAdminAction<AdminUserDetailDto>({ action: 'USER_ROLE', userId, role: request.role });
   }
   return requestJson<AdminUserDetailDto>(`/admin/users/${userId}/role`, {
     method: 'PATCH',
@@ -76,11 +80,7 @@ export async function updateAdminUserStatus(
   request: AdminUserStatusUpdateRequestDto,
 ): Promise<AdminUserDetailDto> {
   if (useMockData) {
-    const updated = updateMockAdminUserStatus(userId, request.status);
-    if (!updated) {
-      throw new Error('유저를 찾을 수 없습니다.');
-    }
-    return updated;
+    return postMockAdminAction<AdminUserDetailDto>({ action: 'USER_STATUS', userId, status: request.status });
   }
   return requestJson<AdminUserDetailDto>(`/admin/users/${userId}/status`, {
     method: 'PATCH',
@@ -110,11 +110,7 @@ export async function getAdminPropertyReports(
 
 export async function getAdminPropertyReportDetail(reportId: number): Promise<AdminPropertyReportDetailDto> {
   if (useMockData) {
-    const detail = getMockAdminPropertyReportDetail(reportId);
-    if (!detail) {
-      throw new Error('신고를 찾을 수 없습니다.');
-    }
-    return detail;
+    return postMockAdminAction<AdminPropertyReportDetailDto>({ action: 'REPORT_DETAIL', reportId });
   }
   return requestJson<AdminPropertyReportDetailDto>(`/admin/property-reports/${reportId}`);
 }
@@ -124,11 +120,7 @@ export async function reviewAdminPropertyReport(
   request: AdminPropertyReportReviewRequestDto,
 ): Promise<AdminPropertyReportDetailDto> {
   if (useMockData) {
-    const detail = reviewMockAdminPropertyReport(reportId, request);
-    if (!detail) {
-      throw new Error('신고를 찾을 수 없습니다.');
-    }
-    return detail;
+    return postMockAdminAction<AdminPropertyReportDetailDto>({ action: 'REPORT_REVIEW', reportId, request });
   }
   return requestJson<AdminPropertyReportDetailDto>(`/admin/property-reports/${reportId}/review`, {
     method: 'PATCH',

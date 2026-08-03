@@ -21,13 +21,31 @@ import {
 } from '../mocks/init/admin';
 import { type AdminPropertyReportSearchParams, type AdminUserSearchParams } from '../services/admin';
 
-// PATCH가 상태를 바꾸면 이후 조회에도 반영되어야 하므로, init 배열을 그대로 export하지 않고 복제한
-// 모듈 내부 상태로 들고 있는다(userRepository.ts의 mutable mock 패턴과 동일).
-const mockUsers: AdminUserListItemDto[] = initAdminUsers.map((user) => ({ ...user }));
-const mockReports: AdminPropertyReportListItemDto[] = initAdminPropertyReports.map((report) => ({ ...report }));
-const mockReportDetails: Record<number, AdminPropertyReportDetailDto> = Object.fromEntries(
-  Object.entries(initAdminPropertyReportDetails).map(([id, detail]) => [id, { ...detail }]),
-);
+// PATCH가 상태를 바꾸면 이후 조회에도 반영되어야 하는데, Next.js 개발 서버(Turbopack)는 Route
+// Handler와 Server Component 페이지를 서로 다른 모듈 그래프로 컴파일해서, 이 파일도 진입점마다
+// 독립적으로 다시 평가된다 - 평범한 모듈 스코프 변수로 두면 각 그래프가 initAdminUsers에서 새로
+// 복제한 자기만의 복사본을 갖게 돼 mutation이 서로 안 보인다(실제로 재현 확인함: Route
+// Handler로 PATCH 성공 응답을 받아도 페이지를 다시 열면 원래 값으로 보임). Node.js 프로세스
+// 전체에서 유일한 globalThis에 붙여두면 어느 모듈 그래프에서 먼저 평가되든 하나의 상태를 공유한다.
+type AdminMockState = {
+  users: AdminUserListItemDto[];
+  reports: AdminPropertyReportListItemDto[];
+  reportDetails: Record<number, AdminPropertyReportDetailDto>;
+};
+
+const globalForAdminMock = globalThis as typeof globalThis & { __adminMockState?: AdminMockState };
+
+const mockState: AdminMockState = (globalForAdminMock.__adminMockState ??= {
+  users: initAdminUsers.map((user) => ({ ...user })),
+  reports: initAdminPropertyReports.map((report) => ({ ...report })),
+  reportDetails: Object.fromEntries(
+    Object.entries(initAdminPropertyReportDetails).map(([id, detail]) => [id, { ...detail }]),
+  ),
+});
+
+const mockUsers = mockState.users;
+const mockReports = mockState.reports;
+const mockReportDetails = mockState.reportDetails;
 // 매물 등록 이력은 admin 화면에서 수정할 일이 없어 복제하지 않고 init 데이터를 그대로 참조한다.
 const mockPropertyRegistrations = initAdminPropertyRegistrations;
 
