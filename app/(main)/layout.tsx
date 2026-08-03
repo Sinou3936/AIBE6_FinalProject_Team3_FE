@@ -10,10 +10,12 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
 
   let nickname: string;
   let profileImageUrl: string | null;
+  let isAdmin: boolean;
   try {
     const me = await getCurrentUser(cookieHeader);
     nickname = me.nickname;
     profileImageUrl = me.profileImageUrl;
+    isAdmin = me.role === 'ADMIN';
   } catch {
     // 프록시는 access_token 쿠키 존재 여부만 확인하고 만료/위조까지는 걸러내지 않으므로,
     // 실제 유효성은 여기서 /auth/me 호출 결과로 판단한다. 다만 access_token은 있는데 무효한
@@ -27,7 +29,7 @@ export default async function MainLayout({ children }: { children: ReactNode }) 
   }
 
   return (
-    <MainLayoutClient nickname={nickname} profileImageUrl={profileImageUrl}>
+    <MainLayoutClient nickname={nickname} profileImageUrl={profileImageUrl} isAdmin={isAdmin}>
       {children}
     </MainLayoutClient>
   );
