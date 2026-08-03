@@ -92,9 +92,15 @@ export async function reviewAdminPropertyReport(
   });
 }
 
-export async function getAdminDashboardStats(cookieHeader?: string): Promise<AdminDashboardStatsDto> {
-  return requestJson<AdminDashboardStatsDto>(
-    '/admin/stats/dashboard',
-    cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined,
-  );
+export type AdminDashboardStatsParams = {
+  startDate?: string;
+  endDate?: string;
+};
+
+export async function getAdminDashboardStats(
+  params: AdminDashboardStatsParams = {},
+  cookieHeader?: string,
+): Promise<AdminDashboardStatsDto> {
+  const path = `/admin/stats/dashboard${toQueryString(params)}`;
+  return requestJson<AdminDashboardStatsDto>(path, cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined);
 }

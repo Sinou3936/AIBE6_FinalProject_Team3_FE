@@ -1,6 +1,8 @@
 'use client';
 
 import { FileWarning, Home, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import {
   Bar,
   BarChart,
@@ -22,6 +24,8 @@ import { SummaryCard } from '../../ui/SummaryCard';
 type AdminDashboardClientProps = {
   stats?: AdminDashboardStatsDto;
   loadError?: string;
+  startDate: string;
+  endDate: string;
 };
 
 // dataviz 스킬의 기본 검증 팔레트(references/palette.md) 슬롯 순서를 그대로 따른다 - 인접 쌍
@@ -53,9 +57,53 @@ function formatDate(dateString: string): string {
   return `${month}/${day}`;
 }
 
-export function AdminDashboardClient({ stats, loadError }: AdminDashboardClientProps) {
+export function AdminDashboardClient({ stats, loadError, startDate, endDate }: AdminDashboardClientProps) {
+  const router = useRouter();
+  const [rangeStart, setRangeStart] = useState(startDate);
+  const [rangeEnd, setRangeEnd] = useState(endDate);
+
+  function handleRangeSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    const query = new URLSearchParams({ startDate: rangeStart, endDate: rangeEnd });
+    router.push(`/admin?${query.toString()}`);
+  }
+
+  const rangeForm = (
+    <form onSubmit={handleRangeSubmit} className="mb-6 flex flex-wrap items-end gap-3">
+      <label className="flex flex-col gap-1 text-xs font-bold text-slate-500">
+        시작일
+        <input
+          type="date"
+          value={rangeStart}
+          max={rangeEnd}
+          onChange={(event) => setRangeStart(event.target.value)}
+          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+        />
+      </label>
+      <label className="flex flex-col gap-1 text-xs font-bold text-slate-500">
+        종료일
+        <input
+          type="date"
+          value={rangeEnd}
+          min={rangeStart}
+          onChange={(event) => setRangeEnd(event.target.value)}
+          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+        />
+      </label>
+      <button type="submit" className="ansim-button-primary px-5 py-2.5 text-sm">
+        조회
+      </button>
+    </form>
+  );
+
   if (loadError) {
-    return <div className="ansim-card border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>;
+    return (
+      <div>
+        <h1 className="ansim-page-title mb-6">대시보드</h1>
+        {rangeForm}
+        <div className="ansim-card border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
+      </div>
+    );
   }
   if (!stats) {
     return null;
@@ -83,6 +131,8 @@ export function AdminDashboardClient({ stats, loadError }: AdminDashboardClientP
     <div>
       <h1 className="ansim-page-title mb-6">대시보드</h1>
 
+      {rangeForm}
+
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <SummaryCard label="총 회원수" value={`${stats.summary.totalUsers.toLocaleString()}명`} icon={Users} />
         <SummaryCard label="활성 매물수" value={`${stats.summary.totalProperties.toLocaleString()}건`} icon={Home} />
@@ -96,7 +146,9 @@ export function AdminDashboardClient({ stats, loadError }: AdminDashboardClientP
 
       <div className="mb-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="ansim-card p-5">
-          <h2 className="mb-4 text-sm font-bold text-slate-700">최근 14일 가입자 / 매물등록 추이</h2>
+          <h2 className="mb-4 text-sm font-bold text-slate-700">
+            {formatDate(startDate)}~{formatDate(endDate)} 가입자 / 매물등록 추이
+          </h2>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={trendData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e1e0d9" vertical={false} />
