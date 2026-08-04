@@ -12,8 +12,10 @@ import {
 import { formatDecimalInput, formatIntegerInput } from '../../../lib/numberFormat';
 import { createProperty } from '../../../services/properties';
 import { type PropertyTransactionTypeDto, type PropertyTypeDto } from '../../../types/api';
+import { type PropertyImage } from '../../../types/domain';
 import { FeatureCard } from '../../../ui/FeatureCard';
 import { LoadingOverlay } from '../../../ui/LoadingOverlay';
+import { PropertyImageUploader } from '../../../ui/PropertyImageUploader';
 
 export default function Page() {
   const router = useRouter();
@@ -26,6 +28,7 @@ export default function Page() {
   const [monthlyRent, setMonthlyRent] = useState('');
   const [area, setArea] = useState('');
   const [description, setDescription] = useState('');
+  const [images, setImages] = useState<PropertyImage[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -74,6 +77,7 @@ export default function Page() {
         monthlyRent: monthlyRentNumber,
         area: areaNumber,
         description: description.trim().length > 0 ? description.trim() : null,
+        images,
       });
       // 매물 상세(/properties/{id})는 아직 실제 API 응답 형태에 안 맞춰져 있어 별도 이슈로 미뤄뒀다.
       // 그래서 등록 성공 후에는 상세가 아닌 목록으로 돌려보내고, 시세조회 관련 안내(notice)는
@@ -223,6 +227,8 @@ export default function Page() {
                 placeholder="예: 역세권, 신축 오피스텔"
               />
             </label>
+
+            <PropertyImageUploader value={images} onChange={setImages} disabled={isSubmitting} />
           </div>
         </div>
 
