@@ -23,16 +23,6 @@ export type PageResponseDto<T> = {
 
 export type ApiStatusTone = 'orange' | 'emerald' | 'red' | 'slate';
 
-// 백엔드 global/response/PageResponse.java와 필드가 1:1 대응한다 (관리자 목록 화면에서 최초로 쓰임).
-export type PageResponseDto<T> = {
-  content: T[];
-  page: number;
-  size: number;
-  totalElements: number;
-  totalPages: number;
-  hasNext: boolean;
-};
-
 export type PropertySummaryDto = {
   id: number;
   title: string;
