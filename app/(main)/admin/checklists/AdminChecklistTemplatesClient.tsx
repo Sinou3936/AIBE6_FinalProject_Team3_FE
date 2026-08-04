@@ -12,6 +12,7 @@ import {
   type AdminChecklistItemTemplateDto,
   type ChecklistCategoryDto,
   type ChecklistImportanceDto,
+  type ChecklistItemCodeDto,
   type ChecklistItemTypeDto,
 } from '../../../types/api';
 import { Badge } from '../../../ui/Badge';
@@ -43,6 +44,19 @@ const ITEM_TYPE_LABEL: Record<ChecklistItemTypeDto, string> = {
   DOCUMENT_REQUEST: '서류 요청',
 };
 
+// 백엔드 ChecklistItemCode 자바독 기준 설명 - 이 값이 있는 문항은 특정 응답값에서 자동으로
+// "주의 항목(issueFound)"으로 표시된다(ChecklistItem.answer() 참고). 문구/순서만 고치려는
+// 의도로 이 값을 건드리면 그 자동 판정이 조용히 끊길 수 있어 폼에 명시적으로 노출한다.
+const NONE_CODE = '';
+const CODE_LABEL: Record<ChecklistItemCodeDto, string> = {
+  TRUST_REGISTRATION: '신탁등기 여부 (Y면 자동 주의)',
+  OWNERSHIP_MATCH: '소유자-임대인 명의 불일치 여부 (Y면 자동 주의)',
+  OWNERSHIP_ACQUISITION_DATE: '소유권 취득일',
+  TAX_DELINQUENCY_NOTICE: '세금체납 확인 안내',
+  DATE_OF_CONFIRMATION_REQUEST: '확정일자 부여현황 요청 (미제공 시 자동 주의)',
+  RESIDENT_REGISTRATION_REQUEST: '전입세대열람원 요청 (미제공 시 자동 주의)',
+};
+
 type FormState = {
   category: ChecklistCategoryDto;
   content: string;
@@ -50,6 +64,7 @@ type FormState = {
   helperText: string;
   importance: ChecklistImportanceDto;
   itemType: ChecklistItemTypeDto;
+  code: ChecklistItemCodeDto | typeof NONE_CODE;
   displayOrder: string;
   applicablePropertyTypes: string;
   active: boolean;
@@ -62,6 +77,7 @@ const EMPTY_FORM: FormState = {
   helperText: '',
   importance: 'GENERAL',
   itemType: 'CHECK',
+  code: NONE_CODE,
   displayOrder: '1',
   applicablePropertyTypes: '',
   active: true,
@@ -75,6 +91,7 @@ function toFormState(template: AdminChecklistItemTemplateDto): FormState {
     helperText: template.helperText ?? '',
     importance: template.importance,
     itemType: template.itemType,
+    code: template.code ?? NONE_CODE,
     displayOrder: String(template.displayOrder),
     applicablePropertyTypes: template.applicablePropertyTypes ?? '',
     active: template.active,
@@ -89,6 +106,7 @@ function toCreateRequest(form: FormState): AdminChecklistItemTemplateCreateReque
     helperText: form.helperText.trim() || undefined,
     importance: form.importance,
     itemType: form.itemType,
+    code: form.code || undefined,
     displayOrder: Number(form.displayOrder),
     applicablePropertyTypes: form.applicablePropertyTypes.trim() || undefined,
   };
@@ -344,6 +362,22 @@ export function AdminChecklistTemplatesClient({ data, loadError }: AdminChecklis
                   />
                 </label>
               </div>
+
+              <label className="block text-xs font-bold text-slate-600">
+                자동 판정 코드 (선택 - 특수 문항이 아니면 비워두세요)
+                <select
+                  value={modal.form.code}
+                  onChange={(event) => updateForm({ code: event.target.value as FormState['code'] })}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                >
+                  <option value={NONE_CODE}>없음</option>
+                  {Object.entries(CODE_LABEL).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <label className="block text-xs font-bold text-slate-600">
                 적용 매물유형 (선택, 콤마로 구분 - 예: OFFICETEL,MULTI_FAMILY / 비우면 전체 적용)
