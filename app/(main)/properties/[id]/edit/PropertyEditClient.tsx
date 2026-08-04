@@ -6,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { formatDecimalInput, formatIntegerInput } from '../../../../lib/numberFormat';
 import { updateProperty } from '../../../../services/properties';
-import { type PropertyDetail } from '../../../../types/domain';
+import { type PropertyDetail, type PropertyImage } from '../../../../types/domain';
 import { LoadingOverlay } from '../../../../ui/LoadingOverlay';
+import { PropertyImageUploader } from '../../../../ui/PropertyImageUploader';
 
 type PropertyEditClientProps = {
   propertyId: number;
@@ -27,6 +28,7 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
   );
   const [area, setArea] = useState(property?.area !== undefined ? formatDecimalInput(String(property.area)) : '');
   const [description, setDescription] = useState(property?.description ?? '');
+  const [images, setImages] = useState<PropertyImage[]>(property?.images ?? []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,6 +84,7 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
         monthlyRent: monthlyRentNumber,
         area: areaNumber,
         description: description.trim().length > 0 ? description.trim() : null,
+        images,
       });
       router.push(`/properties/${propertyId}`);
     } catch {
@@ -183,6 +186,8 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
                 placeholder="예: 역세권, 신축 오피스텔"
               />
             </label>
+
+            <PropertyImageUploader value={images} onChange={setImages} disabled={isSubmitting} />
           </div>
         </div>
 

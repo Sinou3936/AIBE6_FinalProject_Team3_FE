@@ -16,10 +16,12 @@ import {
   Trash2,
 } from 'lucide-react';
 import { riskSummaries } from '../../../data/property-detail';
+import { roomTypeLabelMap } from '../../../mappers/property';
 import { deleteProperty } from '../../../services/properties';
 import { type PropertyDetail } from '../../../types/domain';
 import { Badge } from '../../../ui/Badge';
 import { KakaoMap } from '../../../ui/KakaoMap';
+import { Modal } from '../../../ui/Modal';
 import { NoticeBox } from '../../../ui/NoticeBox';
 import { PropertyDeleteConfirmModal } from './PropertyDeleteConfirmModal';
 import { PropertyReportModal } from './PropertyReportModal';
@@ -47,6 +49,7 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
 
   if (loadError || !property) {
     return (
@@ -76,7 +79,9 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
     }
   }
 
-  const images = property.imageUrls;
+  // imageUrls(string[])이 아니라 images(구조화된 PropertyImage[])를 써야 헤더 캐러셀에도
+  // roomType 라벨을 붙일 수 있다 - 갤러리 모달은 이미 images를 쓰고 있었음.
+  const images = property.images;
   // 이번 세션에서 막 신고에 성공한 경우(reportSuccess)와, 이전에 이미 신고해둔 경우(property.reported)
   // 둘 다 "이미 신고했음" 상태로 취급한다 - 상세조회 응답은 페이지를 새로 불러와야 반영되므로.
   const alreadyReported = property.reported === true || reportSuccess;
@@ -92,28 +97,58 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
       <div className="container mx-auto max-w-5xl px-0 md:px-4 md:pt-8">
         {images.length > 0 ? (
           <div className="grid h-[300px] grid-cols-1 gap-2 overflow-hidden md:h-[450px] md:grid-cols-3 md:rounded-2xl">
-            <div className="relative md:col-span-2">
+            <button
+              type="button"
+              onClick={() => setIsGalleryOpen(true)}
+              className="relative md:col-span-2"
+            >
               <Image
-                src={images[0]}
+                src={images[0].imageUrl}
                 alt={property.title}
                 fill
                 sizes="(min-width: 768px) 66vw, 100vw"
                 className="object-cover"
               />
-            </div>
+              {images[0].roomType && (
+                <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-xs font-bold text-white">
+                  {roomTypeLabelMap[images[0].roomType]}
+                </span>
+              )}
+            </button>
             {images.length > 1 && (
               <div className="hidden grid-rows-2 gap-2 md:grid">
-                {images.slice(1, 3).map((imageUrl, index) => (
-                  <div key={imageUrl} className="relative">
-                    <Image
-                      src={imageUrl}
-                      alt={`${property.title} ${index + 2}`}
-                      fill
-                      sizes="33vw"
-                      className="object-cover"
-                    />
-                  </div>
-                ))}
+                {images.slice(1, 3).map((image, index) => {
+                  // 3번째 칸(index 1, 실제로는 전체 4번째 사진)에 남은 장수를 오버레이로 보여준다 -
+                  // 헤더 그리드는 최대 3장까지만 노출하는 레이아웃이라, 그 이상은 전체보기로 유도한다.
+                  const isLastVisibleSlot = index === 1;
+                  const remainingCount = images.length - 3;
+                  return (
+                    <button
+                      key={image.imageUrl}
+                      type="button"
+                      onClick={() => setIsGalleryOpen(true)}
+                      className="relative"
+                    >
+                      <Image
+                        src={image.imageUrl}
+                        alt={`${property.title} ${index + 2}`}
+                        fill
+                        sizes="33vw"
+                        className="object-cover"
+                      />
+                      {image.roomType && (
+                        <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-xs font-bold text-white">
+                          {roomTypeLabelMap[image.roomType]}
+                        </span>
+                      )}
+                      {isLastVisibleSlot && remainingCount > 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-bold text-white">
+                          +{remainingCount}장 더보기
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -124,6 +159,32 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
           </div>
         )}
       </div>
+
+      <Modal open={isGalleryOpen} onClose={() => setIsGalleryOpen(false)} maxWidthClassName="max-w-3xl">
+        <div className="max-h-[70vh] overflow-y-auto">
+          <h2 className="mb-4 text-lg font-bold text-slate-950">매물 사진 ({images.length}장)</h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {property.images.map((image, index) => (
+              <div key={image.imageUrl} className="overflow-hidden rounded-lg border border-slate-100">
+                <div className="relative aspect-square">
+                  <Image
+                    src={image.imageUrl}
+                    alt={`${property.title} ${index + 1}`}
+                    fill
+                    sizes="33vw"
+                    className="object-cover"
+                  />
+                </div>
+                {image.roomType && (
+                  <p className="bg-slate-50 px-2 py-1 text-center text-xs font-bold text-slate-600">
+                    {roomTypeLabelMap[image.roomType]}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
 
       <div className="container mx-auto max-w-5xl px-4 py-8">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-3 lg:items-start">

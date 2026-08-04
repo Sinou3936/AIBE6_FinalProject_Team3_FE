@@ -8,6 +8,22 @@ export type PropertyLocation = {
   longitude: number;
 };
 
+// 매물 이미지가 어느 공간을 찍은 사진인지 라벨. 선택값 - 라벨 없이 올릴 수도 있다(null).
+export type RoomType =
+  | 'LIVING_ROOM'
+  | 'BEDROOM'
+  | 'BATHROOM'
+  | 'KITCHEN'
+  | 'ENTRANCE'
+  | 'VERANDA'
+  | 'EXTERIOR'
+  | 'ETC';
+
+export type PropertyImage = {
+  imageUrl: string;
+  roomType: RoomType | null;
+};
+
 export type PropertySummary = {
   id: number;
   title: string;
@@ -46,6 +62,9 @@ export type PropertyDetail = {
   area?: number;
   description?: string;
   imageUrls: string[];
+  // imageUrls와 같은 데이터를 담고 있지만 roomType까지 포함한 구조화된 형태 - 수정 화면에서
+  // 기존 이미지를 라벨과 함께 다시 보여주고 편집할 때 쓴다. 상세 화면 캐러셀은 imageUrls만 쓴다.
+  images: PropertyImage[];
   maintenance?: string;
   checkSignalCount?: number;
   signalSummary?: string;

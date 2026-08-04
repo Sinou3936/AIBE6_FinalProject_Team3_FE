@@ -248,6 +248,25 @@ export type PropertyTypeDto = 'OFFICETEL' | 'MULTI_FAMILY' | 'DETACHED_HOUSE';
 export type PropertyTransactionTypeDto = 'JEONSE' | 'MONTHLY_RENT';
 export type PropertyStatusDto = 'ACTIVE' | 'DELETED';
 
+// 매물 이미지가 어느 공간을 찍은 사진인지 라벨. 선택값 - 라벨 없이 올릴 수도 있다(null).
+export type RoomTypeDto =
+  | 'LIVING_ROOM'
+  | 'BEDROOM'
+  | 'BATHROOM'
+  | 'KITCHEN'
+  | 'ENTRANCE'
+  | 'VERANDA'
+  | 'EXTERIOR'
+  | 'ETC';
+
+// 등록/수정 요청과 상세 응답 양쪽에서 공용으로 쓰는 이미지 한 장의 형태.
+// imageUrl은 이미지 업로드 API(POST /properties/images/upload-url → S3 PUT → confirm)를 거쳐
+// 받은 확정 URL이어야 한다.
+export type PropertyImageDto = {
+  imageUrl: string;
+  roomType: RoomTypeDto | null;
+};
+
 export type CreatePropertyRequestDto = {
   title: string;
   address: string;
@@ -257,6 +276,34 @@ export type CreatePropertyRequestDto = {
   monthlyRent?: number | null;
   area: number;
   description?: string | null;
+  images?: PropertyImageDto[];
+};
+
+// POST /properties/images/upload-url 요청/응답. 업로드할 파일의 확장자/컨텐츠타입/바이트수를
+// 보내면 presigned PUT URL과 그 URL이 가리키는 S3 key를 받는다.
+export type PropertyImageUploadUrlRequestDto = {
+  fileExtension: string;
+  contentType: string;
+  fileSize: number;
+};
+
+export type PropertyImageUploadUrlResponseDto = {
+  uploadUrl: string;
+  key: string;
+  // S3에 직접 PUT할 때 x-amz-tagging 헤더에 그대로 실어 보내야 하는 값. presign 서명에 포함돼
+  // 있어 값이 다르면 S3가 403을 반환한다 (BE PropertyImageUploadUrlResponse.tagging 참고).
+  tagging: string;
+};
+
+// POST /properties/images/confirm 요청/응답. S3에 실제 업로드가 끝난 뒤 이 key로 호출하면
+// 백엔드가 업로드 완료 여부를 확인하고 영구 조회 URL을 돌려준다 - 이 imageUrl을 등록/수정
+// 요청의 images[].imageUrl로 그대로 쓰면 된다.
+export type PropertyImageConfirmRequestDto = {
+  key: string;
+};
+
+export type PropertyImageConfirmResponseDto = {
+  imageUrl: string;
 };
 
 export type PropertyAddressDto = {
@@ -321,7 +368,7 @@ export type PropertyDetailResponseDto = {
   area: number;
   description: string | null;
   address: PropertyDetailAddressDto;
-  imageUrls: string[];
+  images: PropertyImageDto[];
   marketComparison: MarketComparisonDto;
   // 로그인한 사용자 본인 기준 - 체크리스트를 생성했는지, 본인이 이 매물을 신고한 적 있는지.
   checklistCreated: boolean;
@@ -333,12 +380,15 @@ export type PropertyDetailResponseDto = {
 
 // PATCH /properties/{id} 요청. 주소/매물유형/거래유형은 등록 시 확정값이라 수정 대상에서 제외된다
 // (변경하려면 재등록 필요 - BE PropertyUpdateRequest 주석 참고).
+// images는 생략하거나 undefined면 "이미지 변경 없음"(기존 유지), 값을 보내면(빈 배열 포함)
+// 기존 이미지를 전부 지우고 통째로 교체한다 - BE PropertyUpdateRequest 주석 참고.
 export type UpdatePropertyRequestDto = {
   title: string;
   deposit: number;
   monthlyRent?: number | null;
   area: number;
   description?: string | null;
+  images?: PropertyImageDto[];
 };
 
 // POST /properties/{id}/reports. 마켓플레이스식 "타인 매물 신고"가 아니라 본인이 등록한 매물을

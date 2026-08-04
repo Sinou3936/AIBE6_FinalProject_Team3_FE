@@ -2,13 +2,16 @@ import {
   type ApiStatusTone,
   type MarketComparisonDto,
   type PropertyDetailResponseDto,
+  type PropertyImageDto,
   type PropertyListItemDto,
   type PropertySummaryDto,
   type PropertyTransactionTypeDto,
   type PropertyTypeDto,
+  type RoomTypeDto,
 } from '../types/api';
 import {
   type PropertyDetail,
+  type PropertyImage,
   type PropertyMarketComparison,
   type PropertySummary,
   type PropertyTradeType,
@@ -52,6 +55,21 @@ export const propertyTransactionTypeLabelMap: Record<PropertyTransactionTypeDto,
   JEONSE: '전세',
   MONTHLY_RENT: '월세',
 };
+
+export const roomTypeLabelMap: Record<RoomTypeDto, string> = {
+  LIVING_ROOM: '거실',
+  BEDROOM: '침실',
+  BATHROOM: '화장실',
+  KITCHEN: '주방',
+  ENTRANCE: '현관',
+  VERANDA: '베란다',
+  EXTERIOR: '외관',
+  ETC: '기타',
+};
+
+function mapPropertyImageDto(dto: PropertyImageDto): PropertyImage {
+  return { imageUrl: dto.imageUrl, roomType: dto.roomType };
+}
 
 // 백엔드는 원(KRW) 단위 정수를 그대로 내려주고, 화면에는 만원 단위 한글 표기로 보여준다: "1억 8,000만원".
 // 전세/월세 어느 쪽이든 항상 같은 형식으로 단위를 붙인다 - 예전엔 월세 쪽(보증금/월세 두 금액)만
@@ -154,7 +172,8 @@ export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): Pr
     monthlyRentAmount: dto.monthlyRent,
     area: dto.area,
     description: dto.description ?? undefined,
-    imageUrls: dto.imageUrls,
+    imageUrls: dto.images.map((image) => image.imageUrl),
+    images: dto.images.map(mapPropertyImageDto),
     marketComparison: mapMarketComparisonDto(dto.marketComparison),
     statusColor: propertyStatusColorMap.slate,
     location: {
@@ -182,6 +201,7 @@ export function mapPropertySummaryToMockDetail(property: PropertySummary): Prope
   return {
     ...property,
     imageUrls: detailMockImageUrls,
+    images: detailMockImageUrls.map((imageUrl) => ({ imageUrl, roomType: null })),
     description: '깨끗하고 채광이 좋은 매물입니다. 역과 가까워 통근이 편리해요.',
     marketComparison: {
       status: 'AVAILABLE',
