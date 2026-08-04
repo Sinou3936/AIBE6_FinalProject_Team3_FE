@@ -118,6 +118,14 @@ type ModalState =
   | { type: 'delete'; template: AdminChecklistItemTemplateDto }
   | null;
 
+// 백엔드가 INVALID_CODE/DUPLICATE_CODE/LAST_ITEM처럼 관리자가 바로 고칠 수 있는 400/409를 이미
+// 사람이 읽을 문구로 내려주므로(ErrorCode 참고, requestJson의 ApiError.message), 그 메시지를
+// 그대로 보여준다 - 뭉뚱그린 일반 문구로는 어떤 필드를 고쳐야 하는지 알 수 없다. mock 모드의
+// postMockAdminAction도 plain Error로 메시지를 던지므로 ApiError로 좁히지 않고 Error 전체를 본다.
+function resolveErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 export function AdminChecklistTemplatesClient({ data, loadError }: AdminChecklistTemplatesClientProps) {
   const router = useRouter();
   const [modal, setModal] = useState<ModalState>(null);
@@ -161,8 +169,8 @@ export function AdminChecklistTemplatesClient({ data, loadError }: AdminChecklis
       }
       setModal(null);
       router.refresh();
-    } catch {
-      setFormError('저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (error) {
+      setFormError(resolveErrorMessage(error, '저장 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'));
     } finally {
       setSubmitting(false);
     }
@@ -176,8 +184,8 @@ export function AdminChecklistTemplatesClient({ data, loadError }: AdminChecklis
       await deleteAdminChecklistItemTemplate(modal.template.id);
       setModal(null);
       router.refresh();
-    } catch {
-      setFormError('삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (error) {
+      setFormError(resolveErrorMessage(error, '삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'));
     } finally {
       setSubmitting(false);
     }
@@ -327,11 +335,21 @@ export function AdminChecklistTemplatesClient({ data, loadError }: AdminChecklis
               </label>
 
               <label className="block text-xs font-bold text-slate-600">
-                안내 문구 (선택)
+                안내 문구 (선택 - 실무 안내, 짧게)
                 <textarea
                   value={modal.form.guideText}
                   onChange={(event) => updateForm({ guideText: event.target.value })}
                   rows={2}
+                  className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                />
+              </label>
+
+              <label className="block text-xs font-bold text-slate-600">
+                쉬운 설명 (선택 - 부동산 지식이 없어도 이해할 수 있게 풀어쓴 설명, 사용자 화면에 노출됨)
+                <textarea
+                  value={modal.form.helperText}
+                  onChange={(event) => updateForm({ helperText: event.target.value })}
+                  rows={4}
                   className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
                 />
               </label>
