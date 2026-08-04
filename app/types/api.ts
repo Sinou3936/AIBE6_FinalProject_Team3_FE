@@ -202,10 +202,32 @@ export type UserProfileDto = {
 
 export type ProfileUpdateRequestDto = {
   nickname?: string;
-  profileImageUrl?: string;
   interestRegion?: string;
   transactionType?: UserTransactionTypeDto;
   currentStage?: string;
+};
+
+// POST /users/me/profile-image/presign 요청/응답. S3에 직접 PUT하기 전 업로드용 presigned URL과
+// 그 업로드가 저장될 key를 발급받는다 - 실제 파일 바이트는 이 엔드포인트가 아니라 uploadUrl로 보낸다.
+export type ProfileImagePresignRequestDto = {
+  fileExtension: string;
+  contentType: string;
+  fileSize: number;
+};
+
+export type ProfileImagePresignResponseDto = {
+  uploadUrl: string;
+  key: string;
+  // S3 PUT 요청에 그대로 실어 보내야 하는 x-amz-tagging 헤더 값(예: "status=pending"). presign 시
+  // 서명에 이 태그가 포함되므로, 값이 다르면 S3가 서명 불일치(403)로 거부한다 - 값 자체를 프론트가
+  // 하드코딩하지 않고 이 응답을 그대로 쓰는 이유는 PasswordPolicyDto와 동일하다.
+  tagging: string;
+};
+
+// POST /users/me/profile-image/confirm 요청. presign으로 받은 uploadUrl에 실제 PUT이 끝난 뒤,
+// 그 key로 업로드가 완료됐는지 서버가 재확인하고 profileImageUrl을 갱신한다.
+export type ProfileImageConfirmRequestDto = {
+  key: string;
 };
 
 export type ProfileRegisterRequestDto = {
