@@ -1,24 +1,54 @@
-import { cookies } from 'next/headers';
-import { notFound } from 'next/navigation';
-import { type ReactNode } from 'react';
+'use client';
+
+import { Loader2 } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { getCurrentUser } from '../../services/auth';
 import { AdminNav } from './AdminNav';
 
-// 관리자가 아닌 사용자에게는 이 경로가 존재한다는 사실 자체를 드러내지 않기 위해 리다이렉트가
-// 아니라 404(notFound)로 처리한다. 인증 자체는 상위 (main)/layout.tsx가 이미 보장하므로,
-// 여기서는 role만 추가로 확인한다.
-export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const cookieHeader = (await cookies()).toString();
+type GateState = 'checking' | 'authorized' | 'forbidden';
 
-  let role: string;
-  try {
-    role = (await getCurrentUser(cookieHeader)).role;
-  } catch {
-    notFound();
+// 관리자가 아닌 사용자에게는 이 경로가 존재한다는 사실 자체를 드러내지 않기 위해 리다이렉트가
+// 아니라 404와 동일한 화면을 보여준다. 인증 자체는 상위 (main)/layout.tsx(MainLayoutGate)가 이미
+// 보장하므로, 여기서는 role만 브라우저에서 크로스오리진 fetch로 추가 확인한다 — crossOriginAuth
+// 배포에서는 이 레이아웃도 서버 컴포넌트로는 백엔드 쿠키를 받을 수 없어 role 확인이 불가능하다.
+export default function AdminLayout({ children }: { children: ReactNode }) {
+  const [state, setState] = useState<GateState>('checking');
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getCurrentUser()
+      .then((me) => {
+        if (!cancelled) {
+          setState(me.role === 'ADMIN' ? 'authorized' : 'forbidden');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setState('forbidden');
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (state === 'checking') {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+      </div>
+    );
   }
 
-  if (role !== 'ADMIN') {
-    notFound();
+  if (state === 'forbidden') {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-2 text-center">
+        <h1 className="text-2xl font-bold text-slate-950">404</h1>
+        <p className="text-sm text-slate-500">페이지를 찾을 수 없습니다.</p>
+      </div>
+    );
   }
 
   return (
