@@ -1,11 +1,20 @@
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { type ReactNode } from 'react';
+import { crossOriginAuth } from '../config/auth';
 import { CURRENT_PATH_HEADER } from '../lib/api/http';
 import { getCurrentUser } from '../services/auth';
 import MainLayoutClient from './MainLayoutClient';
+import MainLayoutGate from './MainLayoutGate';
 
 export default async function MainLayout({ children }: { children: ReactNode }) {
+  // crossOriginAuth 배포에서는 이 서버 컴포넌트가 access_token 쿠키를 받을 방법이 없으므로(쿠키가
+  // 백엔드 도메인에만 종속됨) 여기서 /auth/me를 확인하는 대신, 브라우저가 직접 크로스오리진
+  // fetch(credentials:'include')로 확인하는 클라이언트 게이트에 위임한다.
+  if (crossOriginAuth) {
+    return <MainLayoutGate>{children}</MainLayoutGate>;
+  }
+
   const cookieHeader = (await cookies()).toString();
 
   let nickname: string;

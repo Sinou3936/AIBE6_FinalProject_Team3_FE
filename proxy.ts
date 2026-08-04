@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { crossOriginAuth } from './app/config/auth';
 import { useMockData } from './app/config/dataSource';
 import { CURRENT_PATH_HEADER, mergeCookieHeader, refreshSession } from './app/lib/api/http';
 
@@ -17,6 +18,15 @@ export async function proxy(request: NextRequest) {
 
   // mock 모드는 백엔드가 없어도 화면을 확인할 수 있어야 하므로 로그인 게이트를 건너뛴다.
   if (useMockData) {
+    return NextResponse.next({ request: { headers: requestHeaders } });
+  }
+
+  // 프론트/백엔드가 도메인을 공유하지 않는 배포(crossOriginAuth)에서는 이 미들웨어가 애초에
+  // access_token/refresh_token 쿠키를 받을 수 없다 — 브라우저가 발급 도메인(백엔드)에만 그
+  // 쿠키를 붙이기 때문이다. 여기서 "쿠키 없음"을 "로그인 안 됨"으로 오판해 매번 로그인 화면으로
+  // 튕기지 않도록, 로그인 판정 자체를 브라우저 쪽 크로스오리진 fetch로 넘긴다
+  // ((main)/MainLayoutGate.tsx 참고).
+  if (crossOriginAuth) {
     return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
