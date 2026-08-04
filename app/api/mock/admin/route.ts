@@ -1,22 +1,48 @@
 import { NextResponse } from 'next/server';
 import { useMockData } from '../../../config/dataSource';
 import {
+  createMockAdminChecklistItemTemplate,
+  deleteMockAdminChecklistItemTemplate,
   getMockAdminPropertyReportDetail,
   reviewMockAdminPropertyReport,
+  updateMockAdminChecklistItemTemplate,
   updateMockAdminUserRole,
   updateMockAdminUserStatus,
 } from '../../../repositories/adminRepository';
 import {
+  type AdminChecklistItemTemplateCreateRequestDto,
+  type AdminChecklistItemTemplateUpdateRequestDto,
   type AdminPropertyReportReviewRequestDto,
   type AdminRoleDto,
   type AdminUserStatusDto,
+  type ChecklistCategoryDto,
+  type ChecklistImportanceDto,
+  type ChecklistItemTypeDto,
 } from '../../../types/api';
 
 type MockAdminActionRequest =
   | { action: 'USER_ROLE'; userId: number; role: AdminRoleDto }
   | { action: 'USER_STATUS'; userId: number; status: AdminUserStatusDto }
   | { action: 'REPORT_REVIEW'; reportId: number; request: AdminPropertyReportReviewRequestDto }
-  | { action: 'REPORT_DETAIL'; reportId: number };
+  | { action: 'REPORT_DETAIL'; reportId: number }
+  | { action: 'CHECKLIST_TEMPLATE_CREATE'; request: AdminChecklistItemTemplateCreateRequestDto }
+  | { action: 'CHECKLIST_TEMPLATE_UPDATE'; templateId: number; request: AdminChecklistItemTemplateUpdateRequestDto }
+  | { action: 'CHECKLIST_TEMPLATE_DELETE'; templateId: number };
+
+const CHECKLIST_CATEGORIES: ChecklistCategoryDto[] = ['INDOOR', 'NOISE', 'SAFETY', 'DOCUMENTS', 'AREA'];
+const CHECKLIST_IMPORTANCES: ChecklistImportanceDto[] = ['REQUIRED', 'GENERAL'];
+const CHECKLIST_ITEM_TYPES: ChecklistItemTypeDto[] = ['CHECK', 'YES_NO', 'DATE', 'DOCUMENT_REQUEST'];
+
+function isChecklistTemplateRequestShape(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) return false;
+  return (
+    CHECKLIST_CATEGORIES.includes(value.category as ChecklistCategoryDto) &&
+    typeof value.content === 'string' &&
+    CHECKLIST_IMPORTANCES.includes(value.importance as ChecklistImportanceDto) &&
+    CHECKLIST_ITEM_TYPES.includes(value.itemType as ChecklistItemTypeDto) &&
+    typeof value.displayOrder === 'number'
+  );
+}
 
 function notFound(message: string) {
   return NextResponse.json({ message }, { status: 404 });
@@ -55,6 +81,26 @@ function validateRequest(body: unknown): MockAdminActionRequest | null {
     case 'REPORT_DETAIL': {
       if (typeof body.reportId !== 'number') return null;
       return { action: 'REPORT_DETAIL', reportId: body.reportId };
+    }
+    case 'CHECKLIST_TEMPLATE_CREATE': {
+      if (!isChecklistTemplateRequestShape(body.request)) return null;
+      return {
+        action: 'CHECKLIST_TEMPLATE_CREATE',
+        request: body.request as unknown as AdminChecklistItemTemplateCreateRequestDto,
+      };
+    }
+    case 'CHECKLIST_TEMPLATE_UPDATE': {
+      if (typeof body.templateId !== 'number' || !isChecklistTemplateRequestShape(body.request)) return null;
+      if (typeof (body.request as Record<string, unknown>).active !== 'boolean') return null;
+      return {
+        action: 'CHECKLIST_TEMPLATE_UPDATE',
+        templateId: body.templateId,
+        request: body.request as unknown as AdminChecklistItemTemplateUpdateRequestDto,
+      };
+    }
+    case 'CHECKLIST_TEMPLATE_DELETE': {
+      if (typeof body.templateId !== 'number') return null;
+      return { action: 'CHECKLIST_TEMPLATE_DELETE', templateId: body.templateId };
     }
     default:
       return null;
@@ -100,6 +146,17 @@ export async function POST(request: Request) {
     case 'REPORT_DETAIL': {
       const detail = getMockAdminPropertyReportDetail(body.reportId);
       return detail ? NextResponse.json(detail) : notFound('신고를 찾을 수 없습니다.');
+    }
+    case 'CHECKLIST_TEMPLATE_CREATE': {
+      return NextResponse.json(createMockAdminChecklistItemTemplate(body.request));
+    }
+    case 'CHECKLIST_TEMPLATE_UPDATE': {
+      const updated = updateMockAdminChecklistItemTemplate(body.templateId, body.request);
+      return updated ? NextResponse.json(updated) : notFound('체크리스트 문항을 찾을 수 없습니다.');
+    }
+    case 'CHECKLIST_TEMPLATE_DELETE': {
+      const deleted = deleteMockAdminChecklistItemTemplate(body.templateId);
+      return deleted ? NextResponse.json({ ok: true }) : notFound('체크리스트 문항을 찾을 수 없습니다.');
     }
   }
 }

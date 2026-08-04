@@ -457,3 +457,48 @@ export type AdminDashboardStatsDto = {
   trends: AdminStatsTrendDto;
   distributions: AdminStatsDistributionDto;
 };
+
+// --- 관리자 페이지: 체크리스트 문항 템플릿 관리 (/admin/checklist-templates) ---
+// 이 문항 템플릿은 스냅샷 방식으로 유저 체크리스트에 복사되므로(checklist-design.md 참고),
+// 여기서의 수정/삭제는 이미 만들어진 유저 체크리스트에는 영향을 주지 않고 이후 생성되는
+// 체크리스트에만 반영된다.
+
+export type ChecklistItemCodeDto =
+  | 'TRUST_REGISTRATION'
+  | 'OWNERSHIP_MATCH'
+  | 'OWNERSHIP_ACQUISITION_DATE'
+  | 'TAX_DELINQUENCY_NOTICE'
+  | 'DATE_OF_CONFIRMATION_REQUEST'
+  | 'RESIDENT_REGISTRATION_REQUEST';
+
+export type AdminChecklistItemTemplateDto = {
+  id: number;
+  version: number;
+  code: ChecklistItemCodeDto | null;
+  category: ChecklistCategoryDto;
+  content: string;
+  guideText: string | null;
+  helperText: string | null;
+  importance: ChecklistImportanceDto;
+  itemType: ChecklistItemTypeDto;
+  displayOrder: number;
+  active: boolean;
+  applicablePropertyTypes: string | null;
+};
+
+// version은 서버가 자동 배정하므로 요청에 포함하지 않는다.
+export type AdminChecklistItemTemplateCreateRequestDto = {
+  category: ChecklistCategoryDto;
+  content: string;
+  guideText?: string | null;
+  helperText?: string | null;
+  importance: ChecklistImportanceDto;
+  itemType: ChecklistItemTypeDto;
+  code?: ChecklistItemCodeDto | null;
+  displayOrder: number;
+  applicablePropertyTypes?: string | null;
+};
+
+export type AdminChecklistItemTemplateUpdateRequestDto = AdminChecklistItemTemplateCreateRequestDto & {
+  active: boolean;
+};

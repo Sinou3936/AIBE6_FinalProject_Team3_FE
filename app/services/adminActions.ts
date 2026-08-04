@@ -1,6 +1,9 @@
 import { useMockData } from '../config/dataSource';
 import { requestJson } from '../lib/api/http';
 import {
+  type AdminChecklistItemTemplateCreateRequestDto,
+  type AdminChecklistItemTemplateDto,
+  type AdminChecklistItemTemplateUpdateRequestDto,
   type AdminPropertyReportDetailDto,
   type AdminPropertyReportReviewRequestDto,
   type AdminUserDetailDto,
@@ -71,4 +74,41 @@ export async function reviewAdminPropertyReport(
     method: 'PATCH',
     body: JSON.stringify(request),
   });
+}
+
+export async function createAdminChecklistItemTemplate(
+  request: AdminChecklistItemTemplateCreateRequestDto,
+): Promise<AdminChecklistItemTemplateDto> {
+  if (useMockData) {
+    return postMockAdminAction<AdminChecklistItemTemplateDto>({ action: 'CHECKLIST_TEMPLATE_CREATE', request });
+  }
+  return requestJson<AdminChecklistItemTemplateDto>('/admin/checklist-templates', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+export async function updateAdminChecklistItemTemplate(
+  templateId: number,
+  request: AdminChecklistItemTemplateUpdateRequestDto,
+): Promise<AdminChecklistItemTemplateDto> {
+  if (useMockData) {
+    return postMockAdminAction<AdminChecklistItemTemplateDto>({
+      action: 'CHECKLIST_TEMPLATE_UPDATE',
+      templateId,
+      request,
+    });
+  }
+  return requestJson<AdminChecklistItemTemplateDto>(`/admin/checklist-templates/${templateId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(request),
+  });
+}
+
+export async function deleteAdminChecklistItemTemplate(templateId: number): Promise<void> {
+  if (useMockData) {
+    await postMockAdminAction<{ ok: true }>({ action: 'CHECKLIST_TEMPLATE_DELETE', templateId });
+    return;
+  }
+  await requestJson<void>(`/admin/checklist-templates/${templateId}`, { method: 'DELETE' });
 }
