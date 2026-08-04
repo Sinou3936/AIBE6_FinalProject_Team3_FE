@@ -67,7 +67,7 @@ export async function proxy(request: NextRequest) {
   // 로그인하세요"가 아니라 "잠시 후 다시 시도하세요"를 보여주게 한다.
   //
   // next는 세 경우 모두 똑같이 넘긴다 — 로그인 폼/OAuth가 성공 후 이 값으로 복귀하므로
-  // (LoginFormClient.tsx, oauth/callback/route.ts 참고), next가 없으면 재로그인해도 항상
+  // (LoginFormClient.tsx, oauth/callback/page.tsx 참고), next가 없으면 재로그인해도 항상
   // 홈으로만 떨어진다.
   //
   // 에러 문구는 세 가지로 구분한다 — refreshToken 자체가 없었던 경우(애초에 로그인한 적 없음)는
