@@ -131,6 +131,9 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
             <div className="mb-8">
               <div className="mb-3 flex items-center gap-2">
                 <Badge className="rounded bg-teal-50 px-2 text-teal-700">{property.type}</Badge>
+                {property.propertyType && (
+                  <Badge className="rounded bg-slate-100 px-2 text-slate-600">{property.propertyType}</Badge>
+                )}
                 {property.createdAt && <span className="text-sm text-slate-400">등록일 {property.createdAt}</span>}
               </div>
               <h1 className="mb-2 text-2xl font-bold text-slate-950 md:text-3xl">{property.title}</h1>
