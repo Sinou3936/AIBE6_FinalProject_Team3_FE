@@ -8,6 +8,7 @@ const TABS = [
   { href: '/admin', label: '대시보드' },
   { href: '/admin/users', label: '유저 관리' },
   { href: '/admin/reports', label: '신고 관리' },
+  { href: '/admin/checklists', label: '체크리스트 관리' },
 ];
 
 export function AdminNav() {
