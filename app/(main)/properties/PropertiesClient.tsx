@@ -351,6 +351,9 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
               <div>
                 <div className="mb-3 flex flex-wrap items-center gap-2">
                   <Badge className="bg-teal-50 text-teal-700">{property.type}</Badge>
+                  {property.propertyType && (
+                    <Badge className="bg-slate-100 text-slate-600">{property.propertyType}</Badge>
+                  )}
                   {property.checkSignalCount !== undefined ? (
                     <Badge className={property.statusColor}>확인 필요 신호 {property.checkSignalCount}개</Badge>
                   ) : (
