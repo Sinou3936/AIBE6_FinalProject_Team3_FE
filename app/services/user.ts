@@ -5,6 +5,7 @@ import {
   checkMockNicknameAvailable,
   getMockUserProfile,
   registerMockUserProfile,
+  resetMockProfileImage,
   updateMockUserProfile,
   uploadMockProfileImage,
 } from '../repositories/userRepository';
@@ -77,6 +78,15 @@ export async function uploadProfileImage(file: File): Promise<UserProfile> {
     method: 'POST',
     body: JSON.stringify({ key: presigned.key } satisfies ProfileImageConfirmRequestDto),
   });
+  return mapUserProfileDto(dto);
+}
+
+export async function resetProfileImage(): Promise<UserProfile> {
+  if (useMockData) {
+    return resetMockProfileImage();
+  }
+
+  const dto = await requestJson<UserProfileDto>('/users/me/profile-image', { method: 'DELETE' });
   return mapUserProfileDto(dto);
 }
 

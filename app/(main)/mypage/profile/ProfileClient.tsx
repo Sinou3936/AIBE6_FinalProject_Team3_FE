@@ -7,7 +7,13 @@ import { useEffect, useState } from 'react';
 import { regions } from '../../../data/regions_nested';
 import { userCurrentStageOptions, userTransactionTypeOptions } from '../../../data/user';
 import { ApiError } from '../../../lib/api/http';
-import { checkNicknameAvailability, registerProfile, updateMyProfile, uploadProfileImage } from '../../../services/user';
+import {
+  checkNicknameAvailability,
+  registerProfile,
+  resetProfileImage,
+  updateMyProfile,
+  uploadProfileImage,
+} from '../../../services/user';
 import { type ProfileUpdateInput, type UserProfile } from '../../../types/domain';
 import { NoticeBox } from '../../../ui/NoticeBox';
 
@@ -107,6 +113,8 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string>();
   const [imageSelectError, setImageSelectError] = useState<string>();
+  // 기본 이미지로 되돌리기도 새 사진 선택과 마찬가지로 저장 버튼을 눌러야 실제로 반영된다.
+  const [imageResetRequested, setImageResetRequested] = useState(false);
   const [nicknameCheckStatus, setNicknameCheckStatus] = useState<
     'idle' | 'checking' | 'available' | 'duplicate' | 'error'
   >('idle');
@@ -146,6 +154,8 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
     }
 
     setImageSelectError(undefined);
+    // 새 파일을 고르면 이전에 눌러둔 "기본 이미지로 변경" 요청은 의미가 없어진다.
+    setImageResetRequested(false);
     setSelectedImageFile(file);
     setImagePreviewUrl((prev) => {
       if (prev) {
@@ -153,6 +163,15 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
       }
       return URL.createObjectURL(file);
     });
+  };
+
+  const handleRequestImageReset = () => {
+    setImageSelectError(undefined);
+    setImageResetRequested(true);
+  };
+
+  const handleCancelImageReset = () => {
+    setImageResetRequested(false);
   };
 
   const handleCancelImageSelection = () => {
@@ -216,10 +235,12 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
     setSaveError(undefined);
 
     try {
-      // 프로필 사진은 presign/confirm 전용 엔드포인트로 별도 처리한다 - registerProfile/updateMyProfile
-      // 둘 다 profileImageUrl을 받지 않는다.
+      // 프로필 사진은 presign/confirm(또는 삭제) 전용 엔드포인트로 별도 처리한다 -
+      // registerProfile/updateMyProfile 둘 다 profileImageUrl을 받지 않는다.
       if (selectedImageFile) {
         await uploadProfileImage(selectedImageFile);
+      } else if (imageResetRequested) {
+        await resetProfileImage();
       }
 
       if (mode === 'register') {
@@ -274,7 +295,7 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
                   {imagePreviewUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={imagePreviewUrl} alt="프로필 사진 미리보기" className="h-full w-full object-cover" />
-                  ) : profile.profileImageUrl && !imagePreviewError ? (
+                  ) : !imageResetRequested && profile.profileImageUrl && !imagePreviewError ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={profile.profileImageUrl}
@@ -307,11 +328,22 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
                         선택 취소
                       </button>
                     )}
+                    {!selectedImageFile && profile.profileImageUrl && (
+                      <button
+                        type="button"
+                        onClick={imageResetRequested ? handleCancelImageReset : handleRequestImageReset}
+                        className="text-sm font-bold text-slate-500 hover:text-slate-700"
+                      >
+                        {imageResetRequested ? '되돌리기 취소' : '기본 이미지로 변경'}
+                      </button>
+                    )}
                   </div>
                   {selectedImageFile && <p className="mt-1.5 text-xs text-slate-500">{selectedImageFile.name}</p>}
                   {imageSelectError && <p className="mt-1.5 text-sm text-red-600">{imageSelectError}</p>}
                   <p className="mt-1.5 text-xs text-slate-400">
-                    JPG, PNG · 5MB 이하 · {mode === 'register' ? '프로필 등록하기' : '프로필 저장하기'} 버튼을 눌러야 반영돼요.
+                    {imageResetRequested
+                      ? `기본 이미지로 변경됩니다 · ${mode === 'register' ? '프로필 등록하기' : '프로필 저장하기'} 버튼을 눌러야 반영돼요.`
+                      : `JPG, PNG · 5MB 이하 · ${mode === 'register' ? '프로필 등록하기' : '프로필 저장하기'} 버튼을 눌러야 반영돼요.`}
                   </p>
                 </div>
               </div>

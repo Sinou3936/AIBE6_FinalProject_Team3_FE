@@ -48,3 +48,8 @@ export function uploadMockProfileImage(previewUrl: string): UserProfile {
   mockUserProfileDto = { ...mockUserProfileDto, profileImageUrl: previewUrl };
   return mapUserProfileDto(mockUserProfileDto);
 }
+
+export function resetMockProfileImage(): UserProfile {
+  mockUserProfileDto = { ...mockUserProfileDto, profileImageUrl: null };
+  return mapUserProfileDto(mockUserProfileDto);
+}
