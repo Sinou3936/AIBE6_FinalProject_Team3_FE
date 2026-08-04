@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { roomTypeLabelMap } from '../mappers/property';
 import { uploadPropertyImage } from '../services/propertyImages';
 import { type RoomTypeDto } from '../types/api';
@@ -96,6 +96,20 @@ export function PropertyImageUploader({ value, onChange, disabled, maxCount = 10
     setItems((prev) => prev.filter((item) => item.id !== id));
   }
 
+  // 배열의 첫 항목을 대표사진으로 취급한다 (별도 필드 없이 순서로 표현).
+  // BE는 순서를 보장하는 컬럼(@OrderBy 등) 없이 저장 시점의 삽입 순서를 그대로 돌려주므로,
+  // 등록/수정 폼이 항상 전체 images 배열을 이 순서 그대로 제출하기만 하면 대표사진 지정이 유지된다.
+  function moveItem(id: string, direction: -1 | 1) {
+    setItems((prev) => {
+      const index = prev.findIndex((item) => item.id === id);
+      const targetIndex = index + direction;
+      if (index === -1 || targetIndex < 0 || targetIndex >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next;
+    });
+  }
+
   function updateRoomType(id: string, roomType: string) {
     setItems((prev) =>
       prev.map((item) => (item.id === id ? { ...item, roomType: (roomType || null) as RoomType | null } : item)),
@@ -120,14 +134,22 @@ export function PropertyImageUploader({ value, onChange, disabled, maxCount = 10
       </label>
 
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      {items.length > 1 && (
+        <p className="mt-2 text-xs text-slate-500">첫 번째 사진이 대표사진으로 노출돼요. 화살표로 순서를 바꿀 수 있어요.</p>
+      )}
 
       {items.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <div key={item.id} className="overflow-hidden rounded-xl border border-slate-200">
               <div className="relative h-28 w-full bg-slate-100">
                 {/* eslint-disable-next-line @next/next/no-img-element -- blob 미리보기 URL은 next/image가 지원하지 않음 */}
                 <img src={item.previewUrl} alt="" className="h-full w-full object-cover" />
+                {index === 0 && item.status !== 'error' && (
+                  <span className="absolute left-1 top-1 rounded-full bg-teal-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                    대표
+                  </span>
+                )}
                 {item.status === 'uploading' && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs font-bold text-white">
                     업로드 중...
@@ -146,6 +168,28 @@ export function PropertyImageUploader({ value, onChange, disabled, maxCount = 10
                 >
                   <X className="h-3 w-3" />
                 </button>
+                {items.length > 1 && item.status !== 'error' && (
+                  <div className="absolute inset-x-1 bottom-1 flex justify-between">
+                    <button
+                      type="button"
+                      onClick={() => moveItem(item.id, -1)}
+                      disabled={disabled || index === 0}
+                      aria-label="앞으로 이동"
+                      className="rounded-full bg-black/60 p-1 text-white disabled:opacity-30"
+                    >
+                      <ChevronLeft className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveItem(item.id, 1)}
+                      disabled={disabled || index === items.length - 1}
+                      aria-label="뒤로 이동"
+                      className="rounded-full bg-black/60 p-1 text-white disabled:opacity-30"
+                    >
+                      <ChevronRight className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
               </div>
               {item.status === 'done' && (
                 <select

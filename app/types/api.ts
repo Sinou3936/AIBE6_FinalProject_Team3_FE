@@ -268,6 +268,9 @@ export type PropertyImageUploadUrlRequestDto = {
 export type PropertyImageUploadUrlResponseDto = {
   uploadUrl: string;
   key: string;
+  // S3에 직접 PUT할 때 x-amz-tagging 헤더에 그대로 실어 보내야 하는 값. presign 서명에 포함돼
+  // 있어 값이 다르면 S3가 403을 반환한다 (BE PropertyImageUploadUrlResponse.tagging 참고).
+  tagging: string;
 };
 
 // POST /properties/images/confirm 요청/응답. S3에 실제 업로드가 끝난 뒤 이 key로 호출하면

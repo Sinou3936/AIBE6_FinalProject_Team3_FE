@@ -42,7 +42,7 @@ export async function uploadPropertyImage(file: File): Promise<string> {
     return URL.createObjectURL(file);
   }
 
-  const { uploadUrl, key } = await issueUploadUrl({
+  const { uploadUrl, key, tagging } = await issueUploadUrl({
     fileExtension: fileExtensionOf(file),
     contentType: file.type,
     fileSize: file.size,
@@ -50,7 +50,9 @@ export async function uploadPropertyImage(file: File): Promise<string> {
 
   const putResponse = await fetch(uploadUrl, {
     method: 'PUT',
-    headers: { 'Content-Type': file.type },
+    // x-amz-tagging은 presign 서명에 포함된 값이라 정확히 일치해야 한다 - 하드코딩하지 않고
+    // BE 응답값을 그대로 쓴다 (BE가 태그 정책을 바꿔도 FE 수정 없이 따라가도록).
+    headers: { 'Content-Type': file.type, 'x-amz-tagging': tagging },
     body: file,
   });
   if (!putResponse.ok) {
