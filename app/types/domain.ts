@@ -252,7 +252,6 @@ export type UserProfile = {
 
 export type ProfileUpdateInput = {
   nickname: string;
-  profileImageUrl: string;
   interestRegion: string;
   transactionType: UserTransactionType | null;
   currentStage: UserCurrentStage | null;
