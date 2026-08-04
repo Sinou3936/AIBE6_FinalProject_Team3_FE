@@ -18,6 +18,7 @@ type PropertyEditClientProps = {
 export function PropertyEditClient({ propertyId, property, loadError }: PropertyEditClientProps) {
   const router = useRouter();
 
+  const [title, setTitle] = useState(property?.title ?? '');
   const [deposit, setDeposit] = useState(
     property?.depositAmount !== undefined ? formatIntegerInput(String(property.depositAmount)) : '',
   );
@@ -51,6 +52,10 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
     const depositNumber = Number(deposit.replace(/,/g, ''));
     const areaNumber = Number(area.replace(/,/g, ''));
 
+    if (title.trim().length === 0) {
+      setError('매물 이름을 입력해주세요.');
+      return;
+    }
     if (!deposit || Number.isNaN(depositNumber) || depositNumber <= 0) {
       setError('보증금을 올바르게 입력해주세요.');
       return;
@@ -72,6 +77,7 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
     setIsSubmitting(true);
     try {
       await updateProperty(propertyId, {
+        title: title.trim(),
         deposit: depositNumber,
         monthlyRent: monthlyRentNumber,
         area: areaNumber,
@@ -112,12 +118,23 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
             <p className="text-slate-500">
               매물/거래 유형 ·{' '}
               <span className="font-semibold text-slate-700">
-                {property.title} · {property.type}
+                {property.propertyType} · {property.type}
               </span>
             </p>
           </div>
 
           <div className="space-y-5">
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-slate-700">매물 이름</span>
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                disabled={isSubmitting}
+                className="ansim-input disabled:opacity-60"
+                placeholder="예: 강남 오피스텔"
+              />
+            </label>
+
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block">
                 <span className="mb-2 block text-sm font-bold text-slate-700">보증금 (원)</span>

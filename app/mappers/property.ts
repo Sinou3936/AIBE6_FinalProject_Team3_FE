@@ -91,7 +91,7 @@ function formatDepositText(
 export function mapPropertyListItemDto(dto: PropertyListItemDto): PropertySummary {
   return {
     id: dto.propertyId,
-    title: `${propertyTypeLabelMap[dto.propertyType]} 매물`,
+    title: dto.title,
     address: dto.roadAddress ?? dto.jibunAddress ?? '주소 정보 없음',
     type: propertyTransactionTypeLabelMap[dto.transactionType],
     deposit: formatDepositText(dto.transactionType, dto.deposit, dto.monthlyRent),
@@ -145,7 +145,7 @@ function mapMarketComparisonDto(dto: MarketComparisonDto): PropertyMarketCompari
 export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): PropertyDetail {
   return {
     id: dto.propertyId,
-    title: `${propertyTypeLabelMap[dto.propertyType]} 매물`,
+    title: dto.title,
     address: dto.address.roadAddress ?? dto.address.jibunAddress ?? '주소 정보 없음',
     type: propertyTransactionTypeLabelMap[dto.transactionType],
     deposit: formatDepositText(dto.transactionType, dto.deposit, dto.monthlyRent),

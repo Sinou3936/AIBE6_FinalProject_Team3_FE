@@ -227,6 +227,7 @@ export type PropertyTransactionTypeDto = 'JEONSE' | 'MONTHLY_RENT';
 export type PropertyStatusDto = 'ACTIVE' | 'DELETED';
 
 export type CreatePropertyRequestDto = {
+  title: string;
   address: string;
   propertyType: PropertyTypeDto;
   transactionType: PropertyTransactionTypeDto;
@@ -266,6 +267,7 @@ export type CreatePropertyResponseDto = {
 
 export type PropertyListItemDto = {
   propertyId: number;
+  title: string;
   propertyType: PropertyTypeDto;
   transactionType: PropertyTransactionTypeDto;
   deposit: number;
@@ -289,6 +291,7 @@ export type PropertyDetailAddressDto = {
 // GET /properties/{id} 응답. 목록과 달리 설명/이미지/전체 주소/시세비교까지 포함한다.
 export type PropertyDetailResponseDto = {
   propertyId: number;
+  title: string;
   propertyType: PropertyTypeDto;
   transactionType: PropertyTransactionTypeDto;
   deposit: number;
@@ -309,6 +312,7 @@ export type PropertyDetailResponseDto = {
 // PATCH /properties/{id} 요청. 주소/매물유형/거래유형은 등록 시 확정값이라 수정 대상에서 제외된다
 // (변경하려면 재등록 필요 - BE PropertyUpdateRequest 주석 참고).
 export type UpdatePropertyRequestDto = {
+  title: string;
   deposit: number;
   monthlyRent?: number | null;
   area: number;

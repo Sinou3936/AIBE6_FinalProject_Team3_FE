@@ -18,6 +18,7 @@ import { LoadingOverlay } from '../../../ui/LoadingOverlay';
 export default function Page() {
   const router = useRouter();
 
+  const [title, setTitle] = useState('');
   const [address, setAddress] = useState('');
   const [propertyType, setPropertyType] = useState<PropertyTypeDto>('OFFICETEL');
   const [transactionType, setTransactionType] = useState<PropertyTransactionTypeDto>('JEONSE');
@@ -36,6 +37,10 @@ export default function Page() {
     const depositNumber = Number(deposit.replace(/,/g, ''));
     const areaNumber = Number(area.replace(/,/g, ''));
 
+    if (title.trim().length === 0) {
+      setError('매물 이름을 입력해주세요.');
+      return;
+    }
     if (address.trim().length === 0) {
       setError('주소를 입력해주세요.');
       return;
@@ -61,6 +66,7 @@ export default function Page() {
     setIsSubmitting(true);
     try {
       const response = await createProperty({
+        title: title.trim(),
         address: address.trim(),
         propertyType,
         transactionType,
@@ -100,6 +106,17 @@ export default function Page() {
           <p className="mb-6 text-sm text-slate-600">입력된 값은 실거래가 비교와 보증금 안전성 계산에 사용됩니다.</p>
 
           <div className="space-y-5">
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-slate-700">매물 이름</span>
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                disabled={isSubmitting}
+                className="ansim-input disabled:opacity-60"
+                placeholder="예: 강남 오피스텔"
+              />
+            </label>
+
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-slate-700">주소</span>
               <input
