@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { parsePageParam } from '../../../lib/pageParam';
 import { getAdminUsers } from '../../../services/admin';
 import { getCurrentUser } from '../../../services/auth';
 import { type AdminUserListItemDto, type PageResponseDto } from '../../../types/api';
@@ -13,7 +14,7 @@ type PageProps = {
 export default async function AdminUsersPage({ searchParams }: PageProps) {
   const params = await searchParams;
   const cookieHeader = (await cookies()).toString();
-  const page = params.page ? Number(params.page) : 0;
+  const page = parsePageParam(params.page);
 
   let data: PageResponseDto<AdminUserListItemDto> | undefined;
   let loadError: string | undefined;
