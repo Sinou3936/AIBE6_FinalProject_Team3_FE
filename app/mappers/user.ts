@@ -37,7 +37,6 @@ export function mapUserProfileDto(dto: UserProfileDto): UserProfile {
 export function mapProfileUpdateInputToDto(input: ProfileUpdateInput): ProfileUpdateRequestDto {
   return {
     nickname: input.nickname,
-    profileImageUrl: input.profileImageUrl,
     interestRegion: input.interestRegion,
     transactionType: input.transactionType ? transactionTypeDomainToDto[input.transactionType] : undefined,
     currentStage: input.currentStage ?? undefined,

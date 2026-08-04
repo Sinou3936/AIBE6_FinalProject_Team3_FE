@@ -35,10 +35,21 @@ export function updateMockUserProfile(input: ProfileUpdateInput): UserProfile {
   mockUserProfileDto = {
     ...mockUserProfileDto,
     ...(patch.nickname !== undefined && { nickname: patch.nickname }),
-    ...(patch.profileImageUrl !== undefined && { profileImageUrl: patch.profileImageUrl }),
     ...(patch.interestRegion !== undefined && { interestRegion: patch.interestRegion }),
     ...(patch.transactionType !== undefined && { transactionType: patch.transactionType }),
     ...(patch.currentStage !== undefined && { currentStage: patch.currentStage }),
   };
+  return mapUserProfileDto(mockUserProfileDto);
+}
+
+// 목데이터 환경엔 실제 S3가 없으므로 presign/PUT/confirm 3단계를 흉내내는 대신, 이미 브라우저가
+// 들고 있는 로컬 미리보기 URL(object URL)을 그대로 저장된 profileImageUrl처럼 취급한다.
+export function uploadMockProfileImage(previewUrl: string): UserProfile {
+  mockUserProfileDto = { ...mockUserProfileDto, profileImageUrl: previewUrl };
+  return mapUserProfileDto(mockUserProfileDto);
+}
+
+export function resetMockProfileImage(): UserProfile {
+  mockUserProfileDto = { ...mockUserProfileDto, profileImageUrl: null };
   return mapUserProfileDto(mockUserProfileDto);
 }
