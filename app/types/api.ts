@@ -134,6 +134,15 @@ export type OcrExtractResponseDto = {
   uncertainFields: ContractOcrUncertainField[];
 };
 
+// upload -> result 페이지 전달용 조합 페이로드. 백엔드가 내려주는 단일 응답이 아니라, OCR 단계의
+// uncertainFields와 마스킹 단계의 maskedText/maskedCount를 FE가 한 번에 묶어 query string에 싣는다.
+// 텍스트 직접 입력 경로는 OCR을 안 거치므로 uncertainFields가 항상 빈 배열이다.
+export type ContractMaskingReviewPayload = {
+  maskedText: string;
+  maskedCount: number;
+  uncertainFields: ContractOcrUncertainField[];
+};
+
 export type ContractMaskingRequestDto = {
   text: string;
 };
