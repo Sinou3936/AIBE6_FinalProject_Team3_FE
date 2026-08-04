@@ -72,7 +72,7 @@ export async function uploadProfileImage(file: File): Promise<UserProfile> {
     } satisfies ProfileImagePresignRequestDto),
   });
 
-  await putFileToPresignedUrl(presigned.uploadUrl, file);
+  await putFileToPresignedUrl(presigned.uploadUrl, file, presigned.tagging);
 
   const dto = await requestJson<UserProfileDto>('/users/me/profile-image/confirm', {
     method: 'POST',
@@ -93,11 +93,17 @@ export async function resetProfileImage(): Promise<UserProfile> {
 const UPLOAD_FAILED_MESSAGE = '프로필 사진 업로드에 실패했습니다. 잠시 후 다시 시도해 주세요.';
 
 // presigned URL은 우리 API 서버가 아니라 S3 버킷을 직접 가리키므로 requestJson(항상 API_BASE_URL과
-// credentials을 붙임)을 쓸 수 없다 - 인증 쿠키 없이, 서명이 요구하는 Content-Type/바이트만 그대로 보낸다.
-async function putFileToPresignedUrl(uploadUrl: string, file: File): Promise<void> {
+// credentials을 붙임)을 쓸 수 없다 - 인증 쿠키 없이, 서명이 요구하는 Content-Type/x-amz-tagging/바이트만
+// 그대로 보낸다. tagging 값은 presign 서명에 포함된 값과 정확히 일치해야 하며(다르면 403), 백엔드가
+// 버킷 Lifecycle 규칙과 짝지어 고아 객체(업로드만 하고 confirm 없이 이탈)를 자동 정리하는 데 쓴다.
+async function putFileToPresignedUrl(uploadUrl: string, file: File, tagging: string): Promise<void> {
   let response: Response;
   try {
-    response = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+    response = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': file.type, 'x-amz-tagging': tagging },
+      body: file,
+    });
   } catch {
     throw new ApiError(UPLOAD_FAILED_MESSAGE, 0);
   }
