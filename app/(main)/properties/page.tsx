@@ -91,9 +91,14 @@ function PropertiesPageContent() {
       })
       .catch((error) => {
         if (cancelled) return;
+        console.error('Failed to load properties', error);
         const errorBody = error instanceof ApiError ? error.body : null;
         if (errorBody && errorBody.code === 'PROPERTY_INVALID_SEARCH_CONDITION') {
           setLoadError(errorBody.message);
+        } else if (error instanceof ApiError && error.sessionRefreshOutcome === 'unreachable') {
+          // 세션 확인 자체(자동 refresh 시도)가 네트워크/CORS 문제로 실패한 경우 - 배포 직후
+          // 설정 오류를 "매물 정보 없음"과 구분해 진단하기 쉽게 한다.
+          setLoadError('서버와 통신할 수 없습니다. 잠시 후 다시 시도해 주세요.');
         } else {
           setLoadError('매물 정보를 불러오지 못했습니다. API 설정을 확인해 주세요.');
         }

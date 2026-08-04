@@ -36,7 +36,8 @@ export default function PasswordUpdatePage() {
           setHasPassword(profile.hasPassword);
           setEmail(profile.email);
         })
-        .catch(() => {
+        .catch((error) => {
+          console.error('Failed to load profile', error);
           if (!cancelled) setProfileLoadFailed(true);
         }),
       // 조회 실패해도 폴백 정책으로 폼은 계속 동작해야 한다.
@@ -44,7 +45,9 @@ export default function PasswordUpdatePage() {
         .then((policy) => {
           if (!cancelled) setPasswordPolicy(policy);
         })
-        .catch(() => {}),
+        .catch((error) => {
+          console.error('Failed to load password policy, using fallback', error);
+        }),
     ]).finally(() => {
       if (!cancelled) setLoading(false);
     });

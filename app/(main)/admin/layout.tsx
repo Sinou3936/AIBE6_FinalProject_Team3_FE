@@ -23,7 +23,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           setState(me.role === 'ADMIN' ? 'authorized' : 'forbidden');
         }
       })
-      .catch(() => {
+      .catch((error) => {
+        // 실패 사유(진짜 권한 없음 vs CORS/네트워크 오류)를 사용자에게는 구분해서 보여주지
+        // 않는다 - 관리자가 아닌 사용자에게 "설정 오류"와 "권한 없음"을 구분해 알려주면 이 경로가
+        // 존재한다는 사실 자체가 새어나간다. 대신 배포 직후 진단용으로 콘솔에만 남긴다.
+        console.error('Admin role check failed', error);
         if (!cancelled) {
           setState('forbidden');
         }
