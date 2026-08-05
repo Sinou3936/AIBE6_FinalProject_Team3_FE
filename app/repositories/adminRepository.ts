@@ -25,11 +25,9 @@ import { type AdminPropertyReportSearchParams, type AdminUserSearchParams } from
 // 더 이상 server-only로 막아둘 수 없게 됐다 - services/admin.ts(GET)가 여기를 정적으로
 // import하는데, 'use client' 페이지에서 그 체인을 타면 "server-only 모듈을 Client Component에
 // import" 빌드 에러가 난다. mock 데이터는 민감하지 않은 로컬 개발용 시드값이라 브라우저 번들에
-// 포함돼도 문제없다. 다만 아래 globalThis 공유는 원래 "Route Handler와 Server Component가 서로
-// 다른 모듈 그래프로 컴파일되는" 서버 사이드 전용 문제를 우회하기 위한 것이었다 - 이제 읽기
-//경로는 브라우저에서 실행되므로 그 문제 자체가 없고(모듈 그래프 분리는 서버 컴파일 얘기), 브라우저
-// 탭마다 독립된 상태로 시작한다(새로고침 시 초기화). adminActions.ts의 mutation(PATCH)은 여전히
-// Route Handler를 거치도록 분리되어 있으므로, 그쪽과는 애초에 상태를 공유하지 않는다.
+// 포함돼도 문제없다. 읽기(services/admin.ts)와 쓰기(services/adminActions.ts) 둘 다 이제
+// 브라우저에서 직접 이 모듈을 import해 같은 globalThis 상태를 보므로, mutation 후 목록을 다시
+// 읽어도 항상 최신 값이 보인다 - 브라우저 탭마다 독립된 상태로 시작한다(새로고침 시 초기화).
 type AdminMockState = {
   users: AdminUserListItemDto[];
   reports: AdminPropertyReportListItemDto[];
