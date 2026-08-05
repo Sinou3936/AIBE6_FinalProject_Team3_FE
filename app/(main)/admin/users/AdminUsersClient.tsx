@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { updateAdminUserRole, updateAdminUserStatus } from '../../../services/adminActions';
@@ -46,6 +46,19 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
   const [action, setAction] = useState<ActiveAction | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | undefined>();
+
+  // 검색창 로컬 state는 useState(filters.x)로 최초 1회만 seed되므로, 브라우저 뒤로/앞으로가기로
+  // filters props만 바뀌는 경우(page.tsx가 searchParams를 다시 읽어 내려줌)에는 반영되지 않아
+  // 테이블은 새 필터 결과를 보여주는데 검색창은 이전 값을 계속 보여주는 것처럼 어긋난다.
+  // filters가 바뀔 때마다 로컬 state를 다시 맞춰준다.
+  useEffect(() => {
+    // filters가 바뀌어 이 effect가 재실행될 때만 의미 있는 재설정이다(최초 실행 시 초기값과 동일).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setEmail(filters.email);
+    setNickname(filters.nickname);
+    setRole(filters.role);
+    setStatus(filters.status);
+  }, [filters.email, filters.nickname, filters.role, filters.status]);
 
   function navigate(next: Partial<Filters & { page: number }>) {
     const merged = { email, nickname, role, status, page: 0, ...next };

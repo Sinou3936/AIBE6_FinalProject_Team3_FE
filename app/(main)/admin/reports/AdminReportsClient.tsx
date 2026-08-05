@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAdminPropertyReportDetail, reviewAdminPropertyReport } from '../../../services/adminActions';
 import {
@@ -50,6 +50,16 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
   const [detailError, setDetailError] = useState<string | undefined>();
   const [memo, setMemo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // 필터 select의 로컬 state는 useState(filters.x)로 최초 1회만 seed되므로, 브라우저 뒤로/앞으로
+  // 가기로 filters props만 바뀌는 경우엔 반영되지 않아 테이블은 새 필터 결과를 보여주는데 select는
+  // 이전 값을 계속 보여주는 것처럼 어긋난다. filters가 바뀔 때마다 로컬 state를 다시 맞춰준다.
+  useEffect(() => {
+    // filters가 바뀌어 이 effect가 재실행될 때만 의미 있는 재설정이다(최초 실행 시 초기값과 동일).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStatus(filters.status);
+    setReason(filters.reason);
+  }, [filters.status, filters.reason]);
 
   function navigate(next: Partial<Filters & { page: number }>) {
     const merged = { status, reason, page: 0, ...next };
