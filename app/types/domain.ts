@@ -23,8 +23,9 @@ export type PropertySummary = {
   type: PropertyTradeType;
   deposit: string;
   propertyType?: string;
-  // 아래 필드들은 기능4(허위매물 신호)/기능5(전세가율)가 아직 백엔드에 없어서
-  // 실제 API로 받아온 매물은 undefined다. mock 데이터는 계속 값을 채워서 내려준다.
+  // checkSignalCount/jeonseRatio는 기능4(허위매물 신호)/기능5(전세가율)가 아직 목록 응답에 없어서
+  // 실제 API로 받아온 매물은 undefined다. marketDelta는 시세비교가 AVAILABLE일 때만 채워지고,
+  // UNAVAILABLE(판정불가)이거나 아직 계산 전이면 undefined다. mock 데이터는 전부 값을 채워서 내려준다.
   maintenance?: string;
   marketDelta?: string;
   checkSignalCount?: number;
