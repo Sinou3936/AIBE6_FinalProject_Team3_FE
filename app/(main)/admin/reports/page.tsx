@@ -2,7 +2,7 @@
 
 import { Loader2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { parsePageParam } from '../../../lib/pageParam';
 import { getAdminPropertyReports } from '../../../services/admin';
 import { type AdminPropertyReportListItemDto, type PageResponseDto } from '../../../types/api';
@@ -25,13 +25,22 @@ function AdminReportsPageContent() {
   // 이 화면 전체가 client component라 router.refresh()가 다시 가져올 Server Component 데이터가
   // 없다 - AdminReportsClient가 신고 처리에 성공한 뒤 목록을 다시 그리려면 이 fetch를 직접 다시
   // 호출해야 한다.
+  //
+  // requestIdRef: 필터를 빠르게 바꾸면 이전 필터의 느린 응답이 최신 필터의 빠른 응답보다 늦게
+  // 도착할 수 있다 - 매 호출마다 순번을 매겨서, 응답이 왔을 때 그게 여전히 최신 호출인지 확인한
+  // 뒤에만 state를 쓴다. useEffect의 cancelled 플래그는 loading만 지켜줄 뿐 이 함수 내부 쓰기는
+  // 못 막는다(onMutated로 effect 밖에서도 호출되므로 더더욱 그렇다).
+  const requestIdRef = useRef(0);
   const reloadReports = useCallback(() => {
+    const requestId = ++requestIdRef.current;
     return getAdminPropertyReports({ page, status: apiStatus, reason })
       .then((result) => {
+        if (requestId !== requestIdRef.current) return;
         setData(result);
         setLoadError(undefined);
       })
       .catch(() => {
+        if (requestId !== requestIdRef.current) return;
         setLoadError('신고 목록을 불러오지 못했습니다.');
       });
   }, [page, apiStatus, reason]);

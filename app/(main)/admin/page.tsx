@@ -39,7 +39,10 @@ function AdminPageContent() {
     setLoading(true);
     getAdminDashboardStats({ startDate, endDate })
       .then((data) => {
-        if (!cancelled) setStats(data);
+        if (!cancelled) {
+          setStats(data);
+          setLoadError(undefined);
+        }
       })
       .catch(() => {
         if (!cancelled) setLoadError('통계를 불러오지 못했습니다. 조회 기간을 확인해주세요.');
