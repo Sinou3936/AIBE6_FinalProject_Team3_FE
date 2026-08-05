@@ -357,6 +357,7 @@ export type PropertyListItemDto = {
   createdAt: string;
   // 체크리스트를 아예 시작 안 했으면 null(분모가 없음), 시작했으면 0~100 사이 정수(반올림).
   checklistProgress: number | null;
+  marketComparison: MarketComparisonDto;
 };
 
 export type PropertyDetailAddressDto = {
