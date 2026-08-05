@@ -20,6 +20,7 @@ function AdminUsersPageContent() {
   const [data, setData] = useState<PageResponseDto<AdminUserListItemDto> | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | undefined>(undefined);
   const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
+  const [currentUserError, setCurrentUserError] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
   // 이 화면 전체가 client component라 router.refresh()가 다시 가져올 Server Component 데이터가
@@ -54,8 +55,19 @@ function AdminUsersPageContent() {
 
     Promise.all([
       reloadUsers(),
-      // admin/layout.tsx가 이미 이 요청의 role을 확인해 통과시켰으므로 여기서 실패할 일은 없다.
-      getCurrentUser().then((me) => me.userId),
+      // admin/layout.tsx가 이미 이 요청의 role을 확인해 통과시켰지만, 그 확인과 이 fetch 사이의
+      // 네트워크/CORS 순간 장애나 세션 만료까지 막아주진 않는다 - 여기서 실패를 안 잡으면
+      // Promise.all 전체가 reject되어 currentUserId가 영영 undefined로 남고, 아래 렌더링
+      // 조건(loading || currentUserId === undefined) 때문에 스피너에 영원히 갇힌다.
+      getCurrentUser()
+        .then((me) => me.userId)
+        .catch((error) => {
+          console.error('Failed to load current user', error);
+          if (!cancelled) {
+            setCurrentUserError('현재 로그인한 계정 정보를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.');
+          }
+          return undefined;
+        }),
     ])
       .then(([, userId]) => {
         if (cancelled) return;
@@ -70,10 +82,23 @@ function AdminUsersPageContent() {
     };
   }, [reloadUsers]);
 
-  if (loading || currentUserId === undefined) {
+  if (loading) {
     return (
       <div className="flex min-h-[30vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+      </div>
+    );
+  }
+
+  // currentUserId 없이는 AdminUsersClient가 "본인 계정" 판단을 할 수 없으므로 렌더링할 수 없다 -
+  // loading이 끝났는데도 여전히 undefined라면 getCurrentUser()가 실패한 것이니, 스피너를 계속
+  // 보여주는 대신 에러를 보여준다.
+  if (currentUserId === undefined) {
+    return (
+      <div className="flex min-h-[30vh] items-center justify-center">
+        <div className="ansim-card border-red-100 bg-red-50 p-6 text-sm text-red-700">
+          {currentUserError ?? '현재 로그인한 계정 정보를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.'}
+        </div>
       </div>
     );
   }
