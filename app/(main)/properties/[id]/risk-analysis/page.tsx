@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getPropertyById } from '../../../../services/properties';
-import { getDepositSafety, getRiskSignals } from '../../../../services/risk-analysis';
+import { checkRiskSignals, getDepositSafety, getRiskSignals } from '../../../../services/risk-analysis';
 import { type DepositSafetyCheck, type PropertyDetail, type RiskSignalList } from '../../../../types/domain';
 import { RiskAnalysisClient } from './RiskAnalysisClient';
 
@@ -25,7 +25,14 @@ export default function Page() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
 
-    Promise.all([getRiskSignals(propertyId), getDepositSafety(propertyId)])
+    // 이 페이지는 매물 상세 화면을 거치지 않고 직접 진입(북마크/새로고침 등)할 수도 있어서,
+    // GET으로 결과를 읽기 전에 POST /risk-analysis로 먼저 판정·저장을 트리거한다 - 안 그러면
+    // 한 번도 계산된 적 없는 매물은 계속 "판정 불가"만 보이게 된다(PropertyDetailClient의
+    // page.tsx가 이미 쓰고 있는 것과 동일한 패턴). checkAndSave가 신호 4종과 보증금 안전성을
+    // 함께 계산·저장하므로, 트리거가 끝난 뒤에 두 GET을 이어서 호출해야 방금 저장된 최신 결과를
+    // 받는다(병렬로 쏘면 트리거가 끝나기 전에 GET이 먼저 응답할 수 있음).
+    checkRiskSignals(propertyId)
+      .then(() => Promise.all([getRiskSignals(propertyId), getDepositSafety(propertyId)]))
       .then(([signals, safety]) => {
         if (!cancelled) {
           setRiskSignals(signals);
