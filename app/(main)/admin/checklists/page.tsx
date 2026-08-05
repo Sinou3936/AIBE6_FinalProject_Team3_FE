@@ -28,6 +28,9 @@ export default function AdminChecklistsPage() {
       })
       .catch(() => {
         if (requestId !== requestIdRef.current) return;
+        // data를 그대로 두면 에러 배너 아래 이전 목록이 최신인 것처럼 계속 보인다 - 실패했으면
+        // 화면에는 에러만 남긴다.
+        setData(undefined);
         setLoadError('체크리스트 문항을 불러오지 못했습니다.');
       });
   }, []);
