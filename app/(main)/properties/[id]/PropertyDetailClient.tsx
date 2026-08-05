@@ -1,20 +1,56 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
-import { ArrowLeft, Calendar, Heart, Home, MapPin, Maximize, Share2, TrendingUp, User } from 'lucide-react';
 import Link from 'next/link';
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { priceData, riskSummaries } from '../../../data/property-detail';
-import { type PropertySummary } from '../../../types/domain';
+import { useRouter } from 'next/navigation';
+import {
+  ArrowLeft,
+  Building2,
+  Calendar,
+  CheckCircle2,
+  Flag,
+  ImageOff,
+  Maximize,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
+import { riskSummaries } from '../../../data/property-detail';
+import { roomTypeLabelMap } from '../../../mappers/property';
+import { deleteProperty } from '../../../services/properties';
+import { type PropertyDetail } from '../../../types/domain';
 import { Badge } from '../../../ui/Badge';
 import { KakaoMap } from '../../../ui/KakaoMap';
+import { Modal } from '../../../ui/Modal';
+import { NoticeBox } from '../../../ui/NoticeBox';
+import { PropertyDeleteConfirmModal } from './PropertyDeleteConfirmModal';
+import { PropertyReportModal } from './PropertyReportModal';
 
 type PropertyDetailClientProps = {
-  property?: PropertySummary;
+  property?: PropertyDetail;
   loadError?: string;
 };
 
+// "+3%"/"−4%" 같은 부호 표기를 사실 기반 문구로 바꾼다 (문구 정책: 절대적 안전/위험 단정 금지,
+// 수치 기반 사실 표현만 사용 - AGENTS.md "Copy / wording policy" 참고).
+function formatDifferenceMessage(differenceRateText?: string): string {
+  if (!differenceRateText) {
+    return '정보 없음';
+  }
+  const isHigher = differenceRateText.startsWith('+');
+  const percent = differenceRateText.replace(/[+-]/g, '');
+  return `시세보다 ${percent} ${isHigher ? '높은' : '낮은'} 가격이에요`;
+}
+
 export function PropertyDetailClient({ property, loadError }: PropertyDetailClientProps) {
+  const router = useRouter();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+
   if (loadError || !property) {
     return (
       <div className="container mx-auto flex min-h-[60vh] max-w-3xl flex-col items-center justify-center px-4 text-center">
@@ -29,90 +65,156 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
     );
   }
 
+  async function confirmDelete() {
+    if (!property) return;
+
+    setDeleteError(null);
+    setIsDeleting(true);
+    try {
+      await deleteProperty(property.id);
+      router.push('/properties');
+    } catch {
+      setDeleteError('매물 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.');
+      setIsDeleting(false);
+    }
+  }
+
+  // imageUrls(string[])이 아니라 images(구조화된 PropertyImage[])를 써야 헤더 캐러셀에도
+  // roomType 라벨을 붙일 수 있다 - 갤러리 모달은 이미 images를 쓰고 있었음.
+  const images = property.images;
+  // 이번 세션에서 막 신고에 성공한 경우(reportSuccess)와, 이전에 이미 신고해둔 경우(property.reported)
+  // 둘 다 "이미 신고했음" 상태로 취급한다 - 상세조회 응답은 페이지를 새로 불러와야 반영되므로.
+  const alreadyReported = property.reported === true || reportSuccess;
+
   return (
     <div className="min-h-screen bg-white pb-24">
-      <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-slate-100 bg-white/90 px-4 backdrop-blur md:hidden">
-        <button className="-ml-2 p-2 text-slate-600">
+      <div className="sticky top-0 z-30 flex h-14 items-center border-b border-slate-100 bg-white/90 px-4 backdrop-blur md:hidden">
+        <Link href="/properties" className="-ml-2 p-2 text-slate-600">
           <ArrowLeft className="h-6 w-6" />
-        </button>
-        <div className="flex items-center gap-2">
-          <button className="p-2 text-slate-600">
-            <Share2 className="h-5 w-5" />
-          </button>
-          <button className="p-2 text-slate-600">
-            <Heart className="h-5 w-5" />
-          </button>
-        </div>
+        </Link>
       </div>
 
       <div className="container mx-auto max-w-5xl px-0 md:px-4 md:pt-8">
-        <div className="grid h-[300px] grid-cols-1 gap-2 overflow-hidden md:h-[450px] md:grid-cols-3 md:rounded-2xl">
-          <div className="relative md:col-span-2">
-            <Image
-              src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1000"
-              alt="원룸 내부"
-              fill
-              sizes="(min-width: 768px) 66vw, 100vw"
-              className="object-cover"
-            />
-            <div className="absolute bottom-4 left-4 rounded-full bg-black/55 px-3 py-1 text-xs text-white md:hidden">
-              1 / 5
-            </div>
-          </div>
-          <div className="hidden grid-rows-2 gap-2 md:grid">
-            <div className="relative">
+        {images.length > 0 ? (
+          <div className="grid h-[300px] grid-cols-1 gap-2 overflow-hidden md:h-[450px] md:grid-cols-3 md:rounded-2xl">
+            <button
+              type="button"
+              onClick={() => setIsGalleryOpen(true)}
+              className="relative md:col-span-2"
+            >
               <Image
-                src="https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&q=80&w=500"
-                alt="주방"
+                src={images[0].imageUrl}
+                alt={property.title}
                 fill
-                sizes="33vw"
+                sizes="(min-width: 768px) 66vw, 100vw"
                 className="object-cover"
               />
-            </div>
-            <div className="relative">
-              <Image
-                src="https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&q=80&w=500"
-                alt="거실"
-                fill
-                sizes="33vw"
-                className="object-cover"
-              />
-              <div className="absolute inset-0 flex items-center justify-center bg-black/40 font-bold text-white">
-                +3장 더보기
+              {images[0].roomType && (
+                <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-xs font-bold text-white">
+                  {roomTypeLabelMap[images[0].roomType]}
+                </span>
+              )}
+            </button>
+            {images.length > 1 && (
+              <div className="hidden grid-rows-2 gap-2 md:grid">
+                {images.slice(1, 3).map((image, index) => {
+                  // 3번째 칸(index 1, 실제로는 전체 4번째 사진)에 남은 장수를 오버레이로 보여준다 -
+                  // 헤더 그리드는 최대 3장까지만 노출하는 레이아웃이라, 그 이상은 전체보기로 유도한다.
+                  const isLastVisibleSlot = index === 1;
+                  const remainingCount = images.length - 3;
+                  return (
+                    <button
+                      key={image.imageUrl}
+                      type="button"
+                      onClick={() => setIsGalleryOpen(true)}
+                      className="relative"
+                    >
+                      <Image
+                        src={image.imageUrl}
+                        alt={`${property.title} ${index + 2}`}
+                        fill
+                        sizes="33vw"
+                        className="object-cover"
+                      />
+                      {image.roomType && (
+                        <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-xs font-bold text-white">
+                          {roomTypeLabelMap[image.roomType]}
+                        </span>
+                      )}
+                      {isLastVisibleSlot && remainingCount > 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-bold text-white">
+                          +{remainingCount}장 더보기
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
-            </div>
+            )}
           </div>
-        </div>
+        ) : (
+          <div className="flex h-[160px] flex-col items-center justify-center gap-2 bg-slate-50 text-slate-400 md:h-[200px] md:rounded-2xl">
+            <ImageOff className="h-8 w-8" />
+            <p className="text-sm">등록된 사진이 없어요</p>
+          </div>
+        )}
       </div>
 
+      <Modal open={isGalleryOpen} onClose={() => setIsGalleryOpen(false)} maxWidthClassName="max-w-3xl">
+        <div className="max-h-[70vh] overflow-y-auto">
+          <h2 className="mb-4 text-lg font-bold text-slate-950">매물 사진 ({images.length}장)</h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {property.images.map((image, index) => (
+              <div key={image.imageUrl} className="overflow-hidden rounded-lg border border-slate-100">
+                <div className="relative aspect-square">
+                  <Image
+                    src={image.imageUrl}
+                    alt={`${property.title} ${index + 1}`}
+                    fill
+                    sizes="33vw"
+                    className="object-cover"
+                  />
+                </div>
+                {image.roomType && (
+                  <p className="bg-slate-50 px-2 py-1 text-center text-xs font-bold text-slate-600">
+                    {roomTypeLabelMap[image.roomType]}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
+
       <div className="container mx-auto max-w-5xl px-4 py-8">
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-10 lg:grid-cols-3 lg:items-start">
           <div className="lg:col-span-2">
             <div className="mb-8">
               <div className="mb-3 flex items-center gap-2">
-                <Badge className="rounded bg-teal-50 px-2 text-teal-700">전세</Badge>
-                <span className="text-sm text-slate-400">등록일 2026.07.01</span>
+                <Badge className="rounded bg-teal-50 px-2 text-teal-700">{property.type}</Badge>
+                {property.propertyType && (
+                  <Badge className="rounded bg-slate-100 px-2 text-slate-600">{property.propertyType}</Badge>
+                )}
+                {property.createdAt && <span className="text-sm text-slate-400">등록일 {property.createdAt}</span>}
               </div>
               <h1 className="mb-2 text-2xl font-bold text-slate-950 md:text-3xl">{property.title}</h1>
               <p className="flex items-center gap-1 text-slate-500">
-                <MapPin className="h-4 w-4" /> {property.address}
+                <Building2 className="h-4 w-4" /> {property.address}
               </p>
               <div className="mt-6 flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-teal-600">{property.deposit}</span>
-                <span className="text-sm text-slate-400">{property.maintenance}</span>
+                {property.maintenance && <span className="text-sm text-slate-400">{property.maintenance}</span>}
               </div>
             </div>
 
             <hr className="mb-8 border-slate-100" />
 
-            <div className="mb-10 grid grid-cols-2 gap-6 md:grid-cols-4">
+            <div className="mb-10 grid grid-cols-2 gap-6 md:grid-cols-3">
               {[
-                [Home, '건물유형', '다세대 주택'],
-                [Maximize, '전용면적', '19.83m2'],
-                [TrendingUp, '층수', '3층 / 5층'],
-                [Calendar, '입주가능일', '즉시 입주'],
+                [Maximize, '전용면적', property.area ? `${property.area}㎡` : '정보 없음'],
+                [Calendar, '등록일', property.createdAt ?? '정보 없음'],
               ].map(([Icon, label, value]) => {
-                const TypedIcon = Icon as typeof Home;
+                const TypedIcon = Icon as typeof Maximize;
                 return (
                   <div key={label as string} className="flex flex-col gap-1">
                     <span className="flex items-center gap-1 text-xs text-slate-400">
@@ -123,6 +225,13 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
                 );
               })}
             </div>
+
+            {property.description && (
+              <div className="mb-10">
+                <h2 className="mb-3 text-lg font-bold text-slate-950">매물 설명</h2>
+                <p className="whitespace-pre-line text-sm leading-relaxed text-slate-600">{property.description}</p>
+              </div>
+            )}
 
             <div className="mb-10">
               <h2 className="mb-4 text-lg font-bold text-slate-950">위치 정보</h2>
@@ -136,77 +245,80 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
             </div>
 
             <div className="mb-10">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-lg font-bold text-slate-950">실거래가 비교</h2>
-                <span className="text-xs text-slate-500">최근 6개월 추이</span>
-              </div>
-              <div className="ansim-card p-6">
-                <div className="mb-6 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="mb-1 text-sm text-slate-500">주변 유사 매물 평균 대비</p>
+              <h2 className="mb-2 text-lg font-bold text-slate-950">실거래가 비교</h2>
+              <p className="mb-4 text-xs leading-relaxed text-slate-400">
+                전세 매물의 보증금만 국토교통부 실거래가와 비교돼요. 월세 매물은 비교 대상이 아니에요.
+              </p>
+              {property.marketComparison?.status === 'AVAILABLE' ? (
+                <div className="ansim-card p-6">
+                  <div className="mb-6">
+                    <p className="mb-1 text-sm text-slate-500">
+                      인근 실거래 {property.marketComparison.sampleCount}건 기준 (반경{' '}
+                      {property.marketComparison.radiusMeters}m)
+                    </p>
                     <p className="text-xl font-bold text-slate-950">
-                      약 <span className="text-orange-500">12% 높음</span>
+                      {formatDifferenceMessage(property.marketComparison.differenceRateText)}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="mb-1 text-sm text-slate-500">평균 실거래가</p>
-                    <p className="text-lg font-bold text-slate-950">1억 6,000</p>
+                  <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 text-sm">
+                    <div>
+                      <p className="mb-1 text-xs text-slate-400">기준 시세(중앙값)</p>
+                      <p className="font-semibold text-slate-800">{property.marketComparison.referencePriceText}</p>
+                    </div>
+                    <div>
+                      <p className="mb-1 text-xs text-slate-400">기준일</p>
+                      <p className="font-semibold text-slate-800">{property.marketComparison.referenceDate}</p>
+                    </div>
                   </div>
+                  <p className="mt-4 text-[11px] leading-relaxed text-slate-400">
+                    국토교통부 실거래가 공개시스템 기준이며, 참고용 정보이니 실제 시세는 별도로 확인해보세요.
+                  </p>
                 </div>
-                <div className="h-[200px] w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={priceData}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                      <XAxis
-                        dataKey="month"
-                        axisLine={false}
-                        tickLine={false}
-                        tick={{ fontSize: 12, fill: '#94a3b8' }}
-                        dy={10}
-                      />
-                      <YAxis hide />
-                      <Tooltip formatter={(value) => [`${Number(value).toLocaleString()}만원`, '가격']} />
-                      <Line
-                        type="monotone"
-                        dataKey="price"
-                        stroke="#0d9488"
-                        strokeWidth={3}
-                        dot={{ r: 4, fill: '#0d9488' }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+              ) : (
+                <div className="ansim-card p-6 text-sm text-slate-500">
+                  {property.marketComparison?.message ?? '아직 실거래가 비교 정보가 없어요.'}
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
           <div className="space-y-6">
-            <div className="ansim-card sticky top-24 p-6">
+            <div className="ansim-card p-6">
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-950">확인 필요 신호</h2>
-                <Badge className="bg-orange-100 px-3 text-orange-700">{property.checkSignalCount}개 발견</Badge>
+                {property.checkSignalCount !== undefined ? (
+                  <Badge className="bg-orange-100 px-3 text-orange-700">{property.checkSignalCount}개 발견</Badge>
+                ) : (
+                  <Badge className="bg-slate-100 px-3 text-slate-500">준비 중</Badge>
+                )}
               </div>
-              <div className="mb-8 space-y-6">
-                {riskSummaries.map((risk) => {
-                  const RiskIcon = risk.icon;
-                  return (
-                    <div key={risk.title} className="flex gap-4">
-                      <div
-                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${risk.iconBoxClass}`}
-                      >
-                        <RiskIcon className={`h-5 w-5 ${risk.iconClass}`} />
+              {property.checkSignalCount !== undefined ? (
+                <div className="mb-8 space-y-6">
+                  {riskSummaries.map((risk) => {
+                    const RiskIcon = risk.icon;
+                    return (
+                      <div key={risk.title} className="flex gap-4">
+                        <div
+                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${risk.iconBoxClass}`}
+                        >
+                          <RiskIcon className={`h-5 w-5 ${risk.iconClass}`} />
+                        </div>
+                        <div>
+                          <p className="mb-1 text-sm font-bold text-slate-950">{risk.title}</p>
+                          <p className="text-xs leading-relaxed text-slate-500">{risk.description}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="mb-1 text-sm font-bold text-slate-950">{risk.title}</p>
-                        <p className="text-xs leading-relaxed text-slate-500">{risk.description}</p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="mb-8 text-sm text-slate-500">
+                  허위매물 의심 신호와 보증금 안전성 체크는 아직 준비 중이에요.
+                </p>
+              )}
               <div className="space-y-3">
-                <Link href="/checklist" className="ansim-button-primary w-full">
-                  현장 체크리스트 시작
+                <Link href={`/properties/${property.id}/checklist`} className="ansim-button-primary w-full">
+                  {property.checklistCreated ? '현장 체크리스트 이어보기' : '현장 체크리스트 시작'}
                 </Link>
                 <Link href="/contract/upload" className="ansim-button-secondary w-full">
                   특약사항 분석하기
@@ -218,20 +330,59 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
             </div>
 
             <div className="ansim-card p-6">
-              <h3 className="mb-4 font-bold text-slate-950">중개사 정보</h3>
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                  <User className="h-6 w-6 text-slate-400" />
-                </div>
-                <div>
-                  <p className="font-bold text-slate-950">안심공인중개사사무소</p>
-                  <p className="text-xs text-slate-500">대표 김안심 | 등록번호 11620-2026-00001</p>
-                </div>
+              <h3 className="mb-4 font-bold text-slate-950">매물 관리</h3>
+              {alreadyReported && (
+                <NoticeBox
+                  icon={CheckCircle2}
+                  iconClassName="text-emerald-600"
+                  className="mb-4 bg-emerald-50 text-emerald-700"
+                >
+                  {reportSuccess ? '신고가 접수됐어요. 검토 후 반영할게요.' : '이미 신고한 매물이에요.'}
+                </NoticeBox>
+              )}
+              <div className="space-y-2">
+                <Link
+                  href={`/properties/${property.id}/edit`}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  <Pencil className="h-4 w-4" /> 매물 정보 수정
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setIsReportModalOpen(true)}
+                  disabled={alreadyReported}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Flag className="h-4 w-4" /> {alreadyReported ? '신고 완료' : '매물 신고'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  disabled={isDeleting}
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-red-100 px-4 py-3 text-sm font-bold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-60"
+                >
+                  <Trash2 className="h-4 w-4" /> {isDeleting ? '삭제 중...' : '매물 삭제'}
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <PropertyReportModal
+        propertyId={property.id}
+        open={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        onSuccess={() => setReportSuccess(true)}
+      />
+
+      <PropertyDeleteConfirmModal
+        open={isDeleteModalOpen}
+        isDeleting={isDeleting}
+        error={deleteError}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

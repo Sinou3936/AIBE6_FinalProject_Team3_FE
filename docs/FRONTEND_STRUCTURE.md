@@ -45,7 +45,7 @@ page.tsx -> services -> repositories -> mocks/init -> mapper -> domain -> compon
 ## 환경변수
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
 NEXT_PUBLIC_USE_MOCK_DATA=false
 NEXT_PUBLIC_KAKAO_MAP_APP_KEY=your_kakao_javascript_key
 ```
@@ -84,15 +84,7 @@ type ApiResponse<T> = {
 
 ## Service 기준
 
-현재 service:
-
-- `getProperties()`
-- `getPropertyById(id)`
-- `getChecklistTemplate(tradeType?)`
-- `analyzeContractSpecialTerms(text)`
-- `getMyPageOverview()`
-
-새 API가 필요하면 `app/services`에 함수를 추가하고, 화면에서는 그 함수만 호출합니다.
+`app/services/*.ts` 파일 하나가 도메인 하나에 대응합니다(`auth.ts`, `user.ts`, `properties.ts`, `checklist.ts`, `contract-analysis.ts`, `mypage.ts`). 각 파일 안의 함수 목록은 코드가 원본이라 여기서 따로 나열하지 않습니다 — 새 API가 필요하면 해당 도메인 파일에 함수를 추가하고, 화면에서는 그 함수만 호출합니다.
 
 ## Server / Client 분리
 
@@ -103,25 +95,37 @@ properties/page.tsx            서버에서 getProperties()
 properties/PropertiesClient    검색/필터 상태 관리
 ```
 
-현재 client component:
+현재 client component(대표 예시 — 전체 목록은 각 라우트 폴더의 `*Client.tsx` 참고):
 
 - `PropertiesClient.tsx`: 검색/필터
-- `PropertyDetailClient.tsx`: 지도/차트
-- `ChecklistClient.tsx`: 체크 상태 변경
+- `PropertyDetailClient.tsx`: 지도/차트/삭제/신고 모달 트리거
+- `PropertyReportModal.tsx`: 매물 신고 모달
+- `ChecklistClient.tsx`: 체크 상태 변경(optimistic update)
+- `ChecklistOverviewClient.tsx`: 내 체크리스트 목록 카드
 - `ContractResultClient.tsx`: 탭 전환
+- `ProfileClient.tsx`: 프로필 등록/수정 폼(관심지역 3단 select, 닉네임 중복확인)
+- `LoginFormClient.tsx` / `SignupFormClient.tsx` / `PasswordUpdateFormClient.tsx`: 인증 폼
+- `MainLayoutClient.tsx`: 상단/하단 네비게이션, 로그아웃
 
 ## 주요 화면
 
 ```txt
 /                         랜딩
+/login                    로그인
+/signup                   회원가입
+/oauth/callback           소셜 로그인 콜백(Route Handler)
 /home                     홈
+/checklists               내 체크리스트 목록(매물별 진행 상태)
 /properties               매물 목록
 /properties/register      매물 등록
 /properties/[id]          매물 상세
-/checklist                현장 체크리스트
+/properties/[id]/edit     매물 수정
+/properties/[id]/checklist  현장 체크리스트
 /contract/upload          특약사항 입력/업로드
 /contract/result          특약사항 분석 결과
 /mypage                   마이페이지
+/mypage/profile           프로필 등록/수정
+/mypage/password          비밀번호 변경
 ```
 
 ## 새 기능 추가 순서
@@ -152,10 +156,6 @@ AGENTS.md 기준으로 확정 판단처럼 보이는 표현은 피합니다.
 - `참고용 정보`
 - `실제 계약 전 별도 확인 필요`
 
-## 다음 작업 후보
+## 도메인별 요구사항 대비 구현 현황
 
-- 매물 등록 form submit과 `createProperty()` service
-- 체크리스트 저장 API
-- 계약 업로드 화면과 분석 결과 화면 연결
-- OCR/마스킹 request DTO
-- 인증/JWT/OAuth API 구조
+각 도메인이 요구사항 명세서와 실제로 얼마나 일치하는지, 뭐가 아직 안 됐는지는 `docs/specs/*.md`에 도메인별로 정리되어 있습니다(`auth-design.md`, `user-design.md`, `property-design.md`, `market-data-design.md`, `checklist-design.md`, `contract-analysis-design.md`, `risk-analysis-design.md`). 여러 도메인에 반복되는 패턴은 `docs/specs/cross-domain-summary.md`에 모아뒀습니다. "다음에 뭘 해야 하는지"는 이 문서들의 "남은 이슈" 절이 이 섹션보다 최신입니다.

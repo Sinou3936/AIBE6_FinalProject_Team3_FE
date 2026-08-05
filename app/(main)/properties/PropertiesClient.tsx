@@ -1,40 +1,166 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
-  Building2,
-  CheckCircle2,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
   MapPin,
   Plus,
   Search,
-  ShieldAlert,
   SlidersHorizontal,
+  X,
 } from 'lucide-react';
+import { propertyTransactionTypeOptions, propertyTypeOptions } from '../../data/property-register';
 import { cn } from '../../lib/cn';
-import { type PropertySummary } from '../../types/domain';
+import { type PropertyTransactionTypeDto, type PropertyTypeDto } from '../../types/api';
+import { type PropertyListPage } from '../../types/domain';
 import { Badge } from '../../ui/Badge';
 import { NoticeBox } from '../../ui/NoticeBox';
 
-type PropertiesClientProps = {
-  properties: PropertySummary[];
-  loadError?: string;
+export type PropertiesFilter = {
+  region?: string;
+  minArea?: number;
+  maxArea?: number;
+  transactionType?: PropertyTransactionTypeDto;
+  propertyType?: PropertyTypeDto;
+  minDeposit?: number;
+  maxDeposit?: number;
+  // 전세는 monthlyRent가 항상 null이라 사실상 월세 매물에만 적용된다.
+  minMonthlyRent?: number;
+  maxMonthlyRent?: number;
+  // BE가 허용하는 정렬 필드는 createdAt/deposit/area 뿐이다(PageableUtils.validateSort 참고).
+  // "field,direction" 형태의 Spring Pageable Sort 문법 그대로 사용한다. 생략하면 BE 기본값인
+  // createdAt,desc(최신순)로 처리된다.
+  sort?: string;
 };
 
-export function PropertiesClient({ properties, loadError }: PropertiesClientProps) {
-  const [query, setQuery] = useState('');
-  const [selectedType, setSelectedType] = useState('전체');
+type SortOption = { label: string; value?: string };
 
-  const filteredProperties = useMemo(() => {
-    return properties.filter((property) => {
-      const typeMatches = selectedType === '전체' || property.type === selectedType;
-      const queryMatches =
-        query.trim().length === 0 ||
-        [property.title, property.address, property.type].some((value) => value.includes(query.trim()));
-      return typeMatches && queryMatches;
-    });
-  }, [properties, query, selectedType]);
+const sortOptions: SortOption[] = [
+  { label: '최신순' },
+  { label: '보증금 낮은순', value: 'deposit,asc' },
+  { label: '보증금 높은순', value: 'deposit,desc' },
+  { label: '면적 좁은순', value: 'area,asc' },
+  { label: '면적 넓은순', value: 'area,desc' },
+];
+
+type PropertiesClientProps = {
+  propertyPage: PropertyListPage;
+  loadError?: string;
+  notice?: string;
+  filter: PropertiesFilter;
+};
+
+const transactionTypePills: Array<{ label: string; value?: PropertyTransactionTypeDto }> = [
+  { label: '전체' },
+  ...propertyTransactionTypeOptions.map((option) => ({ label: option.label, value: option.value })),
+];
+
+export function PropertiesClient({ propertyPage, loadError, notice, filter }: PropertiesClientProps) {
+  const { items: properties, page, totalPages, hasNext } = propertyPage;
+  const router = useRouter();
+
+  const [region, setRegion] = useState(filter.region ?? '');
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [propertyType, setPropertyType] = useState<PropertyTypeDto | undefined>(filter.propertyType);
+  const [minArea, setMinArea] = useState(filter.minArea !== undefined ? String(filter.minArea) : '');
+  const [maxArea, setMaxArea] = useState(filter.maxArea !== undefined ? String(filter.maxArea) : '');
+  const [minDeposit, setMinDeposit] = useState(filter.minDeposit !== undefined ? String(filter.minDeposit) : '');
+  const [maxDeposit, setMaxDeposit] = useState(filter.maxDeposit !== undefined ? String(filter.maxDeposit) : '');
+  const [minMonthlyRent, setMinMonthlyRent] = useState(
+    filter.minMonthlyRent !== undefined ? String(filter.minMonthlyRent) : '',
+  );
+  const [maxMonthlyRent, setMaxMonthlyRent] = useState(
+    filter.maxMonthlyRent !== undefined ? String(filter.maxMonthlyRent) : '',
+  );
+
+  // 월세 금액 범위는 전세 매물엔 의미가 없어(monthlyRent가 항상 null) 거래유형이 월세일 때만 보여준다.
+  const isMonthlyRentFilter = filter.transactionType === 'MONTHLY_RENT';
+
+  const hasActiveFilter =
+    Boolean(filter.region) ||
+    filter.minArea !== undefined ||
+    filter.maxArea !== undefined ||
+    Boolean(filter.transactionType) ||
+    Boolean(filter.propertyType) ||
+    filter.minDeposit !== undefined ||
+    filter.maxDeposit !== undefined ||
+    filter.minMonthlyRent !== undefined ||
+    filter.maxMonthlyRent !== undefined ||
+    Boolean(filter.sort);
+
+  // 현재 폼 상태(+ overrides로 넘긴 값)를 쿼리파라미터로 직렬화한다. page는 여기서 다루지 않고
+  // buildPageHref가 별도로 붙인다 - 필터가 바뀌면 항상 0페이지부터 다시 보는 게 맞기 때문.
+  function buildQuery(overrides: Partial<PropertiesFilter> = {}) {
+    const next: PropertiesFilter = {
+      region,
+      minArea: minArea ? Number(minArea) : undefined,
+      maxArea: maxArea ? Number(maxArea) : undefined,
+      transactionType: filter.transactionType,
+      propertyType,
+      minDeposit: minDeposit ? Number(minDeposit) : undefined,
+      maxDeposit: maxDeposit ? Number(maxDeposit) : undefined,
+      minMonthlyRent: minMonthlyRent ? Number(minMonthlyRent) : undefined,
+      maxMonthlyRent: maxMonthlyRent ? Number(maxMonthlyRent) : undefined,
+      sort: filter.sort,
+      ...overrides,
+    };
+
+    // 거래유형이 월세가 아니게 되면(전체/전세로 전환) 월세 범위 조건은 의미가 없어 같이 초기화한다.
+    if (next.transactionType !== 'MONTHLY_RENT') {
+      next.minMonthlyRent = undefined;
+      next.maxMonthlyRent = undefined;
+    }
+
+    const params = new URLSearchParams();
+    if (next.region) params.set('region', next.region);
+    if (next.minArea !== undefined && !Number.isNaN(next.minArea)) params.set('minArea', String(next.minArea));
+    if (next.maxArea !== undefined && !Number.isNaN(next.maxArea)) params.set('maxArea', String(next.maxArea));
+    if (next.transactionType) params.set('transactionType', next.transactionType);
+    if (next.propertyType) params.set('propertyType', next.propertyType);
+    if (next.minDeposit !== undefined && !Number.isNaN(next.minDeposit))
+      params.set('minDeposit', String(next.minDeposit));
+    if (next.maxDeposit !== undefined && !Number.isNaN(next.maxDeposit))
+      params.set('maxDeposit', String(next.maxDeposit));
+    if (next.minMonthlyRent !== undefined && !Number.isNaN(next.minMonthlyRent))
+      params.set('minMonthlyRent', String(next.minMonthlyRent));
+    if (next.maxMonthlyRent !== undefined && !Number.isNaN(next.maxMonthlyRent))
+      params.set('maxMonthlyRent', String(next.maxMonthlyRent));
+    if (next.sort) params.set('sort', next.sort);
+    return params;
+  }
+
+  function applyFilter(overrides: Partial<PropertiesFilter> = {}) {
+    const queryString = buildQuery(overrides).toString();
+    router.push(queryString ? `/properties?${queryString}` : '/properties');
+  }
+
+  function handleSearchSubmit(event: FormEvent) {
+    event.preventDefault();
+    applyFilter();
+  }
+
+  function handleReset() {
+    setRegion('');
+    setPropertyType(undefined);
+    setMinArea('');
+    setMaxArea('');
+    setMinDeposit('');
+    setMaxDeposit('');
+    setMinMonthlyRent('');
+    setMaxMonthlyRent('');
+    router.push('/properties');
+  }
+
+  function buildPageHref(targetPage: number) {
+    const params = buildQuery();
+    params.set('page', String(targetPage));
+    return `/properties?${params.toString()}`;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -52,71 +178,206 @@ export function PropertiesClient({ properties, loadError }: PropertiesClientProp
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
+          <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
             <div className="relative">
               <Search className="ansim-search-icon" />
               <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="매물명, 주소, 유형을 검색하세요"
+                value={region}
+                onChange={(event) => setRegion(event.target.value)}
+                placeholder="지역(도로명/지번주소)으로 검색하세요"
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-4 text-slate-950 outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
               />
             </div>
-            <button className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-bold text-slate-600">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced((prev) => !prev)}
+              className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-sm font-bold text-slate-600"
+            >
               <SlidersHorizontal className="h-4 w-4" /> 상세 필터
             </button>
-          </div>
+          </form>
+
+          {showAdvanced && (
+            <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold text-slate-600">매물 유형</span>
+                <select
+                  value={propertyType ?? ''}
+                  onChange={(event) =>
+                    setPropertyType(event.target.value ? (event.target.value as PropertyTypeDto) : undefined)
+                  }
+                  className="ansim-input"
+                >
+                  <option value="">전체</option>
+                  {propertyTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold text-slate-600">전용면적 (㎡)</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={minArea}
+                    onChange={(event) => setMinArea(event.target.value)}
+                    inputMode="numeric"
+                    placeholder="최소"
+                    className="ansim-input"
+                  />
+                  <span className="text-slate-400">~</span>
+                  <input
+                    value={maxArea}
+                    onChange={(event) => setMaxArea(event.target.value)}
+                    inputMode="numeric"
+                    placeholder="최대"
+                    className="ansim-input"
+                  />
+                </div>
+              </label>
+              <label className="block sm:col-span-2 lg:col-span-2">
+                <span className="mb-2 block text-xs font-bold text-slate-600">보증금 (원)</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={minDeposit}
+                    onChange={(event) => setMinDeposit(event.target.value)}
+                    inputMode="numeric"
+                    placeholder="최소"
+                    className="ansim-input"
+                  />
+                  <span className="text-slate-400">~</span>
+                  <input
+                    value={maxDeposit}
+                    onChange={(event) => setMaxDeposit(event.target.value)}
+                    inputMode="numeric"
+                    placeholder="최대"
+                    className="ansim-input"
+                  />
+                </div>
+              </label>
+              {isMonthlyRentFilter && (
+                <label className="block sm:col-span-2 lg:col-span-2">
+                  <span className="mb-2 block text-xs font-bold text-slate-600">월세 (원)</span>
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={minMonthlyRent}
+                      onChange={(event) => setMinMonthlyRent(event.target.value)}
+                      inputMode="numeric"
+                      placeholder="최소"
+                      className="ansim-input"
+                    />
+                    <span className="text-slate-400">~</span>
+                    <input
+                      value={maxMonthlyRent}
+                      onChange={(event) => setMaxMonthlyRent(event.target.value)}
+                      inputMode="numeric"
+                      placeholder="최대"
+                      className="ansim-input"
+                    />
+                  </div>
+                </label>
+              )}
+              <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-4">
+                <button type="button" onClick={() => applyFilter()} className="ansim-button-primary px-5 py-3 text-sm">
+                  필터 적용
+                </button>
+                {hasActiveFilter && (
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-bold text-slate-600"
+                  >
+                    <X className="h-4 w-4" /> 초기화
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="container mx-auto max-w-6xl px-4 py-8">
-        <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
-          {['전체', '전세', '월세', '반전세'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setSelectedType(type)}
-              className={cn(
-                'ansim-filter-pill',
-                selectedType === type ? 'bg-slate-950 text-white' : 'ansim-filter-pill-muted',
-              )}
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {transactionTypePills.map((pill) => (
+              <button
+                key={pill.label}
+                onClick={() => applyFilter({ transactionType: pill.value })}
+                className={cn(
+                  'ansim-filter-pill',
+                  filter.transactionType === pill.value ? 'bg-slate-950 text-white' : 'ansim-filter-pill-muted',
+                )}
+              >
+                {pill.label}
+              </button>
+            ))}
+          </div>
+          <label className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-600">
+            <ArrowUpDown className="h-4 w-4 text-slate-400" />
+            <select
+              value={filter.sort ?? ''}
+              onChange={(event) => applyFilter({ sort: event.target.value || undefined })}
+              className="ansim-input w-auto py-2 pr-8 text-sm"
             >
-              {type}
-            </button>
-          ))}
+              {sortOptions.map((option) => (
+                <option key={option.label} value={option.value ?? ''}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
+
+        {notice && (
+          <div className="ansim-card mb-4 border-teal-100 bg-teal-50 p-4 text-sm text-teal-700">
+            매물이 등록됐어요. {notice}
+          </div>
+        )}
 
         {loadError && <div className="ansim-card border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>}
 
-        {!loadError && filteredProperties.length === 0 && (
+        {!loadError && properties.length === 0 && (
           <div className="ansim-card p-6 text-sm text-slate-500">조건에 맞는 매물이 없습니다.</div>
         )}
 
         <div className="grid grid-cols-1 gap-5">
-          {filteredProperties.map((property) => (
+          {properties.map((property) => (
             <Link
               key={property.id}
               href={`/properties/${property.id}`}
               className="ansim-card group block p-6 transition hover:border-teal-200"
             >
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex-1">
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <Badge className="bg-teal-50 text-teal-700">{property.type}</Badge>
+              <div>
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Badge className="bg-teal-50 text-teal-700">{property.type}</Badge>
+                  {property.propertyType && (
+                    <Badge className="bg-slate-100 text-slate-600">{property.propertyType}</Badge>
+                  )}
+                  {property.checkSignalCount !== undefined ? (
                     <Badge className={property.statusColor}>확인 필요 신호 {property.checkSignalCount}개</Badge>
+                  ) : (
+                    <Badge className="bg-slate-100 text-slate-500">신호 확인 준비 중</Badge>
+                  )}
+                  {property.jeonseRatio !== undefined ? (
                     <Badge className="bg-slate-100 text-slate-600">전세가율 {property.jeonseRatio}</Badge>
+                  ) : (
+                    <Badge className="bg-slate-100 text-slate-500">전세가율 준비 중</Badge>
+                  )}
+                </div>
+                <h2 className="mb-2 text-xl font-bold text-slate-950 group-hover:text-teal-700">{property.title}</h2>
+                <p className="mb-4 flex items-center gap-1 text-sm text-slate-500">
+                  <MapPin className="h-4 w-4" /> {property.address}
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="mb-1 text-xs text-slate-400">가격</p>
+                    <p className="font-bold text-slate-950">{property.deposit}</p>
+                    <p className="mt-1 text-xs text-slate-500">{property.maintenance ?? '관리비 정보 없음'}</p>
                   </div>
-                  <h2 className="mb-2 text-xl font-bold text-slate-950 group-hover:text-teal-700">{property.title}</h2>
-                  <p className="mb-4 flex items-center gap-1 text-sm text-slate-500">
-                    <MapPin className="h-4 w-4" /> {property.address}
-                  </p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="mb-1 text-xs text-slate-400">가격</p>
-                      <p className="font-bold text-slate-950">{property.deposit}</p>
-                      <p className="mt-1 text-xs text-slate-500">{property.maintenance}</p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="mb-1 text-xs text-slate-400">시세 대비</p>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="mb-1 text-xs text-slate-400">시세 대비</p>
+                    {property.marketDelta !== undefined ? (
                       <p
                         className={cn(
                           'font-bold',
@@ -125,33 +386,61 @@ export function PropertiesClient({ properties, loadError }: PropertiesClientProp
                       >
                         {property.marketDelta}
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">최근 실거래가 기준</p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="mb-1 text-xs text-slate-400">체크리스트</p>
+                    ) : (
+                      <p className="font-bold text-slate-400">준비 중</p>
+                    )}
+                    <p className="mt-1 text-xs text-slate-500">
+                      {property.marketDelta !== undefined ? '최근 실거래가 기준' : '실거래가 연동 예정'}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="mb-1 text-xs text-slate-400">체크리스트</p>
+                    {property.checklist !== undefined ? (
                       <p className="font-bold text-slate-950">{property.checklist}% 완료</p>
-                      <p className="mt-1 text-xs text-slate-500">방문 확인 진행률</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2 lg:w-56 lg:grid-cols-1">
-                  <div className="flex items-center gap-2 rounded-xl border border-slate-100 p-3">
-                    <Building2 className="h-4 w-4 text-slate-400" />
-                    <span className="text-xs font-medium text-slate-600">주소 중복 확인</span>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-xl border border-slate-100 p-3">
-                    <ShieldAlert className="h-4 w-4 text-orange-500" />
-                    <span className="text-xs font-medium text-slate-600">보증금 수치 확인</span>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-xl border border-slate-100 p-3">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    <span className="text-xs font-medium text-slate-600">현장 점검</span>
+                    ) : (
+                      <p className="font-bold text-slate-400">준비 중</p>
+                    )}
+                    <p className="mt-1 text-xs text-slate-500">
+                      {property.checklist !== undefined ? '방문 확인 진행률' : '체크리스트 연동 예정'}
+                    </p>
                   </div>
                 </div>
               </div>
             </Link>
           ))}
         </div>
+
+        {!loadError && totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-center gap-4">
+            {page > 0 ? (
+              <Link
+                href={buildPageHref(page - 1)}
+                className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+              >
+                <ChevronLeft className="h-4 w-4" /> 이전
+              </Link>
+            ) : (
+              <span className="flex items-center gap-1 rounded-xl border border-slate-100 px-4 py-2 text-sm font-bold text-slate-300">
+                <ChevronLeft className="h-4 w-4" /> 이전
+              </span>
+            )}
+            <span className="text-sm text-slate-500">
+              {page + 1} / {totalPages} 페이지
+            </span>
+            {hasNext ? (
+              <Link
+                href={buildPageHref(page + 1)}
+                className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+              >
+                다음 <ChevronRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <span className="flex items-center gap-1 rounded-xl border border-slate-100 px-4 py-2 text-sm font-bold text-slate-300">
+                다음 <ChevronRight className="h-4 w-4" />
+              </span>
+            )}
+          </div>
+        )}
 
         <NoticeBox icon={AlertTriangle} iconClassName="text-orange-500" className="mt-8">
           확인 필요 신호는 확정 판단이 아닌 참고용 정보입니다. 등기부등본, 보증보험 가능 여부, 실제 계약 조건은 별도로

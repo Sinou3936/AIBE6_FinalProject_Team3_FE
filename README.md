@@ -36,7 +36,7 @@ NEXT_PUBLIC_KAKAO_MAP_APP_KEY=your_kakao_javascript_key
 백엔드 API 주소와 mock 사용 여부는 다음 환경변수로 설정합니다.
 
 ```bash
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
 NEXT_PUBLIC_USE_MOCK_DATA=false
 ```
 
