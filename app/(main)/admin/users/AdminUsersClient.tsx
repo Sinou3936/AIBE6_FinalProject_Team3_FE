@@ -22,6 +22,7 @@ type AdminUsersClientProps = {
   loadError?: string;
   filters: Filters;
   currentUserId: number;
+  onMutated?: () => void;
 };
 
 const ROLE_LABEL: Record<string, string> = { USER: '일반', ADMIN: '관리자' };
@@ -36,7 +37,7 @@ type ActiveAction =
   | { type: 'role'; user: AdminUserListItemDto }
   | { type: 'status'; user: AdminUserListItemDto };
 
-export function AdminUsersClient({ data, loadError, filters, currentUserId }: AdminUsersClientProps) {
+export function AdminUsersClient({ data, loadError, filters, currentUserId, onMutated }: AdminUsersClientProps) {
   const router = useRouter();
   const [email, setEmail] = useState(filters.email);
   const [nickname, setNickname] = useState(filters.nickname);
@@ -76,7 +77,10 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId }: Ad
         await updateAdminUserStatus(action.user.id, { status: nextStatus });
       }
       setAction(null);
-      router.refresh();
+      // router.refresh()는 이 화면이 전부 client component로 바뀌면서 다시 가져올 Server
+      // Component 데이터가 없어 실질적으로 no-op이다 - 부모(page.tsx)가 내려준 재조회 콜백을
+      // 직접 호출해야 목록에 변경 결과가 반영된다.
+      onMutated?.();
     } catch {
       setActionError('처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {

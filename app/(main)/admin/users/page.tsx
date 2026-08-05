@@ -2,7 +2,7 @@
 
 import { Loader2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { parsePageParam } from '../../../lib/pageParam';
 import { getAdminUsers } from '../../../services/admin';
 import { getCurrentUser } from '../../../services/auth';
@@ -22,6 +22,20 @@ function AdminUsersPageContent() {
   const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
+  // 이 화면 전체가 client component라 router.refresh()가 다시 가져올 Server Component 데이터가
+  // 없다 - AdminUsersClient가 역할/상태 변경에 성공한 뒤 목록을 다시 그리려면 이 fetch를 직접
+  // 다시 호출해야 한다. currentUserId는 세션 중 바뀌지 않으므로 재조회 대상에서 뺀다.
+  const reloadUsers = useCallback(() => {
+    return getAdminUsers({ page, email, nickname, role, status })
+      .then((usersPage) => {
+        setData(usersPage);
+        setLoadError(undefined);
+      })
+      .catch(() => {
+        setLoadError('유저 목록을 불러오지 못했습니다.');
+      });
+  }, [page, email, nickname, role, status]);
+
   useEffect(() => {
     let cancelled = false;
     // 필터/페이지가 바뀌어 이 effect가 재실행될 때만 의미 있는 재설정이다(최초 실행 시 초기값과
@@ -30,16 +44,12 @@ function AdminUsersPageContent() {
     setLoading(true);
 
     Promise.all([
-      getAdminUsers({ page, email, nickname, role, status }).catch(() => {
-        if (!cancelled) setLoadError('유저 목록을 불러오지 못했습니다.');
-        return undefined;
-      }),
+      reloadUsers(),
       // admin/layout.tsx가 이미 이 요청의 role을 확인해 통과시켰으므로 여기서 실패할 일은 없다.
       getCurrentUser().then((me) => me.userId),
     ])
-      .then(([usersPage, userId]) => {
+      .then(([, userId]) => {
         if (cancelled) return;
-        setData(usersPage);
         setCurrentUserId(userId);
       })
       .finally(() => {
@@ -49,7 +59,7 @@ function AdminUsersPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [page, email, nickname, role, status]);
+  }, [reloadUsers]);
 
   if (loading || currentUserId === undefined) {
     return (
@@ -70,6 +80,7 @@ function AdminUsersPageContent() {
         status: status ?? '',
       }}
       currentUserId={currentUserId}
+      onMutated={reloadUsers}
     />
   );
 }

@@ -2,7 +2,7 @@
 
 import { Loader2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { parsePageParam } from '../../../lib/pageParam';
 import { getAdminPropertyReports } from '../../../services/admin';
 import { type AdminPropertyReportListItemDto, type PageResponseDto } from '../../../types/api';
@@ -22,26 +22,33 @@ function AdminReportsPageContent() {
   const [loadError, setLoadError] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
+  // 이 화면 전체가 client component라 router.refresh()가 다시 가져올 Server Component 데이터가
+  // 없다 - AdminReportsClient가 신고 처리에 성공한 뒤 목록을 다시 그리려면 이 fetch를 직접 다시
+  // 호출해야 한다.
+  const reloadReports = useCallback(() => {
+    return getAdminPropertyReports({ page, status: apiStatus, reason })
+      .then((result) => {
+        setData(result);
+        setLoadError(undefined);
+      })
+      .catch(() => {
+        setLoadError('신고 목록을 불러오지 못했습니다.');
+      });
+  }, [page, apiStatus, reason]);
+
   useEffect(() => {
     let cancelled = false;
     // page/status/reason이 바뀌어 이 effect가 재실행될 때만 의미 있는 재설정이다(최초 실행 시
     // 초기값과 동일) - 필터 변경 시 새 로딩 상태를 보여줘야 하므로 의도적으로 동기 호출한다.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    getAdminPropertyReports({ page, status: apiStatus, reason })
-      .then((result) => {
-        if (!cancelled) setData(result);
-      })
-      .catch(() => {
-        if (!cancelled) setLoadError('신고 목록을 불러오지 못했습니다.');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    reloadReports().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
-  }, [page, apiStatus, reason]);
+  }, [reloadReports]);
 
   if (loading) {
     return (
@@ -51,7 +58,14 @@ function AdminReportsPageContent() {
     );
   }
 
-  return <AdminReportsClient data={data} loadError={loadError} filters={{ status: selectedStatus, reason: reason ?? '' }} />;
+  return (
+    <AdminReportsClient
+      data={data}
+      loadError={loadError}
+      filters={{ status: selectedStatus, reason: reason ?? '' }}
+      onMutated={reloadReports}
+    />
+  );
 }
 
 export default function AdminReportsPage() {

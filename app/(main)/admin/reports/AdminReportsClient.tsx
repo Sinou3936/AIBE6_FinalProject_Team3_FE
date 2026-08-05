@@ -23,6 +23,7 @@ type AdminReportsClientProps = {
   data?: PageResponseDto<AdminPropertyReportListItemDto>;
   loadError?: string;
   filters: Filters;
+  onMutated?: () => void;
 };
 
 const REASON_LABEL: Record<PropertyReportReasonDto, string> = {
@@ -40,7 +41,7 @@ const STATUS_TONE: Record<string, string> = {
   REJECTED: 'bg-slate-100 text-slate-500',
 };
 
-export function AdminReportsClient({ data, loadError, filters }: AdminReportsClientProps) {
+export function AdminReportsClient({ data, loadError, filters, onMutated }: AdminReportsClientProps) {
   const router = useRouter();
   const [status, setStatus] = useState(filters.status);
   const [reason, setReason] = useState(filters.reason);
@@ -91,7 +92,10 @@ export function AdminReportsClient({ data, loadError, filters }: AdminReportsCli
         memo: memo.trim() || undefined,
       });
       setDetail(updated);
-      router.refresh();
+      // router.refresh()는 이 화면이 전부 client component로 바뀌면서 다시 가져올 Server
+      // Component 데이터가 없어 실질적으로 no-op이다 - 부모(page.tsx)가 내려준 재조회 콜백을
+      // 직접 호출해야 목록에 변경 결과가 반영된다.
+      onMutated?.();
     } catch {
       setDetailError('처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
