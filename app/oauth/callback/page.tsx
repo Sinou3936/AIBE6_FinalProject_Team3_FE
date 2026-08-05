@@ -3,6 +3,7 @@
 import { Loader2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect } from 'react';
+import { ApiError } from '../../lib/api/http';
 import { sanitizeNextPath } from '../../lib/nextPath';
 import { hasRegisteredProfile } from '../../lib/profile';
 import { getCurrentUser } from '../../services/auth';
@@ -53,8 +54,19 @@ function OAuthCallbackContent() {
       // 이 페이지(Vercel) 서버가 아니라 브라우저가 직접 credentials:'include'로 확인해야 한다.
       try {
         await getCurrentUser();
-      } catch {
-        router.replace('/login?error=session_expired');
+      } catch (error) {
+        // MainLayoutGate/admin-layout과 동일한 이유로 콘솔에 원인을 남긴다 - 이 콜백은 방금
+        // OAuth를 마치고 돌아온 첫 진입점이라, CORS/쿠키 설정이 미묘하게 틀렸을 때 원인 진단이
+        // 가장 필요한 지점인데 정작 아무 로그도 없이 "다시 로그인하세요"만 보이면 안 된다.
+        console.error('OAuth callback: failed to confirm session', error);
+        // 'unreachable'(네트워크 오류 등으로 refresh 자체를 시도 못한 경우)과 세션이 실제로
+        // 무효인 경우를 구분해서 보내야, 배포 초기 CORS/쿠키 설정 오류를 "로그인 정보가
+        // 만료됐다"는 잘못된 안내로 덮지 않는다.
+        const errorParam =
+          error instanceof ApiError && error.sessionRefreshOutcome === 'unreachable'
+            ? 'session_unavailable'
+            : 'session_expired';
+        router.replace(`/login?error=${errorParam}`);
         return;
       }
 
@@ -64,8 +76,10 @@ function OAuthCallbackContent() {
           router.replace('/mypage/profile');
           return;
         }
-      } catch {
-        // 프로필 조회에 실패해도 로그인 자체는 성공했으므로 destination(next 또는 홈)으로 보낸다.
+      } catch (error) {
+        // 프로필 조회에 실패해도 로그인 자체는 성공했으므로 destination(next 또는 홈)으로
+        // 보낸다 - 다만 원인 진단을 위해 콘솔에는 남긴다.
+        console.error('OAuth callback: failed to load profile', error);
       }
 
       // notice=account_linked: 새 계정이 아니라 이미 있던 계정(로컬 가입 또는 다른 소셜)에 방금
