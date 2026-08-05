@@ -4,22 +4,14 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  ArrowLeft,
-  Building2,
-  Calendar,
-  CheckCircle2,
-  Flag,
-  ImageOff,
-  Maximize,
-  Pencil,
-  Trash2,
-} from 'lucide-react';
-import { riskSummaries } from '../../../data/property-detail';
+import { ArrowLeft, Building2, Calendar, CheckCircle2, Flag, ImageOff, Maximize, Pencil, Trash2 } from 'lucide-react';
+import { apiStatusToneClassMap, getJeonseRatioTone, riskSignalTypeMeta } from '../../../data/risk-analysis';
+import { roomTypeLabelMap } from '../../../mappers/property';
 import { deleteProperty } from '../../../services/properties';
-import { type PropertyDetail } from '../../../types/domain';
+import { type DepositSafetyCheck, type PropertyDetail, type RiskSignalList } from '../../../types/domain';
 import { Badge } from '../../../ui/Badge';
 import { KakaoMap } from '../../../ui/KakaoMap';
+import { Modal } from '../../../ui/Modal';
 import { NoticeBox } from '../../../ui/NoticeBox';
 import { PropertyDeleteConfirmModal } from './PropertyDeleteConfirmModal';
 import { PropertyReportModal } from './PropertyReportModal';
@@ -27,6 +19,8 @@ import { PropertyReportModal } from './PropertyReportModal';
 type PropertyDetailClientProps = {
   property?: PropertyDetail;
   loadError?: string;
+  riskSignals?: RiskSignalList;
+  depositSafety?: DepositSafetyCheck;
 };
 
 // "+3%"/"−4%" 같은 부호 표기를 사실 기반 문구로 바꾼다 (문구 정책: 절대적 안전/위험 단정 금지,
@@ -40,13 +34,14 @@ function formatDifferenceMessage(differenceRateText?: string): string {
   return `시세보다 ${percent} ${isHigher ? '높은' : '낮은'} 가격이에요`;
 }
 
-export function PropertyDetailClient({ property, loadError }: PropertyDetailClientProps) {
+export function PropertyDetailClient({ property, loadError, riskSignals, depositSafety }: PropertyDetailClientProps) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
 
   if (loadError || !property) {
     return (
@@ -76,7 +71,9 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
     }
   }
 
-  const images = property.imageUrls;
+  // imageUrls(string[])이 아니라 images(구조화된 PropertyImage[])를 써야 헤더 캐러셀에도
+  // roomType 라벨을 붙일 수 있다 - 갤러리 모달은 이미 images를 쓰고 있었음.
+  const images = property.images;
   // 이번 세션에서 막 신고에 성공한 경우(reportSuccess)와, 이전에 이미 신고해둔 경우(property.reported)
   // 둘 다 "이미 신고했음" 상태로 취급한다 - 상세조회 응답은 페이지를 새로 불러와야 반영되므로.
   const alreadyReported = property.reported === true || reportSuccess;
@@ -92,28 +89,54 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
       <div className="container mx-auto max-w-5xl px-0 md:px-4 md:pt-8">
         {images.length > 0 ? (
           <div className="grid h-[300px] grid-cols-1 gap-2 overflow-hidden md:h-[450px] md:grid-cols-3 md:rounded-2xl">
-            <div className="relative md:col-span-2">
+            <button type="button" onClick={() => setIsGalleryOpen(true)} className="relative md:col-span-2">
               <Image
-                src={images[0]}
+                src={images[0].imageUrl}
                 alt={property.title}
                 fill
                 sizes="(min-width: 768px) 66vw, 100vw"
                 className="object-cover"
               />
-            </div>
+              {images[0].roomType && (
+                <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-xs font-bold text-white">
+                  {roomTypeLabelMap[images[0].roomType]}
+                </span>
+              )}
+            </button>
             {images.length > 1 && (
               <div className="hidden grid-rows-2 gap-2 md:grid">
-                {images.slice(1, 3).map((imageUrl, index) => (
-                  <div key={imageUrl} className="relative">
-                    <Image
-                      src={imageUrl}
-                      alt={`${property.title} ${index + 2}`}
-                      fill
-                      sizes="33vw"
-                      className="object-cover"
-                    />
-                  </div>
-                ))}
+                {images.slice(1, 3).map((image, index) => {
+                  // 3번째 칸(index 1, 실제로는 전체 4번째 사진)에 남은 장수를 오버레이로 보여준다 -
+                  // 헤더 그리드는 최대 3장까지만 노출하는 레이아웃이라, 그 이상은 전체보기로 유도한다.
+                  const isLastVisibleSlot = index === 1;
+                  const remainingCount = images.length - 3;
+                  return (
+                    <button
+                      key={image.imageUrl}
+                      type="button"
+                      onClick={() => setIsGalleryOpen(true)}
+                      className="relative"
+                    >
+                      <Image
+                        src={image.imageUrl}
+                        alt={`${property.title} ${index + 2}`}
+                        fill
+                        sizes="33vw"
+                        className="object-cover"
+                      />
+                      {image.roomType && (
+                        <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-xs font-bold text-white">
+                          {roomTypeLabelMap[image.roomType]}
+                        </span>
+                      )}
+                      {isLastVisibleSlot && remainingCount > 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-bold text-white">
+                          +{remainingCount}장 더보기
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -125,12 +148,41 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
         )}
       </div>
 
+      <Modal open={isGalleryOpen} onClose={() => setIsGalleryOpen(false)} maxWidthClassName="max-w-3xl">
+        <div className="max-h-[70vh] overflow-y-auto">
+          <h2 className="mb-4 text-lg font-bold text-slate-950">매물 사진 ({images.length}장)</h2>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {property.images.map((image, index) => (
+              <div key={image.imageUrl} className="overflow-hidden rounded-lg border border-slate-100">
+                <div className="relative aspect-square">
+                  <Image
+                    src={image.imageUrl}
+                    alt={`${property.title} ${index + 1}`}
+                    fill
+                    sizes="33vw"
+                    className="object-cover"
+                  />
+                </div>
+                {image.roomType && (
+                  <p className="bg-slate-50 px-2 py-1 text-center text-xs font-bold text-slate-600">
+                    {roomTypeLabelMap[image.roomType]}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </Modal>
+
       <div className="container mx-auto max-w-5xl px-4 py-8">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-3 lg:items-start">
           <div className="lg:col-span-2">
             <div className="mb-8">
               <div className="mb-3 flex items-center gap-2">
                 <Badge className="rounded bg-teal-50 px-2 text-teal-700">{property.type}</Badge>
+                {property.propertyType && (
+                  <Badge className="rounded bg-slate-100 px-2 text-slate-600">{property.propertyType}</Badge>
+                )}
                 {property.createdAt && <span className="text-sm text-slate-400">등록일 {property.createdAt}</span>}
               </div>
               <h1 className="mb-2 text-2xl font-bold text-slate-950 md:text-3xl">{property.title}</h1>
@@ -222,36 +274,71 @@ export function PropertyDetailClient({ property, loadError }: PropertyDetailClie
             <div className="ansim-card p-6">
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-950">확인 필요 신호</h2>
-                {property.checkSignalCount !== undefined ? (
-                  <Badge className="bg-orange-100 px-3 text-orange-700">{property.checkSignalCount}개 발견</Badge>
+                {riskSignals !== undefined ? (
+                  <Badge className="bg-orange-100 px-3 text-orange-700">{riskSignals.signalCount}개 발견</Badge>
                 ) : (
                   <Badge className="bg-slate-100 px-3 text-slate-500">준비 중</Badge>
                 )}
               </div>
-              {property.checkSignalCount !== undefined ? (
-                <div className="mb-8 space-y-6">
-                  {riskSummaries.map((risk) => {
-                    const RiskIcon = risk.icon;
-                    return (
-                      <div key={risk.title} className="flex gap-4">
-                        <div
-                          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${risk.iconBoxClass}`}
-                        >
-                          <RiskIcon className={`h-5 w-5 ${risk.iconClass}`} />
-                        </div>
-                        <div>
-                          <p className="mb-1 text-sm font-bold text-slate-950">{risk.title}</p>
-                          <p className="text-xs leading-relaxed text-slate-500">{risk.description}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+
+              {riskSignals !== undefined ? (
+                (() => {
+                  const foundSignals = riskSignals.signals
+                    .filter((signal) => signal.status === 'success' && signal.description !== null)
+                    .slice(0, 2);
+
+                  return foundSignals.length > 0 ? (
+                    <div className="mb-6 space-y-6">
+                      {foundSignals.map((signal) => {
+                        const meta = riskSignalTypeMeta[signal.signalType];
+                        const SignalIcon = meta.icon;
+                        return (
+                          <div key={signal.signalType} className="flex gap-4">
+                            <div
+                              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${meta.iconBoxClass}`}
+                            >
+                              <SignalIcon className={`h-5 w-5 ${meta.iconClass}`} />
+                            </div>
+                            <div>
+                              <p className="mb-1 text-sm font-bold text-slate-950">{meta.title}</p>
+                              <p className="text-xs leading-relaxed text-slate-500">{signal.description}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mb-6 text-sm text-slate-500">확인이 필요한 신호가 없어요.</p>
+                  );
+                })()
               ) : (
-                <p className="mb-8 text-sm text-slate-500">
+                <p className="mb-6 text-sm text-slate-500">
                   허위매물 의심 신호와 보증금 안전성 체크는 아직 준비 중이에요.
                 </p>
               )}
+
+              {depositSafety !== undefined && (
+                <div className="mb-6 flex items-center justify-between rounded-xl bg-slate-50 p-4">
+                  <span className="text-sm font-bold text-slate-700">보증금 안전성</span>
+                  {depositSafety.status === 'calculated' && depositSafety.jeonseRatio !== null ? (
+                    <Badge className={apiStatusToneClassMap[getJeonseRatioTone(depositSafety.jeonseRatio)]}>
+                      전세가율 {depositSafety.jeonseRatio}%
+                    </Badge>
+                  ) : (
+                    <Badge className={apiStatusToneClassMap.slate}>판정 불가</Badge>
+                  )}
+                </div>
+              )}
+
+              {riskSignals !== undefined && (
+                <Link
+                  href={`/properties/${property.id}/risk-analysis`}
+                  className="mb-6 block text-center text-xs font-bold text-teal-700 hover:underline"
+                >
+                  자세히 보기
+                </Link>
+              )}
+
               <div className="space-y-3">
                 <Link href={`/properties/${property.id}/checklist`} className="ansim-button-primary w-full">
                   {property.checklistCreated ? '현장 체크리스트 이어보기' : '현장 체크리스트 시작'}

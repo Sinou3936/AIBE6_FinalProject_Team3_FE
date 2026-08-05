@@ -12,12 +12,15 @@ import {
 import { formatDecimalInput, formatIntegerInput } from '../../../lib/numberFormat';
 import { createProperty } from '../../../services/properties';
 import { type PropertyTransactionTypeDto, type PropertyTypeDto } from '../../../types/api';
+import { type PropertyImage } from '../../../types/domain';
 import { FeatureCard } from '../../../ui/FeatureCard';
 import { LoadingOverlay } from '../../../ui/LoadingOverlay';
+import { PropertyImageUploader } from '../../../ui/PropertyImageUploader';
 
 export default function Page() {
   const router = useRouter();
 
+  const [title, setTitle] = useState('');
   const [address, setAddress] = useState('');
   const [propertyType, setPropertyType] = useState<PropertyTypeDto>('OFFICETEL');
   const [transactionType, setTransactionType] = useState<PropertyTransactionTypeDto>('JEONSE');
@@ -25,6 +28,7 @@ export default function Page() {
   const [monthlyRent, setMonthlyRent] = useState('');
   const [area, setArea] = useState('');
   const [description, setDescription] = useState('');
+  const [images, setImages] = useState<PropertyImage[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +40,10 @@ export default function Page() {
     const depositNumber = Number(deposit.replace(/,/g, ''));
     const areaNumber = Number(area.replace(/,/g, ''));
 
+    if (title.trim().length === 0) {
+      setError('매물 이름을 입력해주세요.');
+      return;
+    }
     if (address.trim().length === 0) {
       setError('주소를 입력해주세요.');
       return;
@@ -61,6 +69,7 @@ export default function Page() {
     setIsSubmitting(true);
     try {
       const response = await createProperty({
+        title: title.trim(),
         address: address.trim(),
         propertyType,
         transactionType,
@@ -68,6 +77,7 @@ export default function Page() {
         monthlyRent: monthlyRentNumber,
         area: areaNumber,
         description: description.trim().length > 0 ? description.trim() : null,
+        images,
       });
       // 매물 상세(/properties/{id})는 아직 실제 API 응답 형태에 안 맞춰져 있어 별도 이슈로 미뤄뒀다.
       // 그래서 등록 성공 후에는 상세가 아닌 목록으로 돌려보내고, 시세조회 관련 안내(notice)는
@@ -100,6 +110,17 @@ export default function Page() {
           <p className="mb-6 text-sm text-slate-600">입력된 값은 실거래가 비교와 보증금 안전성 계산에 사용됩니다.</p>
 
           <div className="space-y-5">
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-slate-700">매물 이름</span>
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                disabled={isSubmitting}
+                className="ansim-input disabled:opacity-60"
+                placeholder="예: 강남 오피스텔"
+              />
+            </label>
+
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-slate-700">주소</span>
               <input
@@ -206,6 +227,8 @@ export default function Page() {
                 placeholder="예: 역세권, 신축 오피스텔"
               />
             </label>
+
+            <PropertyImageUploader value={images} onChange={setImages} disabled={isSubmitting} />
           </div>
         </div>
 

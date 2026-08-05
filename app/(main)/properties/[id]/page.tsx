@@ -4,13 +4,16 @@ import { Loader2 } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getPropertyById } from '../../../services/properties';
-import { type PropertyDetail } from '../../../types/domain';
+import { checkRiskSignals, getDepositSafety, getRiskSignals } from '../../../services/risk-analysis';
+import { type DepositSafetyCheck, type PropertyDetail, type RiskSignalList } from '../../../types/domain';
 import { PropertyDetailClient } from './PropertyDetailClient';
 
 export default function Page() {
   const params = useParams<{ id: string }>();
   const [property, setProperty] = useState<PropertyDetail | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | undefined>(undefined);
+  const [riskSignals, setRiskSignals] = useState<RiskSignalList | undefined>(undefined);
+  const [depositSafety, setDepositSafety] = useState<DepositSafetyCheck | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,7 +22,9 @@ export default function Page() {
     // 동일) - 다른 매물로 이동 시 새 로딩 상태를 보여줘야 하므로 의도적으로 동기 호출한다.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
-    getPropertyById(Number(params.id))
+    const propertyId = Number(params.id);
+
+    getPropertyById(propertyId)
       .then((result) => {
         if (!cancelled) {
           setProperty(result);
@@ -32,6 +37,24 @@ export default function Page() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+
+    // 위험 신호/보증금 안전성은 매물 상세의 부가 정보라, 조회 실패해도 매물 본문은 그대로 보여준다.
+    checkRiskSignals(propertyId)
+      .then(() => getRiskSignals(propertyId))
+      .then((signals) => {
+        if (!cancelled) setRiskSignals(signals);
+      })
+      .catch(() => {
+        if (!cancelled) setRiskSignals(undefined);
+      });
+    getDepositSafety(propertyId)
+      .then((safety) => {
+        if (!cancelled) setDepositSafety(safety);
+      })
+      .catch(() => {
+        if (!cancelled) setDepositSafety(undefined);
+      });
+
     return () => {
       cancelled = true;
     };
@@ -45,5 +68,12 @@ export default function Page() {
     );
   }
 
-  return <PropertyDetailClient property={property} loadError={loadError} />;
+  return (
+    <PropertyDetailClient
+      property={property}
+      loadError={loadError}
+      riskSignals={riskSignals}
+      depositSafety={depositSafety}
+    />
+  );
 }

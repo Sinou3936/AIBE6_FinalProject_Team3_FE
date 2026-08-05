@@ -2,13 +2,16 @@ import {
   type ApiStatusTone,
   type MarketComparisonDto,
   type PropertyDetailResponseDto,
+  type PropertyImageDto,
   type PropertyListItemDto,
   type PropertySummaryDto,
   type PropertyTransactionTypeDto,
   type PropertyTypeDto,
+  type RoomTypeDto,
 } from '../types/api';
 import {
   type PropertyDetail,
+  type PropertyImage,
   type PropertyMarketComparison,
   type PropertySummary,
   type PropertyTradeType,
@@ -53,6 +56,21 @@ export const propertyTransactionTypeLabelMap: Record<PropertyTransactionTypeDto,
   MONTHLY_RENT: '월세',
 };
 
+export const roomTypeLabelMap: Record<RoomTypeDto, string> = {
+  LIVING_ROOM: '거실',
+  BEDROOM: '침실',
+  BATHROOM: '화장실',
+  KITCHEN: '주방',
+  ENTRANCE: '현관',
+  VERANDA: '베란다',
+  EXTERIOR: '외관',
+  ETC: '기타',
+};
+
+function mapPropertyImageDto(dto: PropertyImageDto): PropertyImage {
+  return { imageUrl: dto.imageUrl, roomType: dto.roomType };
+}
+
 // 백엔드는 원(KRW) 단위 정수를 그대로 내려주고, 화면에는 만원 단위 한글 표기로 보여준다: "1억 8,000만원".
 // 전세/월세 어느 쪽이든 항상 같은 형식으로 단위를 붙인다 - 예전엔 월세 쪽(보증금/월세 두 금액)만
 // 단위 없이 숫자만 보여줘서 "9,000만원"과 "보증금 3,000 / 월세 55"처럼 표기가 안 맞았다.
@@ -82,8 +100,11 @@ function formatDepositText(
 
 /**
  * 실제 GET /properties 응답(PropertyListItemDto) -> PropertySummary 변환.
- * 기능4(허위매물 신호)/기능5(전세가율)/관리비는 아직 백엔드에 없어서
- * 의도적으로 채우지 않는다 (undefined) - 화면(PropertiesClient)에서 조건부로 처리한다.
+ * 기능4(허위매물 신호)/기능5(전세가율)는 아직 백엔드 응답에 없어서 의도적으로 채우지 않는다
+ * (undefined) - 화면(PropertiesClient)에서 조건부로 처리한다. 시세대비(marketDelta)는
+ * marketComparison이 AVAILABLE일 때만 채우고, UNAVAILABLE/판정불가면 undefined로 둬서
+ * "준비 중"이 아니라 상세페이지처럼 사유가 있는 판정불가 상태임을 구분할 수 있게 한다 - 다만
+ * 카드 UI 자체는 아직 이 둘을 구분해 보여주지 않고 둘 다 "준비 중"으로만 표시한다(추후 개선 여지).
  * 체크리스트 진행률(checklistProgress)은 체크리스트를 시작 안 한 매물이면 null로 내려오는데,
  * PropertySummary.checklist는 undefined일 때 "준비 중"으로 표시하는 구조라 null -> undefined로 변환한다.
  * location도 목록 응답엔 좌표가 없어 0,0으로 채우는데, 목록 카드에서는 좌표를 쓰지 않는다.
@@ -91,12 +112,16 @@ function formatDepositText(
 export function mapPropertyListItemDto(dto: PropertyListItemDto): PropertySummary {
   return {
     id: dto.propertyId,
-    title: `${propertyTypeLabelMap[dto.propertyType]} 매물`,
+    title: dto.title,
     address: dto.roadAddress ?? dto.jibunAddress ?? '주소 정보 없음',
     type: propertyTransactionTypeLabelMap[dto.transactionType],
     deposit: formatDepositText(dto.transactionType, dto.deposit, dto.monthlyRent),
     propertyType: propertyTypeLabelMap[dto.propertyType],
     checklist: dto.checklistProgress ?? undefined,
+    marketDelta:
+      dto.marketComparison.status === 'AVAILABLE' && dto.marketComparison.differenceRate !== null
+        ? formatMarketDelta(dto.marketComparison.differenceRate)
+        : undefined,
     statusColor: propertyStatusColorMap.slate,
     location: { latitude: 0, longitude: 0 },
   };
@@ -145,7 +170,7 @@ function mapMarketComparisonDto(dto: MarketComparisonDto): PropertyMarketCompari
 export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): PropertyDetail {
   return {
     id: dto.propertyId,
-    title: `${propertyTypeLabelMap[dto.propertyType]} 매물`,
+    title: dto.title,
     address: dto.address.roadAddress ?? dto.address.jibunAddress ?? '주소 정보 없음',
     type: propertyTransactionTypeLabelMap[dto.transactionType],
     deposit: formatDepositText(dto.transactionType, dto.deposit, dto.monthlyRent),
@@ -154,7 +179,8 @@ export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): Pr
     monthlyRentAmount: dto.monthlyRent,
     area: dto.area,
     description: dto.description ?? undefined,
-    imageUrls: dto.imageUrls,
+    imageUrls: dto.images.map((image) => image.imageUrl),
+    images: dto.images.map(mapPropertyImageDto),
     marketComparison: mapMarketComparisonDto(dto.marketComparison),
     statusColor: propertyStatusColorMap.slate,
     location: {
@@ -182,6 +208,7 @@ export function mapPropertySummaryToMockDetail(property: PropertySummary): Prope
   return {
     ...property,
     imageUrls: detailMockImageUrls,
+    images: detailMockImageUrls.map((imageUrl) => ({ imageUrl, roomType: null })),
     description: '깨끗하고 채광이 좋은 매물입니다. 역과 가까워 통근이 편리해요.',
     marketComparison: {
       status: 'AVAILABLE',

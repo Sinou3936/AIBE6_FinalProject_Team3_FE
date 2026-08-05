@@ -1,4 +1,7 @@
 import {
+  type AdminChecklistItemTemplateCreateRequestDto,
+  type AdminChecklistItemTemplateDto,
+  type AdminChecklistItemTemplateUpdateRequestDto,
   type AdminDashboardStatsDto,
   type AdminPropertyReportDetailDto,
   type AdminPropertyReportListItemDto,
@@ -14,6 +17,7 @@ import {
   type PropertyReportReasonDto,
 } from '../types/api';
 import {
+  initAdminChecklistItemTemplates,
   initAdminPropertyRegistrations,
   initAdminPropertyReportDetails,
   initAdminPropertyReports,
@@ -32,6 +36,7 @@ type AdminMockState = {
   users: AdminUserListItemDto[];
   reports: AdminPropertyReportListItemDto[];
   reportDetails: Record<number, AdminPropertyReportDetailDto>;
+  checklistTemplates: AdminChecklistItemTemplateDto[];
 };
 
 const globalForAdminMock = globalThis as typeof globalThis & { __adminMockState?: AdminMockState };
@@ -42,11 +47,13 @@ const mockState: AdminMockState = (globalForAdminMock.__adminMockState ??= {
   reportDetails: Object.fromEntries(
     Object.entries(initAdminPropertyReportDetails).map(([id, detail]) => [id, { ...detail }]),
   ),
+  checklistTemplates: initAdminChecklistItemTemplates.map((template) => ({ ...template })),
 });
 
 const mockUsers = mockState.users;
 const mockReports = mockState.reports;
 const mockReportDetails = mockState.reportDetails;
+const mockChecklistTemplates = mockState.checklistTemplates;
 // 매물 등록 이력은 admin 화면에서 수정할 일이 없어 복제하지 않고 init 데이터를 그대로 참조한다.
 const mockPropertyRegistrations = initAdminPropertyRegistrations;
 
@@ -195,4 +202,63 @@ export function getMockAdminDashboardStats(params: MockAdminDashboardParams = {}
     trends: { signups, propertyRegistrations },
     distributions: { byPropertyRegistration, byReportReason },
   };
+}
+
+export function getMockAdminChecklistItemTemplates(): AdminChecklistItemTemplateDto[] {
+  return [...mockChecklistTemplates].sort((a, b) => a.displayOrder - b.displayOrder);
+}
+
+function nextMockTemplateId(): number {
+  return mockChecklistTemplates.reduce((max, template) => Math.max(max, template.id), 0) + 1;
+}
+
+export function createMockAdminChecklistItemTemplate(
+  request: AdminChecklistItemTemplateCreateRequestDto,
+): AdminChecklistItemTemplateDto {
+  // 실제 백엔드(AdminChecklistTemplateService.create)와 동일하게, 기존 문항 중 가장 높은 버전을
+  // 그대로 물려받는다(문항이 하나도 없으면 1로 시작).
+  const version = mockChecklistTemplates.reduce((max, template) => Math.max(max, template.version), 0) || 1;
+  const created: AdminChecklistItemTemplateDto = {
+    id: nextMockTemplateId(),
+    version,
+    code: request.code ?? null,
+    category: request.category,
+    content: request.content,
+    guideText: request.guideText ?? null,
+    helperText: request.helperText ?? null,
+    importance: request.importance,
+    itemType: request.itemType,
+    displayOrder: request.displayOrder,
+    active: true,
+    applicablePropertyTypes: request.applicablePropertyTypes ?? null,
+  };
+  mockChecklistTemplates.push(created);
+  return created;
+}
+
+export function updateMockAdminChecklistItemTemplate(
+  templateId: number,
+  request: AdminChecklistItemTemplateUpdateRequestDto,
+): AdminChecklistItemTemplateDto | undefined {
+  const template = mockChecklistTemplates.find((candidate) => candidate.id === templateId);
+  if (!template) return undefined;
+
+  template.category = request.category;
+  template.content = request.content;
+  template.guideText = request.guideText ?? null;
+  template.helperText = request.helperText ?? null;
+  template.importance = request.importance;
+  template.itemType = request.itemType;
+  template.code = request.code ?? null;
+  template.displayOrder = request.displayOrder;
+  template.applicablePropertyTypes = request.applicablePropertyTypes ?? null;
+  template.active = request.active;
+  return template;
+}
+
+export function deleteMockAdminChecklistItemTemplate(templateId: number): boolean {
+  const index = mockChecklistTemplates.findIndex((candidate) => candidate.id === templateId);
+  if (index === -1) return false;
+  mockChecklistTemplates.splice(index, 1);
+  return true;
 }

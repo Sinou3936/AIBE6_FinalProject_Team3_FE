@@ -8,6 +8,14 @@ export type PropertyLocation = {
   longitude: number;
 };
 
+// 매물 이미지가 어느 공간을 찍은 사진인지 라벨. 선택값 - 라벨 없이 올릴 수도 있다(null).
+export type RoomType = 'LIVING_ROOM' | 'BEDROOM' | 'BATHROOM' | 'KITCHEN' | 'ENTRANCE' | 'VERANDA' | 'EXTERIOR' | 'ETC';
+
+export type PropertyImage = {
+  imageUrl: string;
+  roomType: RoomType | null;
+};
+
 export type PropertySummary = {
   id: number;
   title: string;
@@ -15,8 +23,9 @@ export type PropertySummary = {
   type: PropertyTradeType;
   deposit: string;
   propertyType?: string;
-  // 아래 필드들은 기능4(허위매물 신호)/기능5(전세가율)가 아직 백엔드에 없어서
-  // 실제 API로 받아온 매물은 undefined다. mock 데이터는 계속 값을 채워서 내려준다.
+  // checkSignalCount/jeonseRatio는 기능4(허위매물 신호)/기능5(전세가율)가 아직 목록 응답에 없어서
+  // 실제 API로 받아온 매물은 undefined다. marketDelta는 시세비교가 AVAILABLE일 때만 채워지고,
+  // UNAVAILABLE(판정불가)이거나 아직 계산 전이면 undefined다. mock 데이터는 전부 값을 채워서 내려준다.
   maintenance?: string;
   marketDelta?: string;
   checkSignalCount?: number;
@@ -46,6 +55,9 @@ export type PropertyDetail = {
   area?: number;
   description?: string;
   imageUrls: string[];
+  // imageUrls와 같은 데이터를 담고 있지만 roomType까지 포함한 구조화된 형태 - 수정 화면에서
+  // 기존 이미지를 라벨과 함께 다시 보여주고 편집할 때 쓴다. 상세 화면 캐러셀은 imageUrls만 쓴다.
+  images: PropertyImage[];
   maintenance?: string;
   checkSignalCount?: number;
   signalSummary?: string;
@@ -252,7 +264,6 @@ export type UserProfile = {
 
 export type ProfileUpdateInput = {
   nickname: string;
-  profileImageUrl: string;
   interestRegion: string;
   transactionType: UserTransactionType | null;
   currentStage: UserCurrentStage | null;
@@ -270,4 +281,40 @@ export type PriorityAction = {
   description: string;
   ctaLabel: string;
   ctaHref: string;
+};
+
+// --- risk-analysis 도메인 ---
+
+export type RiskSignalTypeId = 'priceAnomaly' | 'duplicateListing' | 'sameAccountMultiple' | 'shortTermRelisting';
+export type RiskCheckStatusId = 'success' | 'undeterminable' | 'failed';
+
+export type RiskSignal = {
+  signalType: RiskSignalTypeId;
+  status: RiskCheckStatusId;
+  // UNDETERMINABLE/FAILED일 때만 값 있음 — 이미 화면에 바로 쓸 한글 문구로 변환된 상태(app/data/risk-analysis.ts 매핑 참고).
+  reasonText: string | null;
+  // SUCCESS이면서 실제 리스크가 발견됐을 때만 값 있음.
+  description: string | null;
+  checkedAt: string;
+};
+
+export type RiskSignalList = {
+  propertyId: number;
+  signalCount: number;
+  signals: RiskSignal[];
+  disclaimer: string;
+};
+
+export type DepositSafetyStatusId = 'calculated' | 'unavailable' | 'failed' | 'notChecked';
+
+export type DepositSafetyCheck = {
+  propertyId: number;
+  status: DepositSafetyStatusId;
+  jeonseRatio: number | null;
+  explanation: string | null;
+  referenceDate: string | null;
+  reasonText: string | null;
+  calculatedAt: string | null;
+  disclaimer: string;
+  recentOwnershipChangeWarning: boolean;
 };

@@ -1,12 +1,18 @@
 import { useMockData } from '../config/dataSource';
 import { requestJson } from '../lib/api/http';
 import {
+  createMockAdminChecklistItemTemplate,
+  deleteMockAdminChecklistItemTemplate,
   getMockAdminPropertyReportDetail,
   reviewMockAdminPropertyReport,
+  updateMockAdminChecklistItemTemplate,
   updateMockAdminUserRole,
   updateMockAdminUserStatus,
 } from '../repositories/adminRepository';
 import {
+  type AdminChecklistItemTemplateCreateRequestDto,
+  type AdminChecklistItemTemplateDto,
+  type AdminChecklistItemTemplateUpdateRequestDto,
   type AdminPropertyReportDetailDto,
   type AdminPropertyReportReviewRequestDto,
   type AdminUserDetailDto,
@@ -70,4 +76,39 @@ export async function reviewAdminPropertyReport(
     method: 'PATCH',
     body: JSON.stringify(request),
   });
+}
+
+export async function createAdminChecklistItemTemplate(
+  request: AdminChecklistItemTemplateCreateRequestDto,
+): Promise<AdminChecklistItemTemplateDto> {
+  if (useMockData) {
+    return createMockAdminChecklistItemTemplate(request);
+  }
+  return requestJson<AdminChecklistItemTemplateDto>('/admin/checklist-templates', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+export async function updateAdminChecklistItemTemplate(
+  templateId: number,
+  request: AdminChecklistItemTemplateUpdateRequestDto,
+): Promise<AdminChecklistItemTemplateDto> {
+  if (useMockData) {
+    return ensureFound(updateMockAdminChecklistItemTemplate(templateId, request), '체크리스트 문항을 찾을 수 없습니다.');
+  }
+  return requestJson<AdminChecklistItemTemplateDto>(`/admin/checklist-templates/${templateId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(request),
+  });
+}
+
+export async function deleteAdminChecklistItemTemplate(templateId: number): Promise<void> {
+  if (useMockData) {
+    if (!deleteMockAdminChecklistItemTemplate(templateId)) {
+      throw new Error('체크리스트 문항을 찾을 수 없습니다.');
+    }
+    return;
+  }
+  await requestJson<void>(`/admin/checklist-templates/${templateId}`, { method: 'DELETE' });
 }
