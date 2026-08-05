@@ -87,7 +87,10 @@ function PropertiesPageContent() {
 
     getProperties(undefined, requestParams)
       .then((result) => {
-        if (!cancelled) setPropertyPage(result);
+        if (!cancelled) {
+          setPropertyPage(result);
+          setLoadError(undefined);
+        }
       })
       .catch((error) => {
         if (cancelled) return;

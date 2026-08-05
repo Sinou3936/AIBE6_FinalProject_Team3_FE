@@ -33,6 +33,7 @@ export default function Page() {
         if (!cancelled) {
           setChecklist(loadedChecklist);
           setSummary(loadedSummary);
+          setLoadError(undefined);
         }
       } catch {
         if (!cancelled) setLoadError('체크리스트를 불러오지 못했습니다. API 설정을 확인해 주세요.');

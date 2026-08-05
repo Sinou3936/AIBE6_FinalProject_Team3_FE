@@ -22,7 +22,10 @@ export default function Page() {
     setLoading(true);
     getPropertyById(propertyId)
       .then((result) => {
-        if (!cancelled) setProperty(result);
+        if (!cancelled) {
+          setProperty(result);
+          setLoadError(undefined);
+        }
       })
       .catch(() => {
         if (!cancelled) setLoadError('매물 정보를 불러오지 못했습니다. API 설정을 확인해 주세요.');
