@@ -66,7 +66,14 @@ function OAuthCallbackContent() {
           error instanceof ApiError && error.sessionRefreshOutcome === 'unreachable'
             ? 'session_unavailable'
             : 'session_expired';
-        router.replace(`/login?error=${errorParam}`);
+        const loginUrl = new URL('/login', window.location.origin);
+        loginUrl.searchParams.set('error', errorParam);
+        // 위 error 분기와 동일한 이유로 next를 살려둔다 — rawNext가 있을 때만 붙여서, 애초에
+        // next 없이 시작한 로그인 시도에 쓸데없이 /home을 next로 얹지 않는다.
+        if (rawNext) {
+          loginUrl.searchParams.set('next', next);
+        }
+        router.replace(`${loginUrl.pathname}${loginUrl.search}`);
         return;
       }
 
