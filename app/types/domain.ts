@@ -9,15 +9,7 @@ export type PropertyLocation = {
 };
 
 // 매물 이미지가 어느 공간을 찍은 사진인지 라벨. 선택값 - 라벨 없이 올릴 수도 있다(null).
-export type RoomType =
-  | 'LIVING_ROOM'
-  | 'BEDROOM'
-  | 'BATHROOM'
-  | 'KITCHEN'
-  | 'ENTRANCE'
-  | 'VERANDA'
-  | 'EXTERIOR'
-  | 'ETC';
+export type RoomType = 'LIVING_ROOM' | 'BEDROOM' | 'BATHROOM' | 'KITCHEN' | 'ENTRANCE' | 'VERANDA' | 'EXTERIOR' | 'ETC';
 
 export type PropertyImage = {
   imageUrl: string;
@@ -289,4 +281,40 @@ export type PriorityAction = {
   description: string;
   ctaLabel: string;
   ctaHref: string;
+};
+
+// --- risk-analysis 도메인 ---
+
+export type RiskSignalTypeId = 'priceAnomaly' | 'duplicateListing' | 'sameAccountMultiple' | 'shortTermRelisting';
+export type RiskCheckStatusId = 'success' | 'undeterminable' | 'failed';
+
+export type RiskSignal = {
+  signalType: RiskSignalTypeId;
+  status: RiskCheckStatusId;
+  // UNDETERMINABLE/FAILED일 때만 값 있음 — 이미 화면에 바로 쓸 한글 문구로 변환된 상태(app/data/risk-analysis.ts 매핑 참고).
+  reasonText: string | null;
+  // SUCCESS이면서 실제 리스크가 발견됐을 때만 값 있음.
+  description: string | null;
+  checkedAt: string;
+};
+
+export type RiskSignalList = {
+  propertyId: number;
+  signalCount: number;
+  signals: RiskSignal[];
+  disclaimer: string;
+};
+
+export type DepositSafetyStatusId = 'calculated' | 'unavailable' | 'failed' | 'notChecked';
+
+export type DepositSafetyCheck = {
+  propertyId: number;
+  status: DepositSafetyStatusId;
+  jeonseRatio: number | null;
+  explanation: string | null;
+  referenceDate: string | null;
+  reasonText: string | null;
+  calculatedAt: string | null;
+  disclaimer: string;
+  recentOwnershipChangeWarning: boolean;
 };
