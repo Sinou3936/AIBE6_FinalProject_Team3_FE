@@ -124,7 +124,6 @@
 - 등록/수정 폼의 보증금/월세/전용면적 입력란에 타이핑 중 자릿수 콤마를 자동으로 붙여서 표시(`app/lib/numberFormat.ts`) — 위 파싱 처리와 쌍을 이룸
 - "면적" 라벨을 상세 화면과 동일하게 "전용면적"으로 통일(등록폼/수정폼/목록 필터 패널)
 - 등록/수정 제출 중 로딩 오버레이 추가(`app/ui/LoadingOverlay.tsx`) — 등록은 국토부/카카오 실거래가 조회, 수정도 동일한 재계산을 거쳐야 응답이 오는 동기 구조라 몇 초씩 걸릴 수 있어서, 그 동안 폼 카드 위에 스피너+안내 문구를 덮어 진행 중임을 보여주고 입력 필드/버튼을 비활성화함
-- 매물 상세 화면의 공유/찜(하트) 버튼 — 아이콘만 있고 실제 기능은 연결되어 있지 않음(장식용 또는 추후 구현 예정으로 보임)
 - 전세/월세 가격 표기 단위 통일(`formatDepositText`, `app/mappers/property.ts`) — 예전엔 전세는 "9,000만원"처럼 단위가 붙는데 월세만 "보증금 3,000 / 월세 55"처럼 단위 없이 숫자만 나와서 표기가 안 맞았음. 월세 쪽도 동일한 `formatManwon`을 쓰도록 통일해 "보증금 3,000만원 / 월세 55만원"으로 표시됨
 
 ## 남은 이슈 / 확인 필요 총정리
@@ -138,4 +137,4 @@
 7. **목록/상세에 보이는 매물 제목이 실제 저장값이 아님** — `mapPropertyListItemDto`/`mapPropertyDetailResponseDto`(`app/mappers/property.ts`)가 `propertyType`만 보고 `"오피스텔 매물"`처럼 그때그때 만들어내는 문자열이다. BE `Property`에 `title` 컬럼이 아예 없어서 벌어지는 일(`property-design.md`(BE) 18번 참고) — BE에 `title` 컬럼 추가가 합의됐고, 별도 이슈로 진행되면 등록 폼에 제목 입력 필드 추가 + 이 자동생성 로직 제거가 함께 필요함
 8. **관리비(`maintenance`) 필드가 요구사항 명세에 없는데 UI엔 표시 슬롯이 남아있음** — BE `Property` 요구사항 필드 목록(id/userId/address/propertyType/transactionType/deposit/monthlyRent/askingPrice/area/status)에 관리비가 없고, 실제 BE 엔티티에도 대응 컬럼이 없다. FE `PropertySummary`/`PropertyDetail`엔 `maintenance?: string` 필드가 있고 목록 카드는 `property.maintenance ?? '관리비 정보 없음'`으로 무조건 렌더링해서 실사용 매물마다 "관리비 정보 없음"만 항상 찍힘. 팀 논의 결과 추후 실제로 쓸 가능성이 있어 일단 유지하기로 함 — BE에 컬럼이 추가되면 그때 register/edit 폼 입력란 + 매퍼 연결이 함께 필요함
 9. ~~매물 목록 카드의 "체크리스트" 칸이 항상 "준비 중"~~ → **BE `PropertyListResponse.checklistProgress`(체크리스트 미시작 시 null, 시작했으면 0~100 반올림 정수) 추가 + FE `mapPropertyListItemDto`에서 `PropertySummary.checklist`로 연결하며 해소됨.** BE는 `ChecklistItemRepository.findProgressByUserId`가 유저 전체 체크리스트 문항을 `property.id` 기준 GROUP BY로 한 번에 집계하는 방식이라 매물 개수와 무관하게 쿼리 1회, N+1 없음. **"시세 대비" 칸은 여전히 "준비 중"** — `PropertySummary.marketDelta`는 실제 API가 채우지 않는 필드로 남아있음(`types/domain.ts` 참고). 시세 대비(실거래가)는 국토부/카카오 API를 매물마다 동기 호출해야 해서 캐싱 없이 목록에 붙이면 페이지 로딩이 크게 느려짐 — 캐싱(Redis 등) 도입 후로 보류
-10. **매물 목록 카드 오른쪽의 "주소 중복 확인/보증금 수치 확인/현장 점검" 3개 칩이 완전히 정적 UI** — `PropertiesClient.tsx` 410~423번 줄, 어떤 매물 데이터와도 연결되지 않고 항상 동일한 아이콘·색·문구로 표시됨. 특히 "보증금 수치 확인"(주황 경고 아이콘)과 "현장 점검"(초록 체크 아이콘)은 실제로 확인/완료된 것처럼 오해하게 만들 수 있어 "준비 중" 계열 플레이스홀더보다 더 misleading함. 처리 방향(제거/실제 데이터 연동) 논의 필요
+10. ~~매물 목록 카드 오른쪽의 "주소 중복 확인/보증금 수치 확인/현장 점검" 3개 칩이 완전히 정적 UI~~ → **제거됨.** 어떤 매물 데이터와도 연결되지 않고 항상 동일한 아이콘·색·문구로 표시돼 실제로 확인/완료된 것처럼 오해를 줄 수 있었음. 같은 작업에서 매물 상세 화면(모바일 상단바)의 공유/찜(하트) 버튼도 함께 제거함 — `onClick`이 없어 눌러도 아무 동작을 안 했고, 코드베이스 전체에 찜/공유 기능을 구현한 흔적이 전혀 없어 완전히 장식용으로 남아있던 상태였음

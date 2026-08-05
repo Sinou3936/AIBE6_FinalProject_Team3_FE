@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertCircle, Bell, Home, LogOut, Menu, User, X } from 'lucide-react';
+import { AlertCircle, Bell, Home, LogOut, Menu, Shield, User, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
@@ -13,9 +13,10 @@ type MainLayoutClientProps = {
   children: ReactNode;
   nickname: string;
   profileImageUrl: string | null;
+  isAdmin: boolean;
 };
 
-export default function MainLayoutClient({ children, nickname, profileImageUrl }: MainLayoutClientProps) {
+export default function MainLayoutClient({ children, nickname, profileImageUrl, isAdmin }: MainLayoutClientProps) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isLoggingOut, logoutError, handleLogout } = useLogout();
@@ -57,6 +58,15 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl }
               <Bell className="h-5 w-5" />
               <span className="absolute right-2 top-2 h-2 w-2 rounded-full border-2 border-white bg-red-500" />
             </button>
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1 rounded-full border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 hover:text-slate-950"
+              >
+                <Shield className="h-4 w-4" />
+                관리자 페이지
+              </Link>
+            )}
             <Link
               href="/mypage"
               className="flex items-center gap-2 rounded-full border border-slate-200 p-1 pl-3 transition-colors hover:bg-slate-50"
@@ -100,6 +110,11 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl }
             <button className="p-2 text-slate-500">
               <Bell className="h-5 w-5" />
             </button>
+            {isAdmin && (
+              <Link href="/admin" className="p-2 text-slate-500">
+                <Shield className="h-5 w-5" />
+              </Link>
+            )}
             <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-slate-500">
               <Menu className="h-6 w-6" />
             </button>

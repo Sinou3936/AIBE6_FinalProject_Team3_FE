@@ -6,14 +6,11 @@ import { useRouter } from 'next/navigation';
 import {
   AlertTriangle,
   ArrowUpDown,
-  Building2,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   MapPin,
   Plus,
   Search,
-  ShieldAlert,
   SlidersHorizontal,
   X,
 } from 'lucide-react';
@@ -351,74 +348,61 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
               href={`/properties/${property.id}`}
               className="ansim-card group block p-6 transition hover:border-teal-200"
             >
-              <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex-1">
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <Badge className="bg-teal-50 text-teal-700">{property.type}</Badge>
-                    {property.checkSignalCount !== undefined ? (
-                      <Badge className={property.statusColor}>확인 필요 신호 {property.checkSignalCount}개</Badge>
-                    ) : (
-                      <Badge className="bg-slate-100 text-slate-500">신호 확인 준비 중</Badge>
-                    )}
-                    {property.jeonseRatio !== undefined ? (
-                      <Badge className="bg-slate-100 text-slate-600">전세가율 {property.jeonseRatio}</Badge>
-                    ) : (
-                      <Badge className="bg-slate-100 text-slate-500">전세가율 준비 중</Badge>
-                    )}
-                  </div>
-                  <h2 className="mb-2 text-xl font-bold text-slate-950 group-hover:text-teal-700">{property.title}</h2>
-                  <p className="mb-4 flex items-center gap-1 text-sm text-slate-500">
-                    <MapPin className="h-4 w-4" /> {property.address}
-                  </p>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="mb-1 text-xs text-slate-400">가격</p>
-                      <p className="font-bold text-slate-950">{property.deposit}</p>
-                      <p className="mt-1 text-xs text-slate-500">{property.maintenance ?? '관리비 정보 없음'}</p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="mb-1 text-xs text-slate-400">시세 대비</p>
-                      {property.marketDelta !== undefined ? (
-                        <p
-                          className={cn(
-                            'font-bold',
-                            property.marketDelta.startsWith('+') ? 'text-orange-600' : 'text-emerald-600',
-                          )}
-                        >
-                          {property.marketDelta}
-                        </p>
-                      ) : (
-                        <p className="font-bold text-slate-400">준비 중</p>
-                      )}
-                      <p className="mt-1 text-xs text-slate-500">
-                        {property.marketDelta !== undefined ? '최근 실거래가 기준' : '실거래가 연동 예정'}
-                      </p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 p-4">
-                      <p className="mb-1 text-xs text-slate-400">체크리스트</p>
-                      {property.checklist !== undefined ? (
-                        <p className="font-bold text-slate-950">{property.checklist}% 완료</p>
-                      ) : (
-                        <p className="font-bold text-slate-400">준비 중</p>
-                      )}
-                      <p className="mt-1 text-xs text-slate-500">
-                        {property.checklist !== undefined ? '방문 확인 진행률' : '체크리스트 연동 예정'}
-                      </p>
-                    </div>
-                  </div>
+              <div>
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Badge className="bg-teal-50 text-teal-700">{property.type}</Badge>
+                  {property.propertyType && (
+                    <Badge className="bg-slate-100 text-slate-600">{property.propertyType}</Badge>
+                  )}
+                  {property.checkSignalCount !== undefined ? (
+                    <Badge className={property.statusColor}>확인 필요 신호 {property.checkSignalCount}개</Badge>
+                  ) : (
+                    <Badge className="bg-slate-100 text-slate-500">신호 확인 준비 중</Badge>
+                  )}
+                  {property.jeonseRatio !== undefined ? (
+                    <Badge className="bg-slate-100 text-slate-600">전세가율 {property.jeonseRatio}</Badge>
+                  ) : (
+                    <Badge className="bg-slate-100 text-slate-500">전세가율 준비 중</Badge>
+                  )}
                 </div>
-                <div className="grid grid-cols-3 gap-2 lg:w-56 lg:grid-cols-1">
-                  <div className="flex items-center gap-2 rounded-xl border border-slate-100 p-3">
-                    <Building2 className="h-4 w-4 text-slate-400" />
-                    <span className="text-xs font-medium text-slate-600">주소 중복 확인</span>
+                <h2 className="mb-2 text-xl font-bold text-slate-950 group-hover:text-teal-700">{property.title}</h2>
+                <p className="mb-4 flex items-center gap-1 text-sm text-slate-500">
+                  <MapPin className="h-4 w-4" /> {property.address}
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="mb-1 text-xs text-slate-400">가격</p>
+                    <p className="font-bold text-slate-950">{property.deposit}</p>
+                    <p className="mt-1 text-xs text-slate-500">{property.maintenance ?? '관리비 정보 없음'}</p>
                   </div>
-                  <div className="flex items-center gap-2 rounded-xl border border-slate-100 p-3">
-                    <ShieldAlert className="h-4 w-4 text-orange-500" />
-                    <span className="text-xs font-medium text-slate-600">보증금 수치 확인</span>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="mb-1 text-xs text-slate-400">시세 대비</p>
+                    {property.marketDelta !== undefined ? (
+                      <p
+                        className={cn(
+                          'font-bold',
+                          property.marketDelta.startsWith('+') ? 'text-orange-600' : 'text-emerald-600',
+                        )}
+                      >
+                        {property.marketDelta}
+                      </p>
+                    ) : (
+                      <p className="font-bold text-slate-400">준비 중</p>
+                    )}
+                    <p className="mt-1 text-xs text-slate-500">
+                      {property.marketDelta !== undefined ? '최근 실거래가 기준' : '실거래가 연동 예정'}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 rounded-xl border border-slate-100 p-3">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    <span className="text-xs font-medium text-slate-600">현장 점검</span>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="mb-1 text-xs text-slate-400">체크리스트</p>
+                    {property.checklist !== undefined ? (
+                      <p className="font-bold text-slate-950">{property.checklist}% 완료</p>
+                    ) : (
+                      <p className="font-bold text-slate-400">준비 중</p>
+                    )}
+                    <p className="mt-1 text-xs text-slate-500">
+                      {property.checklist !== undefined ? '방문 확인 진행률' : '체크리스트 연동 예정'}
+                    </p>
                   </div>
                 </div>
               </div>
