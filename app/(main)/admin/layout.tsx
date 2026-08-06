@@ -44,7 +44,14 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         // 한다는 사실조차 알 수 없다. 배포 직후 진단용으로 콘솔에는 항상 남긴다.
         console.error('Admin role check failed', error);
         if (cancelled) return;
-        const unreachable = error instanceof ApiError && error.sessionRefreshOutcome === 'unreachable';
+        // sessionRefreshOutcome==='unreachable'은 401 이후의 refresh 시도가 막힌 경우만 채워진다.
+        // 최초 GET /auth/me 자체가 실패하면(백엔드 다운, CORS 차단 등) refresh 단계까지 가지도
+        // 못하고 fetchOrThrowNetworkError가 status=0 + body.code='NETWORK_ERROR'인 ApiError를
+        // 던지는데, 이 경우 sessionRefreshOutcome은 채워지지 않는다 - 그래서 진짜 unreachable
+        // 상황인데도 이 값 하나만 보면 forbidden으로 잘못 접힐 수 있어 두 신호를 같이 본다.
+        const unreachable =
+          error instanceof ApiError &&
+          (error.sessionRefreshOutcome === 'unreachable' || error.status === 0 || error.body?.code === 'NETWORK_ERROR');
         setState(unreachable ? 'unreachable' : 'forbidden');
       });
 
