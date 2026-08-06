@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
-import { ApiError } from '../lib/api/http';
+import { resolveErrorMessage } from '../lib/resolveErrorMessage';
 import { signup } from '../services/auth';
 import { checkNicknameAvailability } from '../services/user';
 import { type PasswordPolicyDto } from '../types/api';
@@ -42,6 +42,7 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmitting) return;
 
     if (password !== confirmPassword) {
       // 폼의 암묵적 제출(입력란에서 Enter) 경로는 브라우저가 포커스를 되돌릴 수 있어,
@@ -64,9 +65,7 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
       router.push('/mypage/profile');
       router.refresh();
     } catch (submitError) {
-      setError(
-        submitError instanceof ApiError ? submitError.message : '회원가입에 실패했습니다. 잠시 후 다시 시도해 주세요.',
-      );
+      setError(resolveErrorMessage(submitError, '회원가입에 실패했습니다. 잠시 후 다시 시도해 주세요.'));
     } finally {
       setIsSubmitting(false);
     }
