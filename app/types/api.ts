@@ -608,7 +608,6 @@ export type DepositSafetyCheckDto = {
   propertyId: number;
   status: DepositSafetyStatusDto | null; // 한 번도 계산 안 됐으면 null (자동 트리거 덕분에 실사용에선 거의 안 생김)
   jeonseRatio: number | null;
-  // 아래 3개는 재계산(이번 스코프 제외) 전용 필드지만 Backend가 항상 이 shape으로 내려주므로 타입엔 남긴다.
   seniorDepositApplied: boolean;
   seniorDeposit: number | null;
   maxClaimAmount: number | null;
@@ -618,4 +617,11 @@ export type DepositSafetyCheckDto = {
   calculatedAt: string | null;
   disclaimer: string;
   recentOwnershipChangeWarning: boolean;
+};
+
+// POST /properties/{propertyId}/deposit-safety/recalculate 요청. seniorDeposit(선순위보증금)은
+// 필수, maxClaimAmount(근저당 채권최고액)는 선택 - 둘 다 원(KRW) 단위 정수.
+export type DepositSafetyRecalculateRequestDto = {
+  seniorDeposit: number;
+  maxClaimAmount?: number;
 };
