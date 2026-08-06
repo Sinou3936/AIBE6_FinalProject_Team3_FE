@@ -105,7 +105,7 @@ export async function getMyChecklistOverviews(
   cookieHeader?: string,
 ): Promise<ChecklistOverviewPage> {
   if (useMockData) {
-    return getMockChecklistOverviews();
+    return getMockChecklistOverviews(params?.page);
   }
 
   const query = new URLSearchParams();
