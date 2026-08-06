@@ -16,6 +16,10 @@ import { Modal } from '../../../ui/Modal';
 import { Pagination } from '../../../ui/Pagination';
 import { Table } from '../../../ui/Table';
 
+// 백엔드 AdminPropertyReportReviewRequest의 @Size(max = 500)와 맞춰둔다 - 프론트에서 안 막으면
+// 그 길이를 넘겼을 때 제출 후에야 validation 에러로 알게 된다.
+const MEMO_MAX_LENGTH = 500;
+
 type Filters = {
   status: string;
   reason: string;
@@ -249,10 +253,14 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
 
             {detail.status === 'RECEIVED' ? (
               <div>
+                <label className="mb-1 block text-xs font-bold text-slate-600">
+                  처리 메모 (선택, {memo.length}/{MEMO_MAX_LENGTH}자)
+                </label>
                 <textarea
                   value={memo}
                   onChange={(event) => setMemo(event.target.value)}
                   rows={2}
+                  maxLength={MEMO_MAX_LENGTH}
                   placeholder="처리 메모 (선택)"
                   className="ansim-input mb-3 w-full resize-none"
                 />
