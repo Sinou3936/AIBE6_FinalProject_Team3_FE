@@ -4,7 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { updateAdminUserRole, updateAdminUserStatus } from '../../../services/adminActions';
-import { type AdminUserListItemDto, type PageResponseDto } from '../../../types/api';
+import {
+  type AdminRoleDto,
+  type AdminUserListItemDto,
+  type AdminUserStatusDto,
+  type PageResponseDto,
+} from '../../../types/api';
 import { Badge } from '../../../ui/Badge';
 import { Modal } from '../../../ui/Modal';
 import { Pagination } from '../../../ui/Pagination';
@@ -25,9 +30,11 @@ type AdminUsersClientProps = {
   onMutated?: () => void;
 };
 
-const ROLE_LABEL: Record<string, string> = { USER: '일반', ADMIN: '관리자' };
-const STATUS_LABEL: Record<string, string> = { ACTIVE: '활성', SUSPENDED: '정지', WITHDRAWN: '탈퇴' };
-const STATUS_TONE: Record<string, string> = {
+// enum 값에 맞춰 타입을 좁혀둔다 - Record<string, string>이면 AdminRoleDto/AdminUserStatusDto에
+// 값이 추가돼도 컴파일러가 이 매핑에 라벨 추가를 빠뜨린 걸 잡아주지 못한다.
+const ROLE_LABEL: Record<AdminRoleDto, string> = { USER: '일반', ADMIN: '관리자' };
+const STATUS_LABEL: Record<AdminUserStatusDto, string> = { ACTIVE: '활성', SUSPENDED: '정지', WITHDRAWN: '탈퇴' };
+const STATUS_TONE: Record<AdminUserStatusDto, string> = {
   ACTIVE: 'bg-emerald-50 text-emerald-700',
   SUSPENDED: 'bg-red-50 text-red-700',
   WITHDRAWN: 'bg-slate-100 text-slate-500',

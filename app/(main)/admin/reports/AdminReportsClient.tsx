@@ -6,6 +6,7 @@ import { getAdminPropertyReportDetail, reviewAdminPropertyReport } from '../../.
 import {
   type AdminPropertyReportDetailDto,
   type AdminPropertyReportListItemDto,
+  type AdminPropertyReportStatusDto,
   type PageResponseDto,
   type PropertyReportReasonDto,
 } from '../../../types/api';
@@ -34,8 +35,10 @@ const REASON_LABEL: Record<PropertyReportReasonDto, string> = {
   ETC: '기타',
 };
 
-const STATUS_LABEL: Record<string, string> = { RECEIVED: '접수', RESOLVED: '조치완료', REJECTED: '반려' };
-const STATUS_TONE: Record<string, string> = {
+// enum 값에 맞춰 타입을 좁혀둔다 - Record<string, string>이면 AdminPropertyReportStatusDto에 값이
+// 추가돼도 컴파일러가 이 매핑에 라벨 추가를 빠뜨린 걸 잡아주지 못한다.
+const STATUS_LABEL: Record<AdminPropertyReportStatusDto, string> = { RECEIVED: '접수', RESOLVED: '조치완료', REJECTED: '반려' };
+const STATUS_TONE: Record<AdminPropertyReportStatusDto, string> = {
   RECEIVED: 'bg-orange-50 text-orange-700',
   RESOLVED: 'bg-emerald-50 text-emerald-700',
   REJECTED: 'bg-slate-100 text-slate-500',
