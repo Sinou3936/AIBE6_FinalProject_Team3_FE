@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { propertyTypeLabelMap } from '../../../mappers/property';
 import {
   createAdminChecklistItemTemplate,
   deleteAdminChecklistItemTemplate,
@@ -13,7 +14,14 @@ import {
   type ChecklistImportanceDto,
   type ChecklistItemCodeDto,
   type ChecklistItemTypeDto,
+  type PropertyTypeDto,
 } from '../../../types/api';
+
+// DB 컬럼 길이 제약(ChecklistItemTemplate 엔티티)과 맞춰둔다 - 프론트에서 안 막으면 그 길이를
+// 넘겼을 때 저장 시점에야 원인 불명의 500(데이터 잘림 오류)로 실패한다. helperText는 TEXT
+// 컬럼이라 실질적인 길이 제약이 없어 여기 포함하지 않는다.
+const CONTENT_MAX_LENGTH = 200;
+const GUIDE_TEXT_MAX_LENGTH = 255;
 import { Badge } from '../../../ui/Badge';
 import { Modal } from '../../../ui/Modal';
 import { Table } from '../../../ui/Table';
@@ -66,7 +74,11 @@ type FormState = {
   itemType: ChecklistItemTypeDto;
   code: ChecklistItemCodeDto | typeof NONE_CODE;
   displayOrder: string;
-  applicablePropertyTypes: string;
+  // 백엔드는 콤마로 구분된 문자열(예: "OFFICETEL,MULTI_FAMILY")로 받지만, 폼에서는 실제
+  // PropertyTypeDto 값만 고를 수 있는 체크박스로 관리한다 - 자유 텍스트로 두면 오타/존재하지
+  // 않는 값이 그대로 저장돼도 저장 시점엔 아무 에러도 안 나고, 이후 매물유형 필터링에서
+  // 조용히 항상 안 맞는 문항이 돼버린다.
+  applicablePropertyTypes: PropertyTypeDto[];
   active: boolean;
 };
 
@@ -79,9 +91,17 @@ const EMPTY_FORM: FormState = {
   itemType: 'CHECK',
   code: NONE_CODE,
   displayOrder: '1',
-  applicablePropertyTypes: '',
+  applicablePropertyTypes: [],
   active: true,
 };
+
+function parseApplicablePropertyTypes(value: string | null): PropertyTypeDto[] {
+  if (!value) return [];
+  return value
+    .split(',')
+    .map((token) => token.trim())
+    .filter((token): token is PropertyTypeDto => token in propertyTypeLabelMap);
+}
 
 function toFormState(template: AdminChecklistItemTemplateDto): FormState {
   return {
@@ -93,7 +113,7 @@ function toFormState(template: AdminChecklistItemTemplateDto): FormState {
     itemType: template.itemType,
     code: template.code ?? NONE_CODE,
     displayOrder: String(template.displayOrder),
-    applicablePropertyTypes: template.applicablePropertyTypes ?? '',
+    applicablePropertyTypes: parseApplicablePropertyTypes(template.applicablePropertyTypes),
     active: template.active,
   };
 }
@@ -101,14 +121,14 @@ function toFormState(template: AdminChecklistItemTemplateDto): FormState {
 function toCreateRequest(form: FormState): AdminChecklistItemTemplateCreateRequestDto {
   return {
     category: form.category,
-    content: form.content.trim(),
-    guideText: form.guideText.trim() || undefined,
+    content: form.content.trim().slice(0, CONTENT_MAX_LENGTH),
+    guideText: form.guideText.trim().slice(0, GUIDE_TEXT_MAX_LENGTH) || undefined,
     helperText: form.helperText.trim() || undefined,
     importance: form.importance,
     itemType: form.itemType,
     code: form.code || undefined,
     displayOrder: Number(form.displayOrder),
-    applicablePropertyTypes: form.applicablePropertyTypes.trim() || undefined,
+    applicablePropertyTypes: form.applicablePropertyTypes.length > 0 ? form.applicablePropertyTypes.join(',') : undefined,
   };
 }
 
@@ -324,21 +344,23 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
               </div>
 
               <label className="block text-xs font-bold text-slate-600">
-                문항 내용
+                문항 내용 ({modal.form.content.length}/{CONTENT_MAX_LENGTH}자)
                 <input
                   value={modal.form.content}
                   onChange={(event) => updateForm({ content: event.target.value })}
                   placeholder="예: 창문 잠금장치가 정상 작동하나요?"
+                  maxLength={CONTENT_MAX_LENGTH}
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
                 />
               </label>
 
               <label className="block text-xs font-bold text-slate-600">
-                안내 문구 (선택 - 실무 안내, 짧게)
+                안내 문구 (선택 - 실무 안내, 짧게, {modal.form.guideText.length}/{GUIDE_TEXT_MAX_LENGTH}자)
                 <textarea
                   value={modal.form.guideText}
                   onChange={(event) => updateForm({ guideText: event.target.value })}
                   rows={2}
+                  maxLength={GUIDE_TEXT_MAX_LENGTH}
                   className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
                 />
               </label>
@@ -396,15 +418,31 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                 </select>
               </label>
 
-              <label className="block text-xs font-bold text-slate-600">
-                적용 매물유형 (선택, 콤마로 구분 - 예: OFFICETEL,MULTI_FAMILY / 비우면 전체 적용)
-                <input
-                  value={modal.form.applicablePropertyTypes}
-                  onChange={(event) => updateForm({ applicablePropertyTypes: event.target.value })}
-                  placeholder="비우면 전체 매물유형에 적용"
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                />
-              </label>
+              <div className="text-xs font-bold text-slate-600">
+                적용 매물유형 (선택 안 하면 전체 매물유형에 적용)
+                <div className="mt-1 flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  {Object.entries(propertyTypeLabelMap).map(([value, label]) => {
+                    const propertyType = value as PropertyTypeDto;
+                    const checked = modal.form.applicablePropertyTypes.includes(propertyType);
+                    return (
+                      <label key={value} className="flex items-center gap-1.5 font-normal text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(event) =>
+                            updateForm({
+                              applicablePropertyTypes: event.target.checked
+                                ? [...modal.form.applicablePropertyTypes, propertyType]
+                                : modal.form.applicablePropertyTypes.filter((t) => t !== propertyType),
+                            })
+                          }
+                        />
+                        {label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
 
               {modal.type === 'edit' && (
                 <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
