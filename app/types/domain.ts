@@ -161,6 +161,17 @@ export type ChecklistOverview = {
   lastCheckedAt: string;
 };
 
+// GET /checklists 페이지네이션 응답. Backend PageResponse를 그대로 옮기되 content만
+// ChecklistOverview로 매핑한다(app/types/domain.ts의 PropertyListPage와 동일 패턴).
+export type ChecklistOverviewPage = {
+  items: ChecklistOverview[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+};
+
 /**
  * 매물별 체크리스트 진행 상태를 요약 화면(홈/마이페이지)에 표시하기 위한 집계 타입.
  * status는 항상 알 수 있지만(ChecklistOverview 조회 한 번으로 끝남), progressPercent/cautionCount는
