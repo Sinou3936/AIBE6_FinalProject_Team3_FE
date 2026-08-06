@@ -1,8 +1,10 @@
 import { AlertCircle, Shield } from 'lucide-react';
 import Link from 'next/link';
+import { crossOriginAuth } from '../config/auth';
 import { getGoogleLoginUrl, getKakaoLoginUrl } from '../services/auth';
 import { NoticeBox } from '../ui/NoticeBox';
 import { LoginFormClient } from './LoginFormClient';
+import { SessionRecoverRetryButton } from './SessionRecoverRetryButton';
 import { SocialLoginLinks } from './SocialLoginLinks';
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -25,13 +27,17 @@ type LoginPageProps = {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { error, next } = await searchParams;
   const errorMessage = error ? (ERROR_MESSAGES[error] ?? '로그인 중 문제가 발생했습니다.') : undefined;
-  // session_unavailable(서버 일시 장애로 refresh를 못 해본 경우)만 재시도 링크를 보여준다 —
-  // refresh_token이 아직 남아있을 수 있으니, 로그인을 처음부터 다시 하는 대신
-  // /auth/session-recover를 다시 태워서 그 사이 서버가 복구됐으면 세션을 그대로 이어가게 한다.
-  // next는 session-recover가 자체적으로 다시 검증(sanitizeNextPath)하므로 여기서 추가 검증은
-  // 불필요하다.
-  const retryHref =
-    error === 'session_unavailable' && next ? `/auth/session-recover?next=${encodeURIComponent(next)}` : undefined;
+  // session_unavailable(서버 일시 장애로 refresh를 못 해본 경우)만 재시도를 보여준다 —
+  // refresh_token이 아직 남아있을 수 있으니, 로그인을 처음부터 다시 하는 대신 그 사이 서버가
+  // 복구됐으면 세션을 그대로 이어가게 한다. next는 session-recover가 자체적으로 다시 검증
+  // (sanitizeNextPath)하므로 여기서 추가 검증은 불필요하다.
+  //
+  // crossOriginAuth 배포에서는 /auth/session-recover(Route Handler)가 못 쓴다 - refresh_token
+  // 쿠키가 백엔드 도메인에만 종속되어 프론트 자신에게 오는 요청에는 절대 안 붙으므로, 그 경로로
+  // 재시도하면 항상 refreshToken이 비어 있는 것으로 처리돼 세션이 멀쩡해도 무조건 재로그인을
+  // 강제한다(SessionRecoverRetryButton.tsx 참고) - 그 배포에서는 대신 브라우저가 직접
+  // 크로스오리진으로 백엔드에 재확인하는 클라이언트 버튼을 쓴다.
+  const showRetry = error === 'session_unavailable' && Boolean(next);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
@@ -47,12 +53,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         {errorMessage && (
           <NoticeBox icon={AlertCircle} iconClassName="text-red-500" className="mb-6 bg-red-50 text-red-600">
             {errorMessage}
-            {retryHref && (
+            {showRetry && next && (
               <>
                 {' '}
-                <Link href={retryHref} className="font-bold underline">
-                  다시 시도
-                </Link>
+                {crossOriginAuth ? (
+                  <SessionRecoverRetryButton next={next} />
+                ) : (
+                  <Link href={`/auth/session-recover?next=${encodeURIComponent(next)}`} className="font-bold underline">
+                    다시 시도
+                  </Link>
+                )}
               </>
             )}
           </NoticeBox>
