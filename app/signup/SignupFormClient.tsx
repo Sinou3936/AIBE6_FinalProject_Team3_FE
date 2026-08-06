@@ -29,10 +29,6 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
 
   const handleCheckNickname = async () => {
     const trimmed = nickname.trim();
-    if (trimmed.length < 2) {
-      setNicknameCheckStatus('error');
-      return;
-    }
 
     setNicknameCheckStatus('checking');
     setNicknameRequiredError(false);
