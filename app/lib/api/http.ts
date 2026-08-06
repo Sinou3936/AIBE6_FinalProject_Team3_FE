@@ -42,6 +42,18 @@ export class ApiError extends Error {
   }
 }
 
+// 최초 fetch 자체의 실패(fetchOrThrowNetworkError - status=0, body.code='NETWORK_ERROR')와 401
+// 이후 refresh 실패(finalizeResponse - sessionRefreshOutcome='unreachable') 둘 다 "일시적으로
+// 서버와 통신할 수 없다"는 같은 의미인데, 서로 다른 필드에 신호가 남는다. 호출부가 이 중 하나만
+// 확인하면(실제로 admin/layout.tsx, MainLayoutGate.tsx, oauth/callback/page.tsx에서 반복됐던
+// 실수) 진짜 네트워크 장애인데도 "세션이 무효함"으로 잘못 판정할 수 있어 한 곳에서 판단한다.
+export function isUnreachableError(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.sessionRefreshOutcome === 'unreachable' || error.status === 0 || error.body?.code === 'NETWORK_ERROR')
+  );
+}
+
 export function getApiBaseUrl(): string {
   if (!API_BASE_URL) {
     throw new ApiError('NEXT_PUBLIC_API_BASE_URL is required when mock data is disabled.', 0);
