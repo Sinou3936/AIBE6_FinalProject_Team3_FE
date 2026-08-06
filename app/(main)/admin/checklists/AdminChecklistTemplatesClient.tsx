@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import { propertyTypeLabelMap } from '../../../mappers/property';
 import {
   createAdminChecklistItemTemplate,
@@ -137,14 +138,6 @@ type ModalState =
   | { type: 'edit'; template: AdminChecklistItemTemplateDto; form: FormState }
   | { type: 'delete'; template: AdminChecklistItemTemplateDto }
   | null;
-
-// 백엔드가 INVALID_CODE/DUPLICATE_CODE/LAST_ITEM처럼 관리자가 바로 고칠 수 있는 400/409를 이미
-// 사람이 읽을 문구로 내려주므로(ErrorCode 참고, requestJson의 ApiError.message), 그 메시지를
-// 그대로 보여준다 - 뭉뚱그린 일반 문구로는 어떤 필드를 고쳐야 하는지 알 수 없다. mock 모드의
-// postMockAdminAction도 plain Error로 메시지를 던지므로 ApiError로 좁히지 않고 Error 전체를 본다.
-function resolveErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
 
 export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: AdminChecklistTemplatesClientProps) {
   const [modal, setModal] = useState<ModalState>(null);

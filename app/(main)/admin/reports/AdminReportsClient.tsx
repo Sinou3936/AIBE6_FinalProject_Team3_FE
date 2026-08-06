@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import { getAdminPropertyReportDetail, reviewAdminPropertyReport } from '../../../services/adminActions';
 import {
   type AdminPropertyReportDetailDto,
@@ -88,8 +89,8 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
     try {
       const result = await getAdminPropertyReportDetail(row.id);
       setDetail(result);
-    } catch {
-      setDetailError('상세 정보를 불러오지 못했습니다.');
+    } catch (error) {
+      setDetailError(resolveErrorMessage(error, '상세 정보를 불러오지 못했습니다.'));
     } finally {
       setDetailLoading(false);
     }
@@ -109,8 +110,8 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
       // Component 데이터가 없어 실질적으로 no-op이다 - 부모(page.tsx)가 내려준 재조회 콜백을
       // 직접 호출해야 목록에 변경 결과가 반영된다.
       onMutated?.();
-    } catch {
-      setDetailError('처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (error) {
+      setDetailError(resolveErrorMessage(error, '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'));
     } finally {
       setSubmitting(false);
     }

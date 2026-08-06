@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
+import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import { updateAdminUserRole, updateAdminUserStatus } from '../../../services/adminActions';
 import {
   type AdminRoleDto,
@@ -101,8 +102,8 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
       // Component 데이터가 없어 실질적으로 no-op이다 - 부모(page.tsx)가 내려준 재조회 콜백을
       // 직접 호출해야 목록에 변경 결과가 반영된다.
       onMutated?.();
-    } catch {
-      setActionError('처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (error) {
+      setActionError(resolveErrorMessage(error, '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'));
     } finally {
       setSubmitting(false);
     }
