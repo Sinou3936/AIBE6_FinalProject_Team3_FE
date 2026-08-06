@@ -80,6 +80,10 @@ type FormState = {
   // 않는 값이 그대로 저장돼도 저장 시점엔 아무 에러도 안 나고, 이후 매물유형 필터링에서
   // 조용히 항상 안 맞는 문항이 돼버린다.
   applicablePropertyTypes: PropertyTypeDto[];
+  // 백엔드는 이 필드에 대해 enum 검증을 하지 않으므로(자유 텍스트 컬럼), 레거시 데이터나 DB
+  // 직접 수정 등으로 프론트가 모르는 값이 들어있을 수 있다. 체크박스에는 못 보여주지만, 그냥
+  // 무시하면 저장 시 조용히 사라지므로 값을 보존해뒀다가 저장할 때 다시 합친다.
+  unknownPropertyTypeTokens: string[];
   active: boolean;
 };
 
@@ -93,18 +97,24 @@ const EMPTY_FORM: FormState = {
   code: NONE_CODE,
   displayOrder: '1',
   applicablePropertyTypes: [],
+  unknownPropertyTypeTokens: [],
   active: true,
 };
 
-function parseApplicablePropertyTypes(value: string | null): PropertyTypeDto[] {
-  if (!value) return [];
-  return value
+function splitApplicablePropertyTypes(value: string | null): { known: PropertyTypeDto[]; unknown: string[] } {
+  if (!value) return { known: [], unknown: [] };
+  const tokens = value
     .split(',')
     .map((token) => token.trim())
-    .filter((token): token is PropertyTypeDto => token in propertyTypeLabelMap);
+    .filter((token) => token.length > 0);
+  return {
+    known: tokens.filter((token): token is PropertyTypeDto => token in propertyTypeLabelMap),
+    unknown: tokens.filter((token) => !(token in propertyTypeLabelMap)),
+  };
 }
 
 function toFormState(template: AdminChecklistItemTemplateDto): FormState {
+  const { known, unknown } = splitApplicablePropertyTypes(template.applicablePropertyTypes);
   return {
     category: template.category,
     content: template.content,
@@ -114,12 +124,14 @@ function toFormState(template: AdminChecklistItemTemplateDto): FormState {
     itemType: template.itemType,
     code: template.code ?? NONE_CODE,
     displayOrder: String(template.displayOrder),
-    applicablePropertyTypes: parseApplicablePropertyTypes(template.applicablePropertyTypes),
+    applicablePropertyTypes: known,
+    unknownPropertyTypeTokens: unknown,
     active: template.active,
   };
 }
 
 function toCreateRequest(form: FormState): AdminChecklistItemTemplateCreateRequestDto {
+  const allPropertyTypes = [...form.applicablePropertyTypes, ...form.unknownPropertyTypeTokens];
   return {
     category: form.category,
     content: form.content.trim().slice(0, CONTENT_MAX_LENGTH),
@@ -129,7 +141,7 @@ function toCreateRequest(form: FormState): AdminChecklistItemTemplateCreateReque
     itemType: form.itemType,
     code: form.code || undefined,
     displayOrder: Number(form.displayOrder),
-    applicablePropertyTypes: form.applicablePropertyTypes.length > 0 ? form.applicablePropertyTypes.join(',') : undefined,
+    applicablePropertyTypes: allPropertyTypes.length > 0 ? allPropertyTypes.join(',') : undefined,
   };
 }
 
@@ -435,6 +447,11 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                     );
                   })}
                 </div>
+                {modal.form.unknownPropertyTypeTokens.length > 0 && (
+                  <p className="mt-1.5 text-xs text-amber-600">
+                    알 수 없는 매물유형 값이 있어 그대로 유지됩니다: {modal.form.unknownPropertyTypeTokens.join(', ')}
+                  </p>
+                )}
               </div>
 
               {modal.type === 'edit' && (
