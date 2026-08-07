@@ -277,6 +277,8 @@ export type CreatePropertyRequestDto = {
   deposit: number;
   monthlyRent?: number | null;
   area: number;
+  // 선택 입력 - 관리비 없는 매물도 있어 생략 가능. 값이 있으면 0 이상이어야 한다(BE @PositiveOrZero).
+  maintenanceFee?: number | null;
   description?: string | null;
   images?: PropertyImageDto[];
 };
@@ -344,6 +346,8 @@ export type PropertyListItemDto = {
   deposit: number;
   monthlyRent: number | null;
   area: number;
+  // 관리비 없는 매물이면 null.
+  maintenanceFee: number | null;
   roadAddress: string | null;
   jibunAddress: string | null;
   status: PropertyStatusDto;
@@ -375,6 +379,8 @@ export type PropertyDetailResponseDto = {
   deposit: number;
   monthlyRent: number | null;
   area: number;
+  // 관리비 없는 매물이면 null.
+  maintenanceFee: number | null;
   description: string | null;
   address: PropertyDetailAddressDto;
   images: PropertyImageDto[];
@@ -396,6 +402,8 @@ export type UpdatePropertyRequestDto = {
   deposit: number;
   monthlyRent?: number | null;
   area: number;
+  // 선택 입력 - 관리비 없는 매물도 있어 생략 가능. 값이 있으면 0 이상이어야 한다(BE @PositiveOrZero).
+  maintenanceFee?: number | null;
   description?: string | null;
   images?: PropertyImageDto[];
 };
