@@ -18,7 +18,16 @@ const OAUTH_NEXT_COOKIE = 'oauth_next';
 function consumeOAuthNextCookie(): string | null {
   const match = document.cookie.match(new RegExp(`(?:^|; )${OAUTH_NEXT_COOKIE}=([^;]*)`));
   document.cookie = `${OAUTH_NEXT_COOKIE}=; path=/; max-age=0; samesite=lax`;
-  return match ? decodeURIComponent(match[1]) : null;
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    // 정상 경로(SocialLoginLinks)는 항상 encodeURIComponent로 저장하므로 여기 도달하지 않는다 -
+    // 다만 이 쿠키는 httpOnly가 아니라 사용자가 직접 조작하거나 깨진 값이 남을 수 있는 값이라,
+    // decodeURIComponent가 malformed percent-encoding에서 던지는 URIError로 콜백 흐름 전체가
+    // 멈추면 안 된다. 못 읽는 값은 "next 없음"과 동일하게 취급한다.
+    return null;
+  }
 }
 
 function OAuthCallbackContent() {
