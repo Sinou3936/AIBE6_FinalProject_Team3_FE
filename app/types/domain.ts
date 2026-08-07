@@ -9,15 +9,7 @@ export type PropertyLocation = {
 };
 
 // 매물 이미지가 어느 공간을 찍은 사진인지 라벨. 선택값 - 라벨 없이 올릴 수도 있다(null).
-export type RoomType =
-  | 'LIVING_ROOM'
-  | 'BEDROOM'
-  | 'BATHROOM'
-  | 'KITCHEN'
-  | 'ENTRANCE'
-  | 'VERANDA'
-  | 'EXTERIOR'
-  | 'ETC';
+export type RoomType = 'LIVING_ROOM' | 'BEDROOM' | 'BATHROOM' | 'KITCHEN' | 'ENTRANCE' | 'VERANDA' | 'EXTERIOR' | 'ETC';
 
 export type PropertyImage = {
   imageUrl: string;
@@ -31,13 +23,17 @@ export type PropertySummary = {
   type: PropertyTradeType;
   deposit: string;
   propertyType?: string;
-  // 아래 필드들은 기능4(허위매물 신호)/기능5(전세가율)가 아직 백엔드에 없어서
-  // 실제 API로 받아온 매물은 undefined다. mock 데이터는 계속 값을 채워서 내려준다.
+  // checkSignalCount/signalSummary/jeonseRatio는 risk-analysis를 한 번도 안 돌린 매물이면
+  // undefined(0건과 구분됨) - PropertyListResponse가 null로 내려주는 걸 매퍼가 undefined로 바꾼다.
+  // maintenance는 관리비를 아예 입력 안 했으면(null) undefined, 0으로 입력했으면(관리비 없음)
+  // "관리비 없음", 양수면 "관리비 N만원" 형식의 표시용 문자열이다. marketDelta는
+  // 시세비교가 AVAILABLE일 때만 채워지고, UNAVAILABLE(판정불가)이거나 아직 계산 전이면 undefined다.
+  // mock 데이터는 전부 값을 채워서 내려준다.
   maintenance?: string;
   marketDelta?: string;
   checkSignalCount?: number;
   signalSummary?: string;
-  jeonseRatio?: string;
+  jeonseRatio?: number;
   checklist?: number;
   statusColor: string;
   location: PropertyLocation;
@@ -45,8 +41,9 @@ export type PropertySummary = {
 
 /**
  * 매물 상세(GET /properties/{id}) 화면 전용 도메인 타입. PropertySummary(목록)와 달리
- * 설명/이미지/등록일/실거래가 비교 결과를 포함한다. 신호/전세가율/체크리스트/관리비는
+ * 설명/이미지/등록일/실거래가 비교 결과를 포함한다. 신호/전세가율/체크리스트는
  * 목록과 동일하게 아직 백엔드에 없어 실제 매물은 undefined, mock 데이터만 값을 채운다.
+ * maintenance는 목록과 동일한 규칙(null→undefined, 0→"관리비 없음", 양수→포맷 문자열)으로 채워진다.
  */
 export type PropertyDetail = {
   id: number;
@@ -59,6 +56,9 @@ export type PropertyDetail = {
   // 갖고 있어 원본 금액을 복원할 수 없으므로 undefined로 둔다(수정 화면은 실제 API 기준으로 검증).
   depositAmount?: number;
   monthlyRentAmount?: number | null;
+  // 수정 폼 프리필용 원시 관리비(원 단위). depositAmount와 동일한 이유로 실제 API만 채워진다.
+  // 관리비를 입력한 적 없으면 null, 0으로 명시했으면 0.
+  maintenanceFeeAmount?: number | null;
   area?: number;
   description?: string;
   imageUrls: string[];
@@ -68,7 +68,7 @@ export type PropertyDetail = {
   maintenance?: string;
   checkSignalCount?: number;
   signalSummary?: string;
-  jeonseRatio?: string;
+  jeonseRatio?: number;
   checklist?: number;
   statusColor: string;
   location: PropertyLocation;
@@ -166,6 +166,17 @@ export type ChecklistOverview = {
   // 표시용으로 이미 포맷된 문자열("2026.07.30"). 체크리스트가 있으면 마지막 항목 수정 시각,
   // 시작 전이면 매물 등록/수정 시각으로 Backend가 대체해서 내려준다(항상 값이 있음).
   lastCheckedAt: string;
+};
+
+// GET /checklists 페이지네이션 응답. Backend PageResponse를 그대로 옮기되 content만
+// ChecklistOverview로 매핑한다(app/types/domain.ts의 PropertyListPage와 동일 패턴).
+export type ChecklistOverviewPage = {
+  items: ChecklistOverview[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
 };
 
 /**
@@ -288,4 +299,40 @@ export type PriorityAction = {
   description: string;
   ctaLabel: string;
   ctaHref: string;
+};
+
+// --- risk-analysis 도메인 ---
+
+export type RiskSignalTypeId = 'priceAnomaly' | 'duplicateListing' | 'sameAccountMultiple' | 'shortTermRelisting';
+export type RiskCheckStatusId = 'success' | 'undeterminable' | 'failed';
+
+export type RiskSignal = {
+  signalType: RiskSignalTypeId;
+  status: RiskCheckStatusId;
+  // UNDETERMINABLE/FAILED일 때만 값 있음 — 이미 화면에 바로 쓸 한글 문구로 변환된 상태(app/data/risk-analysis.ts 매핑 참고).
+  reasonText: string | null;
+  // SUCCESS이면서 실제 리스크가 발견됐을 때만 값 있음.
+  description: string | null;
+  checkedAt: string;
+};
+
+export type RiskSignalList = {
+  propertyId: number;
+  signalCount: number;
+  signals: RiskSignal[];
+  disclaimer: string;
+};
+
+export type DepositSafetyStatusId = 'calculated' | 'unavailable' | 'failed' | 'notChecked';
+
+export type DepositSafetyCheck = {
+  propertyId: number;
+  status: DepositSafetyStatusId;
+  jeonseRatio: number | null;
+  explanation: string | null;
+  referenceDate: string | null;
+  reasonText: string | null;
+  calculatedAt: string | null;
+  disclaimer: string;
+  recentOwnershipChangeWarning: boolean;
 };
