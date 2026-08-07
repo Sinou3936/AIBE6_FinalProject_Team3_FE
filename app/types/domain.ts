@@ -23,14 +23,16 @@ export type PropertySummary = {
   type: PropertyTradeType;
   deposit: string;
   propertyType?: string;
-  // checkSignalCount/jeonseRatio는 기능4(허위매물 신호)/기능5(전세가율)가 아직 목록 응답에 없어서
-  // 실제 API로 받아온 매물은 undefined다. marketDelta는 시세비교가 AVAILABLE일 때만 채워지고,
-  // UNAVAILABLE(판정불가)이거나 아직 계산 전이면 undefined다. mock 데이터는 전부 값을 채워서 내려준다.
+  // checkSignalCount/signalSummary/jeonseRatio는 risk-analysis를 한 번도 안 돌린 매물이면
+  // undefined(0건과 구분됨) - PropertyListResponse가 null로 내려주는 걸 매퍼가 undefined로 바꾼다.
+  // maintenance는 관리비 필드가 아직 백엔드에 없어 실제 매물은 항상 undefined. marketDelta는
+  // 시세비교가 AVAILABLE일 때만 채워지고, UNAVAILABLE(판정불가)이거나 아직 계산 전이면 undefined다.
+  // mock 데이터는 전부 값을 채워서 내려준다.
   maintenance?: string;
   marketDelta?: string;
   checkSignalCount?: number;
   signalSummary?: string;
-  jeonseRatio?: string;
+  jeonseRatio?: number;
   checklist?: number;
   statusColor: string;
   location: PropertyLocation;
@@ -61,7 +63,7 @@ export type PropertyDetail = {
   maintenance?: string;
   checkSignalCount?: number;
   signalSummary?: string;
-  jeonseRatio?: string;
+  jeonseRatio?: number;
   checklist?: number;
   statusColor: string;
   location: PropertyLocation;

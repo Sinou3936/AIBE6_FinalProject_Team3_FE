@@ -44,6 +44,7 @@
 | 삭제된 매물 제외 | Backend 책임(ACTIVE 상태만 응답) — FE는 별도 필터링 없이 그대로 신뢰 |
 | 페이지네이션 | ✅ BE가 `PageResponse`로 응답이 바뀌면서 `getProperties(cookieHeader, { page })`가 `page`/`size`/`sort` 쿼리 파라미터를 지원하게 됨. `PropertiesClient`에 이전/다음 페이지 링크(`?page=N`) 추가, 페이지 이동 시 현재 필터 조건도 그대로 유지됨(`buildPageHref`) |
 | 성공: 목록 + 지도 마커 | ⚠️ 목록 카드는 나오지만 지도 마커 표시는 이 화면에 없음(상세 화면에만 `KakaoMap` 있음) |
+| 확인 필요 신호 개수 / 전세가율 배지 | ✅ `PropertiesClient`/`PropertyListItem`의 조건부 렌더링은 이전부터 있었으나, BE 응답(`PropertyListItemDto`)에 필드 자체가 없어 항상 "준비 중"만 보였음 — BE에 `checkSignalCount`/`signalSummary`/`jeonseRatio` 필드가 추가되면서 실제 값으로 연동됨. `jeonseRatio`는 BE가 percent 정수만 내려주는 컨벤션이라 FE 타입을 `string`→`number`로 정정하고 "%" 포맷팅을 FE에서 붙이도록 수정(`getJeonseRatioDisplay`) |
 | 검색 결과 없음 → 빈 목록 | ✅ "조건에 맞는 매물이 없습니다" 문구 |
 | 실패: 인증 실패/잘못된 검색 조건 | ✅ 인증 실패는 `(main)/layout.tsx`가 상위에서 처리(Auth 문서 참고). "잘못된 검색 조건"(면적/보증금/월세 범위의 최소값이 최대값보다 큰 경우)은 BE의 `PROPERTY_INVALID_SEARCH_CONDITION` 에러 메시지를 그대로 화면에 노출 |
 
