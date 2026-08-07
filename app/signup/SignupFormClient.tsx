@@ -1,17 +1,18 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ApiError } from '../lib/api/http';
 import { signup } from '../services/auth';
 import { checkNicknameAvailability } from '../services/user';
-import { type PasswordPolicyDto } from '../types/api';
+import { type NicknamePolicyDto, type PasswordPolicyDto } from '../types/api';
 
 type SignupFormClientProps = {
   passwordPolicy: PasswordPolicyDto;
+  nicknamePolicy: NicknamePolicyDto;
 };
 
-export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
+export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormClientProps) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,10 +21,13 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string>();
   const [nicknameCheckStatus, setNicknameCheckStatus] = useState<
-    'idle' | 'checking' | 'available' | 'duplicate' | 'error'
+    'idle' | 'checking' | 'available' | 'duplicate' | 'invalid' | 'error'
   >('idle');
   const [nicknameRequiredError, setNicknameRequiredError] = useState(false);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
+  // nicknamePolicy.pattern은 <input pattern="...">용 비앵커 정규식이라, JS에서 전체 문자열 일치를
+  // 확인하려면 브라우저가 암묵적으로 해주는 ^(?:...)$ 감싸기를 직접 재현해야 한다.
+  const nicknamePattern = useMemo(() => new RegExp(`^(?:${nicknamePolicy.pattern})$`), [nicknamePolicy.pattern]);
 
   const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
@@ -31,6 +35,10 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
     const trimmed = nickname.trim();
     if (trimmed.length < 2) {
       setNicknameCheckStatus('error');
+      return;
+    }
+    if (!nicknamePattern.test(trimmed)) {
+      setNicknameCheckStatus('invalid');
       return;
     }
 
@@ -134,6 +142,8 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
             placeholder="2~20자로 입력해 주세요"
             minLength={2}
             maxLength={20}
+            pattern={nicknamePolicy.pattern}
+            title={nicknamePolicy.message}
             required
           />
           <button
@@ -151,6 +161,7 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
         {nicknameCheckStatus === 'duplicate' && (
           <p className="mt-1.5 text-sm font-bold text-red-600">이미 사용 중인 닉네임입니다.</p>
         )}
+        {nicknameCheckStatus === 'invalid' && <p className="mt-1.5 text-sm text-red-600">{nicknamePolicy.message}</p>}
         {nicknameCheckStatus === 'error' && (
           <p className="mt-1.5 text-sm text-red-600">닉네임 확인에 실패했습니다. 다시 시도해 주세요.</p>
         )}
