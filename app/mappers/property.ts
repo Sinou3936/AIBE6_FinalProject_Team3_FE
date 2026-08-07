@@ -98,6 +98,18 @@ function formatDepositText(
   return formatManwon(deposit);
 }
 
+// 관리비를 아예 입력한 적 없으면(null) undefined("정보 없음"과 구분되는 "관리비 자체를 안 물어본 상태"),
+// 0으로 명시했으면 "관리비 없음", 양수면 "관리비 N만원" 형식으로 표시한다.
+function formatMaintenanceText(maintenanceFee: number | null): string | undefined {
+  if (maintenanceFee === null) {
+    return undefined;
+  }
+  if (maintenanceFee === 0) {
+    return '관리비 없음';
+  }
+  return `관리비 ${formatManwon(maintenanceFee)}`;
+}
+
 /**
  * 실제 GET /properties 응답(PropertyListItemDto) -> PropertySummary 변환.
  * checkSignalCount/signalSummary/jeonseRatio는 risk-analysis를 한 번도 안 돌린 매물이면 BE가
@@ -116,6 +128,7 @@ export function mapPropertyListItemDto(dto: PropertyListItemDto): PropertySummar
     type: propertyTransactionTypeLabelMap[dto.transactionType],
     deposit: formatDepositText(dto.transactionType, dto.deposit, dto.monthlyRent),
     propertyType: propertyTypeLabelMap[dto.propertyType],
+    maintenance: formatMaintenanceText(dto.maintenanceFee),
     checklist: dto.checklistProgress ?? undefined,
     checkSignalCount: dto.checkSignalCount ?? undefined,
     signalSummary: dto.signalSummary ?? undefined,
@@ -166,7 +179,7 @@ function mapMarketComparisonDto(dto: MarketComparisonDto): PropertyMarketCompari
 /**
  * 실제 GET /properties/{id} 응답(PropertyDetailResponseDto) -> PropertyDetail 변환.
  * marketComparison은 BE의 실거래가 비교 로직이 실제로 계산한 결과(AVAILABLE/UNAVAILABLE)를
- * 그대로 옮겨 담는다. 신호(기능4)/전세가율(기능5)/관리비는 아직 API 자체가 없어 항상 undefined.
+ * 그대로 옮겨 담는다. 신호(기능4)/전세가율(기능5)는 아직 API 자체가 없어 항상 undefined.
  * checklistCreated/reported는 체크리스트 생성 여부·본인 신고 여부 필드가 추가되면서 함께 반영된다.
  */
 export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): PropertyDetail {
@@ -179,6 +192,8 @@ export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): Pr
     propertyType: propertyTypeLabelMap[dto.propertyType],
     depositAmount: dto.deposit,
     monthlyRentAmount: dto.monthlyRent,
+    maintenance: formatMaintenanceText(dto.maintenanceFee),
+    maintenanceFeeAmount: dto.maintenanceFee,
     area: dto.area,
     description: dto.description ?? undefined,
     imageUrls: dto.images.map((image) => image.imageUrl),
