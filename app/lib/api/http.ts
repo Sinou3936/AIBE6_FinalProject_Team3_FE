@@ -197,8 +197,14 @@ function refreshOnceInBrowser(): Promise<BrowserRefreshOutcome> {
       // 알 수 없음'으로 처리한다.
       .catch((): BrowserRefreshOutcome => 'unreachable')
       .finally(() => {
-        refreshInFlight = null;
-        refreshAbortController = null;
+        // resetAuthRefreshState()가 나(controller)를 abort시키고 전역 상태를 비운 "직후" 새
+        // refresh가 시작되면, 그 사이 이 finally가 늦게 실행되면서 방금 시작된 새 refresh의
+        // 상태까지 지워버릴 수 있다 - 전역 refreshAbortController가 여전히 나를 가리킬 때만
+        // 정리한다(다른 refresh가 이미 그 자리를 차지했다면 그건 내가 건드릴 상태가 아니다).
+        if (refreshAbortController === controller) {
+          refreshInFlight = null;
+          refreshAbortController = null;
+        }
       });
   }
   return refreshInFlight;
