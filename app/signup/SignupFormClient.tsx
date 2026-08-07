@@ -60,7 +60,10 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
     setError(undefined);
 
     try {
-      await signup({ email, password, nickname });
+      // handleCheckNickname은 nickname.trim()으로 중복 확인을 했으므로, 여기서도 trim된 값을
+      // 보내야 한다 - 그대로 보내면 입력값에 앞뒤 공백이 남아 있을 때 "확인된 적 없는" 값이
+      // 제출되어 버린다(중복확인 통과 == 실제 제출값이라는 보장이 깨짐).
+      await signup({ email, password, nickname: nickname.trim() });
       // 방금 가입한 계정은 프로필을 등록한 적이 없으므로 곧장 등록 화면으로 보낸다.
       router.push('/mypage/profile');
       router.refresh();

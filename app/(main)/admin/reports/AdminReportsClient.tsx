@@ -58,6 +58,10 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
   const [detailError, setDetailError] = useState<string | undefined>();
   const [memo, setMemo] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // 반려/조치완료 둘 다 확정되면 되돌릴 UI 수단이 없는(모달이 닫기 버튼만 남기는) 되돌릴 수
+  // 없는 결정이다 - AdminUsersClient의 권한/정지 변경과 동일하게, 버튼 클릭이 바로 API를
+  // 호출하지 않고 확인 단계를 한 번 거치게 한다.
+  const [pendingStatus, setPendingStatus] = useState<'RESOLVED' | 'REJECTED' | null>(null);
 
   // 필터 select의 로컬 state는 useState(filters.x)로 최초 1회만 seed되므로, 브라우저 뒤로/앞으로
   // 가기로 filters props만 바뀌는 경우엔 반영되지 않아 테이블은 새 필터 결과를 보여주는데 select는
@@ -84,12 +88,14 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
   function closeModal() {
     setDetail(null);
     setDetailError(undefined);
+    setPendingStatus(null);
   }
 
   async function openDetail(row: AdminPropertyReportListItemDto) {
     setDetailLoading(true);
     setDetailError(undefined);
     setMemo('');
+    setPendingStatus(null);
     try {
       const result = await getAdminPropertyReportDetail(row.id);
       setDetail(result);
@@ -251,7 +257,32 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
 
             {detailError && <p className="mb-3 text-sm text-red-600">{detailError}</p>}
 
-            {detail.status === 'RECEIVED' ? (
+            {detail.status === 'RECEIVED' && pendingStatus ? (
+              // 반려/조치완료는 한 번 확정되면 이 화면에서 되돌릴 방법이 없는 결정이라, 실제
+              // 처리 전에 한 번 더 확인받는다(AdminUsersClient의 권한/정지 변경과 동일한 패턴).
+              <div>
+                <p className="mb-4 text-sm text-slate-700">
+                  이 신고를 <strong>{pendingStatus === 'RESOLVED' ? '조치완료' : '반려'}</strong> 처리할까요? 처리 후에는
+                  되돌릴 수 없습니다.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setPendingStatus(null)}
+                    disabled={submitting}
+                    className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={() => submitReview(pendingStatus)}
+                    disabled={submitting}
+                    className="ansim-button-primary px-4 py-2 text-sm disabled:opacity-50"
+                  >
+                    확인
+                  </button>
+                </div>
+              </div>
+            ) : detail.status === 'RECEIVED' ? (
               <div>
                 <label className="mb-1 block text-xs font-bold text-slate-600">
                   처리 메모 (선택, {memo.length}/{MEMO_MAX_LENGTH}자)
@@ -273,14 +304,14 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
                     닫기
                   </button>
                   <button
-                    onClick={() => submitReview('REJECTED')}
+                    onClick={() => setPendingStatus('REJECTED')}
                     disabled={submitting}
                     className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 disabled:opacity-50"
                   >
                     반려
                   </button>
                   <button
-                    onClick={() => submitReview('RESOLVED')}
+                    onClick={() => setPendingStatus('RESOLVED')}
                     disabled={submitting}
                     className="ansim-button-primary px-4 py-2 text-sm disabled:opacity-50"
                   >

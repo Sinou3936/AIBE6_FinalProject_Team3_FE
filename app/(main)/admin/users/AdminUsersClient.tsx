@@ -85,6 +85,14 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
     navigate({ email, nickname, role, status });
   }
 
+  // 페이지네이션 클릭은 검색창의 로컬 state(email/nickname/role/status)가 아니라 filters
+  // prop(마지막으로 실제 적용된, URL에 반영된 값)을 기준으로 이동해야 한다 - 로컬 state로
+  // 병합하면, 검색창에 새 값을 입력만 하고 "검색"을 아직 안 눌렀는데 페이지 화살표를 클릭하는
+  // 순간 아직 제출하지 않은 검색어가 조용히 함께 적용돼버린다.
+  function navigateToPage(page: number) {
+    navigate({ ...filters, page });
+  }
+
   async function confirmAction() {
     if (!action) return;
     setSubmitting(true);
@@ -220,7 +228,7 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
             rowKey={(row) => row.id}
             emptyMessage="조건에 맞는 유저가 없습니다."
           />
-          <Pagination page={data.page} totalPages={data.totalPages} onPageChange={(page) => navigate({ page })} />
+          <Pagination page={data.page} totalPages={data.totalPages} onPageChange={navigateToPage} />
         </>
       )}
 

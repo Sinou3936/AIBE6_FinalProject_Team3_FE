@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { isUnreachableError } from '../lib/api/http';
+import { sanitizeNextPath } from '../lib/nextPath';
 import { getCurrentUser } from '../services/auth';
 
 /**
@@ -19,7 +20,10 @@ export function SessionRecoverRetryButton({ next }: { next: string }) {
     setRetrying(true);
     getCurrentUser()
       .then(() => {
-        window.location.href = next;
+        // next는 로그인 화면(searchParams)에서 그대로 넘어온 값이라 외부에서 조작 가능하다 -
+        // 다른 모든 next 소비처(LoginFormClient, oauth/callback)는 이동 직전 sanitizeNextPath로
+        // 재검증하는데 이 경로만 빠져 있었다(오픈 리다이렉트: ?next=https://evil.example.com).
+        window.location.href = sanitizeNextPath(next);
       })
       .catch((error) => {
         // isUnreachableError면 여전히 서버/네트워크가 불안정한 상태라 이 페이지에 그대로
