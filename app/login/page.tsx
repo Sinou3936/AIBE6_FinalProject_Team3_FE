@@ -14,10 +14,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   // (proxy.ts/session-recover의 refresh 'unreachable') — "다시 로그인하세요"와 구분한다.
   session_unavailable: '일시적으로 서버와 통신할 수 없습니다. 잠시 후 다시 시도해주세요.',
   // 백엔드 OAuth2AuthenticationFailureHandler가 이제 CustomOAuth2UserService가 만드는 구체적인
-  // 코드를 그대로 전달한다(예전엔 항상 oauth_login_failed로 뭉뚱그려졌음) - 이 두 코드에 맞는
-  // 안내를 추가해야 그 구체성이 실제로 화면까지 전달된다.
+  // 코드를 그대로 전달한다(예전엔 항상 oauth_login_failed로 뭉뚱그려졌음) - 이 세 코드에 맞는
+  // 안내를 추가해야 그 구체성이 실제로 화면까지 전달된다. 백엔드 화이트리스트(OAuth2AuthenticationFailureHandler의
+  // DOMAIN_SPECIFIC_ERROR_CODES)에 코드를 추가할 때는 항상 여기도 같이 갱신해야 한다 - 안 그러면
+  // 화이트리스트는 통과하는데 이 테이블엔 없어 기본 문구로 떨어진다.
   account_blocked: '정지되었거나 이용할 수 없는 계정입니다. 고객센터에 문의해주세요.',
   email_conflict: '이미 사용 중인 이메일입니다. 이메일/비밀번호 로그인 등 다른 방법을 이용해주세요.',
+  social_account_conflict: '이 계정에는 이미 다른 소셜 계정이 연동되어 있습니다. 고객센터에 문의해주세요.',
 };
 
 type LoginPageProps = {
