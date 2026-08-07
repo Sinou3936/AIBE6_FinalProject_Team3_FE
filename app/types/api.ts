@@ -174,6 +174,35 @@ export type ContractAnalysisResultDto = {
   disclaimer: string;
 };
 
+// POST /contract-analysis/chat. 조항 카드 안 미니 채팅에서 쓰는 추가 질문 - 이 조항 하나에 한정된
+// 대화라 clause 원문/위험여부/설명을 매번 같이 실어 보내고(서버 무저장 정책과 같은 이유로 이전 대화도
+// history로 들고 다님), 조항 카드 밖의 다른 대화와는 섞이지 않는다.
+export type ContractChatClauseContext = {
+  originalText: string;
+  riskFlag: boolean;
+  explanation: string;
+};
+
+export type ContractChatHistoryEntry = {
+  question: string;
+  answer: string;
+};
+
+export type ContractChatRequestDto = {
+  clause: ContractChatClauseContext;
+  question: string;
+  history?: ContractChatHistoryEntry[];
+};
+
+// 응답 형태는 명세받은 게 없어 analyzeContract 응답(ContractAnalysisResultDto)과 같은 패턴으로
+// 맞춰 추정했다 - answer 하나에 aiGeneratedNotice/disclaimer가 매 답변마다 같이 내려온다고 가정.
+// 실제 백엔드 응답이 다르면 이 타입과 mapper만 고치면 된다.
+export type ContractChatResponseDto = {
+  answer: string;
+  aiGeneratedNotice: string;
+  disclaimer: string;
+};
+
 export type ActivityHistoryItemDto = {
   title: string;
   type: string;

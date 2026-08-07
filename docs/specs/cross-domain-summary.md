@@ -12,7 +12,7 @@
 | `checklist` | 거의 완전 구현 | **(2026-07-31 갱신)** 확인 필요 2개로 축소 — Backend가 helperText 컬럼과 "최종 점검일"(lastCheckedAt + 정렬)까지 마저 구현해서 FE 연동 완료, FE도 완료/미흡 버튼 취소(토글)·미확인 개수 안내·말풍선 UI를 추가로 구현. 남은 건 risk-analysis 연계 신호 자리 없음(다른 도메인 구현 대기)과 특약사항 분석과의 여정 연결(propertyId 전달·결과 저장, 브레인스토밍만 하고 미해결) |
 | `user` | 부분 구현 | 회원 탈퇴 완전 미구현, 이미지 업로드 자체가 없음 |
 | `property` | 부분 구현, 명세보다 크게 좁음 | 검색/정렬/페이지네이션 없음, 사진 업로드 없음, 시세·위험신호·신고이력·체크리스트진행 표시 전무 |
-| `contract-analysis` | 부분 구현(진행 중), 사실상 데모 | 입력 → 분석 파이프라인이 안 이어져 있어 항상 고정 문구만 분석함 |
+| `contract-analysis` | 대부분 구현 | **(2026-08-07 갱신)** 입력→OCR→마스킹→AI 분석→조항별 채팅까지 파이프라인 전체 연동 완료. 남은 건 propertyId 연결(입구/출구 둘 다 미해결)과 보증금/누락항목 탭 정적 데이터 정도 — 자세한 건 `contract-analysis-design.md` 참고 |
 | `market-data` | 표시 로직 미흡 | 응답에 있는 필드 대부분(기준일/표본수/대표시세)을 화면에 안 옮김, 상태 2분류라 사유 표현 불가 |
 | `risk-analysis` | **미구현** | 화면·타입·서비스 전무, property에 자리표시자만 존재 |
 
@@ -41,11 +41,13 @@
 
 ### 3. 파일/이미지 업로드가 어느 도메인에도 실제로 구현되어 있지 않음
 
+**(2026-08-07 정정)** `contract-analysis`는 이미지 업로드(드래그앤드롭/파일선택/미리보기, JPG·PNG 형식 검증)가 실제로 구현됐습니다 — 아래는 이제 `user`/`property` 두 도메인에만 해당합니다. `contract-analysis`도 여전히 크기 제한 검증은 없어서, 그 부분만 셋이 같은 처지입니다.
+
 - `user`: 프로필 사진 — `<input type="url">`로 URL 문자열만 입력받음(파일 업로드 아님)
 - `property`: 매물 사진 — 입력 UI 자체가 없음(표시 준비는 되어 있는데 넣을 방법이 없음)
-- `contract-analysis`: 계약서 이미지 — 드래그앤드롭 영역은 있지만 `onDrop`이 파일을 실제로 처리하지 않음(장식만 있음)
+- ~~`contract-analysis`: 계약서 이미지 — 드래그앤드롭 영역은 있지만 `onDrop`이 파일을 실제로 처리하지 않음(장식만 있음)~~ ✅ **해결됨(2026-08-07)** — 실제 파일 캡처/미리보기/OCR 연동 완료
 
-세 도메인 다 "이미지 형식/크기 검증" 요구사항이 있는데, 검증 로직이 없는 이유가 셋 다 같습니다 — 애초에 업로드 자체가 없어서 검증할 대상이 없는 것입니다. 파일 업로드 컴포넌트를 하나 만들어 공통으로 쓸 수 있는 지점이라, 세 도메인 중 어디를 먼저 만들든 나머지에 재사용할 수 있어 보입니다.
+두 도메인 다 "이미지 형식/크기 검증" 요구사항이 있는데, 검증 로직이 없는 이유가 같습니다 — 애초에 업로드 자체가 없어서 검증할 대상이 없는 것입니다. `contract-analysis`가 먼저 파일 선택/미리보기 UI를 구현해뒀으니, `user`/`property`에서 재사용할 여지가 있어 보입니다.
 
 ### 4. market-data/risk-analysis 미구현의 흔적이 다른 도메인에 남아있음
 
@@ -63,11 +65,11 @@ Backend 문서의 같은 패턴이 FE에도 그대로 나타납니다.
 이번에 "내 체크리스트 목록" 작업을 하면서 하드코딩된 링크를 3곳 고쳤는데(`navigation.ts`, `dashboard.ts`, 그리고 오늘 발견한 `getPriorityAction()`), 도메인 문서를 쓰면서 **같은 종류의 누락이 최소 2곳 더** 나왔습니다.
 
 - `app/lib/priorityAction.ts`의 `ctaHref: '/checklist'`(단수, id 없음) — `user-design.md` 이슈 3번
-- `app/(main)/contract/result/ContractResultClient.tsx`의 `<Link href="/properties/1/checklist">`(id 하드코딩) — `contract-analysis-design.md` 이슈 3번, 처음부터 알고 있었지만 이번에도 스코프 밖으로 유지하기로 함
+- ~~`app/(main)/contract/result/ContractResultClient.tsx`의 `<Link href="/properties/1/checklist">`(id 하드코딩)~~ ✅ **하드코딩 자체는 해결됨(2026-08-07)** — 이제 `propertyId`를 optional prop으로 받아서 없으면 버튼을 숨기도록 고침. 다만 아래 2026-07-30 항목에서 보듯 애초에 이 prop을 채워줄 방법이 없어서, 결과적으로 이 버튼은 지금 항상 안 보이는 상태(근본 원인은 안 풀림) — `contract-analysis-design.md` 남은 이슈 1번 참고
 
 한 파일을 고칠 때 다른 파일도 같은 문제를 갖고 있을 가능성이 높다는 걸 보여주는 사례라, 나중에 다시 라우트를 옮길 일이 있으면 `grep -r "properties/1\|/checklist['"]"` 같은 걸로 전수 조사부터 하는 게 안전해 보입니다.
 
-**(2026-07-30 추가)** 위 예시가 "출구"(분석 결과 → 체크리스트) 쪽 하드코딩이라면, "입구"(매물 상세/체크리스트 → 분석) 쪽도 같은 근본 원인(propertyId 미전달)을 갖고 있다는 게 확인됐습니다 — `PropertyDetailClient.tsx`의 "특약사항 분석하기" 버튼과 `ChecklistClient.tsx`의 CTA 둘 다 `/contract/upload`로 갈 때 propertyId를 안 넘기고, `/contract/upload` 자체도 그 값을 받는 파라미터가 없습니다. 그래서 입구에서 잃어버린 정보를 출구에서 복구할 방법이 없어 하드코딩이 남아있는 구조입니다. 분석 결과를 propertyId에 묶어 DB에 저장하는 방안(체크리스트에서 "이미 분석한 결과 보기" 연결)도 함께 논의했지만, 새 테이블·API가 필요한 별도 스코프라 오늘은 결정을 보류했습니다(`checklist-design.md` 남은 이슈 9번 참고).
+**(2026-07-30 추가)** 위 예시가 "출구"(분석 결과 → 체크리스트) 쪽 하드코딩이라면, "입구"(매물 상세/체크리스트 → 분석) 쪽도 같은 근본 원인(propertyId 미전달)을 갖고 있다는 게 확인됐습니다 — `PropertyDetailClient.tsx`의 "특약사항 분석하기" 버튼과 `ChecklistClient.tsx`의 CTA 둘 다 `/contract/upload`로 갈 때 propertyId를 안 넘기고, `/contract/upload` 자체도 그 값을 받는 파라미터가 없습니다. 그래서 입구에서 잃어버린 정보를 출구에서 복구할 방법이 없어 하드코딩이 남아있는 구조입니다. 분석 결과를 propertyId에 묶어 DB에 저장하는 방안(체크리스트에서 "이미 분석한 결과 보기" 연결)도 함께 논의했지만, 새 테이블·API가 필요한 별도 스코프라 오늘은 결정을 보류했습니다(`checklist-design.md` 남은 이슈 9번 참고). **(2026-08-07 기준)** 이 근본 원인은 아직 그대로입니다 — 출구 쪽 하드코딩만 안전하게(버튼 숨김으로) 고쳤을 뿐, 입구에서 propertyId를 넘기는 작업 자체는 손대지 않았습니다.
 
 ### 6. "성공 후 이동 목적지"가 요구사항과 실제 구현에서 다른 사례가 반복됨
 
@@ -89,5 +91,5 @@ Backend 문서의 같은 패턴이 FE에도 그대로 나타납니다.
 | property | 6개 |
 | market-data | 4개 |
 | checklist | 2개 (2026-07-31 갱신, 위 표 참고) |
-| contract-analysis | 5개 |
+| contract-analysis | 6개 (2026-08-07 갱신, 위 표 참고) |
 | risk-analysis | 4개 |
