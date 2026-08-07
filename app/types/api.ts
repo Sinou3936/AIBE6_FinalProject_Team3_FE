@@ -33,7 +33,7 @@ export type PropertySummaryDto = {
   marketDelta: string;
   checkSignalCount: number;
   signalSummary: string;
-  jeonseRatio: string;
+  jeonseRatio: number;
   checklistProgress: number;
   statusTone: ApiStatusTone;
   latitude: number;
@@ -280,6 +280,8 @@ export type CreatePropertyRequestDto = {
   deposit: number;
   monthlyRent?: number | null;
   area: number;
+  // 선택 입력 - 관리비 없는 매물도 있어 생략 가능. 값이 있으면 0 이상이어야 한다(BE @PositiveOrZero).
+  maintenanceFee?: number | null;
   description?: string | null;
   images?: PropertyImageDto[];
 };
@@ -347,6 +349,8 @@ export type PropertyListItemDto = {
   deposit: number;
   monthlyRent: number | null;
   area: number;
+  // 관리비 없는 매물이면 null.
+  maintenanceFee: number | null;
   roadAddress: string | null;
   jibunAddress: string | null;
   status: PropertyStatusDto;
@@ -354,6 +358,12 @@ export type PropertyListItemDto = {
   // 체크리스트를 아예 시작 안 했으면 null(분모가 없음), 시작했으면 0~100 사이 정수(반올림).
   checklistProgress: number | null;
   marketComparison: MarketComparisonDto;
+  // risk-analysis를 한 번도 안 돌린 매물이면 null(0건과 구분됨), 돌렸다면 실제 발견된 신호 개수.
+  checkSignalCount: number | null;
+  // checkSignalCount가 0 이하이면 null. 발견된 신호들의 설명을 이어붙인 요약 문자열.
+  signalSummary: string | null;
+  // DepositSafetyCheck.status가 CALCULATED일 때만 값 존재(percent 정수, "%" 미포함).
+  jeonseRatio: number | null;
 };
 
 export type PropertyDetailAddressDto = {
@@ -372,6 +382,8 @@ export type PropertyDetailResponseDto = {
   deposit: number;
   monthlyRent: number | null;
   area: number;
+  // 관리비 없는 매물이면 null.
+  maintenanceFee: number | null;
   description: string | null;
   address: PropertyDetailAddressDto;
   images: PropertyImageDto[];
@@ -393,6 +405,8 @@ export type UpdatePropertyRequestDto = {
   deposit: number;
   monthlyRent?: number | null;
   area: number;
+  // 선택 입력 - 관리비 없는 매물도 있어 생략 가능. 값이 있으면 0 이상이어야 한다(BE @PositiveOrZero).
+  maintenanceFee?: number | null;
   description?: string | null;
   images?: PropertyImageDto[];
 };
