@@ -144,19 +144,43 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
 // 한다 — Refresh Token이 매번 회전(rotate)되고 유저당 1세션만 유지되는 구조라(docs/specs/auth-design.md
 // 참고), 동시에 두 번 부르면 두 번째 호출은 첫 번째가 이미 회전시켜버린 옛 refresh token으로
 // 실패한다. 진행 중인 refresh가 있으면 그 Promise를 그대로 공유해서 중복 호출을 막는다.
+//
+// 알려진 한계: 이 중복 방지는 "같은 탭(같은 JS 모듈 인스턴스)" 범위에서만 동작한다. 같은 로그인
+// 세션을 두 탭에서 동시에 열어두고 두 탭의 access token이 거의 같은 시각에 만료되면, 두 탭이
+// 각자 독립적으로 /auth/refresh를 호출한다 - refresh token은 회전+유저당 1개라 늦게 도착하는
+// 쪽은 이미 무효화된 토큰으로 진짜 401을 받고, 그 탭은 세션이 멀쩡한데도 재로그인 화면으로
+// 넘어간다(보안 문제는 아님 - 한 탭은 정상적으로 갱신에 성공함). BroadcastChannel/localStorage
+// 기반 탭 간 리더 선출로 막을 수 있지만, 이 프로젝트 규모에서 그 정도 복잡도를 들일 만큼 자주
+// 겪는 시나리오가 아니라고 판단해 지금은 감수한다(같은 계정을 여러 탭에서 동시에 오래 열어두는
+// 사용 패턴 자체가 드묾) - 실제로 자주 보고되면 그때 리더 선출을 붙인다.
 type BrowserRefreshOutcome = 'success' | 'rejected' | 'unreachable';
 
 let refreshInFlight: Promise<BrowserRefreshOutcome> | null = null;
 let lastRefreshSucceededAt = 0;
+let refreshAbortController: AbortController | null = null;
+
+// fetch()는 자체 타임아웃이 없다 - 연결은 됐지만 서버가 응답을 영영 안 보내는(TCP는 안 끊긴)
+// 드문 네트워크 상태에서는 이 fetch의 Promise가 영원히 pending으로 남는다. refreshInFlight를
+// 정리하는 .finally()가 그 Promise에 매달려 있으므로, 이 fetch 하나가 멈추면 그 탭의 이후 모든
+// 401이 같은 죽은 Promise에 계속 합류해 세션 복구 자체가 무기한 멈춘다 - 상한을 둬서 그 경우도
+// 결국 'unreachable'로 정리되게 한다.
+const REFRESH_FETCH_TIMEOUT_MS = 10_000;
 
 function refreshOnceInBrowser(): Promise<BrowserRefreshOutcome> {
   if (!refreshInFlight) {
+    const controller = new AbortController();
+    refreshAbortController = controller;
+    // 타임아웃과 resetAuthRefreshState()의 명시적 abort를 하나의 신호로 합친다 - AbortSignal.any는
+    // 둘 중 먼저 온 신호로 이 fetch를 끊는다.
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(REFRESH_FETCH_TIMEOUT_MS)]);
+
     refreshInFlight = fetch(`${getApiBaseUrl()}${REFRESH_PATH}`, {
       method: 'POST',
       credentials: 'include',
       // 백엔드 CsrfHeaderFilter가 상태 변경 요청에 요구하는 헤더 - requestJson()을 거치지 않는
       // raw fetch라 normalizeHeaders()의 자동 부착을 못 받으므로 직접 붙인다.
       headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      signal,
     })
       .then((response): BrowserRefreshOutcome => {
         if (response.ok) {
@@ -169,12 +193,26 @@ function refreshOnceInBrowser(): Promise<BrowserRefreshOutcome> {
         // 것처럼 보인다.
         return response.status === 401 ? 'rejected' : 'unreachable';
       })
+      // 타임아웃이든 명시적 abort든 fetch는 이 catch로 떨어진다 - 네트워크 오류와 동일하게 '결과를
+      // 알 수 없음'으로 처리한다.
       .catch((): BrowserRefreshOutcome => 'unreachable')
       .finally(() => {
         refreshInFlight = null;
+        refreshAbortController = null;
       });
   }
   return refreshInFlight;
+}
+
+// 로그아웃 시점에 아직 이 탭의 refresh 요청이 진행 중이면(드묾), 그 응답의 Set-Cookie가 로그아웃
+// 직후 새로 로그인한 세션의 쿠키를 나중에 덮어쓸 위험이 있다 - 진행 중인 요청을 실제로 중단시켜
+// 그 응답 자체가 브라우저에 도달하지 못하게 하고, 모듈 상태도 리셋해 다음 로그인이 항상 자기
+// 자신의 refresh만 보게 한다.
+export function resetAuthRefreshState(): void {
+  refreshAbortController?.abort();
+  refreshInFlight = null;
+  refreshAbortController = null;
+  lastRefreshSucceededAt = 0;
 }
 
 // session-recover는 이미 refresh 실패 시 access/refresh 쿠키를 지우고 /login으로 보내는 로직을
