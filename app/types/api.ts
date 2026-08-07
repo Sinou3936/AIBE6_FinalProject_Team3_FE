@@ -186,7 +186,10 @@ export type MeResponseDto = {
   email: string | null;
   nickname: string;
   profileImageUrl: string | null;
-  role: string;
+  // AdminRoleDto('USER' | 'ADMIN')와 같은 값이다 - admin 게이트 3곳(MainLayoutGate, (main)/layout.tsx,
+  // admin/layout.tsx)이 전부 이 필드 하나로 관리자 여부를 판단하는데, 예전엔 그냥 string이라
+  // 오타("Admin" 등)나 백엔드 계약 변경을 컴파일 타임에 전혀 못 잡았다.
+  role: AdminRoleDto;
 };
 
 export type PasswordPolicyDto = {
