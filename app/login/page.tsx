@@ -21,6 +21,9 @@ const ERROR_MESSAGES: Record<string, string> = {
   account_blocked: '정지되었거나 이용할 수 없는 계정입니다. 고객센터에 문의해주세요.',
   email_conflict: '이미 사용 중인 이메일입니다. 이메일/비밀번호 로그인 등 다른 방법을 이용해주세요.',
   social_account_conflict: '이 계정에는 이미 다른 소셜 계정이 연동되어 있습니다. 고객센터에 문의해주세요.',
+  // OAuth2AuthenticationSuccessHandler가 소셜 인증 자체는 성공했지만 그 이후 토큰 발급(Redis 장애 등)에
+  // 실패했을 때 보내는 코드 - 이 코드가 없으면 사용자는 일반 문구만 보고 원인을 알 수 없다.
+  token_issue_failed: '일시적으로 로그인 처리를 완료하지 못했습니다. 잠시 후 다시 시도해주세요.',
 };
 
 type LoginPageProps = {
