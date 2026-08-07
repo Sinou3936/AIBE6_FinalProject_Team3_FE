@@ -194,13 +194,19 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
                   return (
                     <div className="flex gap-2">
                       <button
-                        onClick={() => setAction({ type: 'role', user: row })}
+                        onClick={() => {
+                          setActionError(undefined);
+                          setAction({ type: 'role', user: row });
+                        }}
                         className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50"
                       >
                         {row.role === 'ADMIN' ? '관리자 해제' : '관리자 지정'}
                       </button>
                       <button
-                        onClick={() => setAction({ type: 'status', user: row })}
+                        onClick={() => {
+                          setActionError(undefined);
+                          setAction({ type: 'status', user: row });
+                        }}
                         className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50"
                       >
                         {row.status === 'SUSPENDED' ? '정지 해제' : '정지'}
