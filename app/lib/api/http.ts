@@ -118,6 +118,16 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
 
     const outcome = await refreshOnceInBrowser();
 
+    // refreshOnceInBrowser()는 여러 호출자가 공유하는 전역 refresh라(위 주석 참고) 이 요청의
+    // AbortSignal로 그 fetch 자체를 끊을 수 없다 - 끊으면 같은 refresh를 기다리는 다른 호출자에게도
+    // 영향을 준다. 대신 결과가 나온 시점에 "이 요청을 만든 호출자가 아직 관심 있는지"를 확인해,
+    // 라우트 이동 등으로 이미 떠난 호출자를 대신해 아래 outcome 처리(특히 redirectToSessionRecover())를
+    // 실행하지 않게 막는다 - 안 그러면 그 시점의 window.location(=이미 이동한 새 페이지)을
+    // 오염시킨다(뒤로가기 401 버그와 같은 원인).
+    if (init?.signal?.aborted) {
+      throw new DOMException('The user aborted a request.', 'AbortError');
+    }
+
     if (outcome === 'success') {
       const retryResponse = await fetchOrThrowNetworkError(path, { ...init, credentials: 'include', headers });
       return finalizeResponse<T>(retryResponse, await readApiResponse<T>(retryResponse));

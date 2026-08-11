@@ -31,7 +31,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState('checking');
 
-    getCurrentUser()
+    // MainLayoutGate.tsx와 동일한 이유로, 라우트 이동 시 진행 중인 요청을 실제로 중단시킨다 —
+    // 그렇지 않으면 이미 떠난 뒤 도착한 401/refresh-rejected 응답이 requestJson 내부에서 그 시점의
+    // window.location(=이미 이동한 새 페이지)을 세션 만료로 강제 리다이렉트시킬 수 있다.
+    const controller = new AbortController();
+
+    getCurrentUser(undefined, controller.signal)
       .then((me) => {
         if (!cancelled) {
           setState(me.role === 'ADMIN' ? 'authorized' : 'forbidden');
@@ -49,6 +54,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [pathname, retryToken]);
 

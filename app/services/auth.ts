@@ -9,8 +9,11 @@ export function getKakaoLoginUrl(): string {
   return `${getApiBaseUrl()}/oauth2/authorization/kakao`;
 }
 
-export async function getCurrentUser(cookieHeader?: string): Promise<MeResponseDto> {
-  return requestJson<MeResponseDto>('/auth/me', cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined);
+export async function getCurrentUser(cookieHeader?: string, signal?: AbortSignal): Promise<MeResponseDto> {
+  return requestJson<MeResponseDto>('/auth/me', {
+    ...(cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined),
+    signal,
+  });
 }
 
 // 랜딩 페이지(공개)처럼 "로그인 여부에 따라 CTA만 살짝 바꾸는" 용도의 비강제 확인용. getCurrentUser()는

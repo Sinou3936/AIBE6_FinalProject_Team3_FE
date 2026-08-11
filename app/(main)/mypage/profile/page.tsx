@@ -1,7 +1,6 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { hasRegisteredProfile } from '../../../lib/profile';
 import { classifyProfileLoadError } from '../../../lib/sessionErrors';
@@ -21,7 +20,6 @@ const emptyProfile: UserProfile = {
 };
 
 export default function Page() {
-  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile>(emptyProfile);
   const [loadError, setLoadError] = useState<string | undefined>(undefined);
   const [profileNotFound, setProfileNotFound] = useState(false);
@@ -35,10 +33,9 @@ export default function Page() {
       })
       .catch((error) => {
         if (cancelled) return;
+        // 인증 판단/리다이렉트는 MainLayoutGate.tsx 한 곳에서만 한다 - 여기서는 실패해도
+        // 재로그인으로 보내지 않고 프로필 데이터 조회 실패로만 취급한다.
         switch (classifyProfileLoadError(error)) {
-          case 'session-invalid':
-            router.push('/login?error=session_expired');
-            break;
           case 'not-found':
             setProfileNotFound(true);
             break;
@@ -52,7 +49,6 @@ export default function Page() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (loading) {
