@@ -26,8 +26,14 @@ export default function MainLayoutGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    // 뒤로가기 등으로 라우트가 바뀌어 이 effect가 정리(cleanup)되면 진행 중이던 GET /auth/me(및
+    // 401 이후의 refresh-then-retry)를 실제로 중단시킨다. abort하지 않으면 이미 이 화면을 떠난
+    // 뒤에도 응답이 뒤늦게 도착해 requestJson 내부에서 redirectToSessionRecover()가 실행 시점의
+    // window.location(=이미 이동해버린 새 페이지)을 그대로 읽어 그 페이지를 강제로 세션 만료
+    // 처리해버리는 문제가 있었다.
+    const controller = new AbortController();
 
-    getCurrentUser()
+    getCurrentUser(undefined, controller.signal)
       .then((me) => {
         if (cancelled) return;
         setState({ status: 'ready', nickname: me.nickname, profileImageUrl: me.profileImageUrl, isAdmin: me.role === 'ADMIN' });
@@ -47,6 +53,7 @@ export default function MainLayoutGate({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [pathname, searchParams]);
 
