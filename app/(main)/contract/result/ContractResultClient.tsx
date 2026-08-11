@@ -101,6 +101,16 @@ function formatMaskedTextForDisplay(text: string): string {
   return mergedLines.join('\n');
 }
 
+const UNCERTAIN_FIELDS_PREVIEW_COUNT = 5;
+
+// 화면 표시 전용 필터 - 백엔드 uncertainFields 데이터 자체는 건드리지 않는다. 글자 하나뿐이거나
+// 마침표/괄호/체크박스 기호/슬래시 등 순수 기호로만 된 항목은 "인식이 애매했다"고 봐도 사용자가
+// 확인할 실익이 없어 화면에서만 걸러낸다. \p{L}(문자)/\p{N}(숫자)이 하나도 없으면 순수 기호로 본다.
+function isMeaningfulUncertainField(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.length > 1 && /[\p{L}\p{N}]/u.test(trimmed);
+}
+
 type ContractResultClientProps = {
   maskedText: string;
   maskedCount: number;
@@ -139,6 +149,7 @@ export function ContractResultClient({
   // 편집 완료 후에는 maskedCount/uncertainFields가 원래 마스킹 시점 값 그대로라 더 이상 정확하지
   // 않다 - 화면에서 숨기거나 "수정됨"으로 대체하기 위한 플래그.
   const [hasEditedMaskedText, setHasEditedMaskedText] = useState(false);
+  const [isUncertainFieldsExpanded, setIsUncertainFieldsExpanded] = useState(false);
   // 조항 index별 채팅 이력 스크롤 컨테이너. 아코디언이 접히면(언마운트) ref 콜백이 자동으로 지운다.
   const chatContainerRefs = useRef<Map<number, HTMLDivElement>>(new Map());
   // updateChatState가 마지막으로 건드린 index만 기억해뒀다가, 그 조항의 채팅창만 맨 아래로
@@ -149,6 +160,14 @@ export function ContractResultClient({
   const isAnalyzing = processingStep === 'analyzing';
   // 표시용으로만 정리한 텍스트 - analyzeContract에는 항상 maskedTextValue가 그대로 쓰인다.
   const displayMaskedText = useMemo(() => formatMaskedTextForDisplay(maskedTextValue), [maskedTextValue]);
+  const displayableUncertainFields = useMemo(
+    () => uncertainFields.filter((field) => isMeaningfulUncertainField(field.text)),
+    [uncertainFields],
+  );
+  const visibleUncertainFields = isUncertainFieldsExpanded
+    ? displayableUncertainFields
+    : displayableUncertainFields.slice(0, UNCERTAIN_FIELDS_PREVIEW_COUNT);
+  const hiddenUncertainFieldsCount = displayableUncertainFields.length - visibleUncertainFields.length;
 
   const handleStartEdit = () => {
     setEditDraft(displayMaskedText);
@@ -335,18 +354,27 @@ export function ContractResultClient({
               </>
             )}
 
-            {!hasEditedMaskedText && uncertainFields.length > 0 && (
+            {!hasEditedMaskedText && displayableUncertainFields.length > 0 && (
               <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50 p-4">
                 <p className="mb-2 flex items-center gap-2 text-sm font-bold text-orange-700">
                   <AlertCircle className="h-4 w-4" /> 이 부분들은 인식이 애매했어요, 확인해주세요
                 </p>
                 <ul className="space-y-1">
-                  {uncertainFields.map((field) => (
+                  {visibleUncertainFields.map((field) => (
                     <li key={field.index} className="text-sm text-orange-700">
                       · {field.text}
                     </li>
                   ))}
                 </ul>
+                {hiddenUncertainFieldsCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsUncertainFieldsExpanded(true)}
+                    className="mt-2 text-xs font-bold text-orange-700 hover:underline"
+                  >
+                    {hiddenUncertainFieldsCount}개 더 보기
+                  </button>
+                )}
               </div>
             )}
 
