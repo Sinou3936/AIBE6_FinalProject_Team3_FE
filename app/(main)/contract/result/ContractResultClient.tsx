@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
   AlertCircle,
   AlertTriangle,
@@ -23,7 +22,6 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { contractTabs, depositRatioMarkers, depositSafetyActions, missingItems } from '../../../data/contract-analysis';
-import { encodeBase64Url } from '../../../lib/base64Url';
 import { analyzeContract, sendContractClauseQuestion } from '../../../services/contract-analysis';
 import { type ContractOcrUncertainField } from '../../../types/api';
 import {
@@ -121,8 +119,6 @@ export function ContractResultClient({
   loadError,
   propertyId,
 }: ContractResultClientProps) {
-  const router = useRouter();
-
   const [processingStep, setProcessingStep] = useState<'analyzing' | null>(null);
   const [analysisResult, setAnalysisResult] = useState<ContractAnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | undefined>();
@@ -135,18 +131,27 @@ export function ContractResultClient({
   // 조항 index별로 독립된 채팅 상태를 들고 있는다 - 다른 조항 카드의 대화와 섞이지 않는다.
   const [chatStates, setChatStates] = useState<Record<number, ClauseChatState>>({});
   const [isMaskedTextExpanded, setIsMaskedTextExpanded] = useState(false);
+  // "수정하기"는 이제 페이지 이동 없이 이 값을 인라인으로 바꾼다 - analyzeContract는 항상 이 값을 쓴다.
+  const [maskedTextValue, setMaskedTextValue] = useState(maskedText);
+  const [isEditingMaskedText, setIsEditingMaskedText] = useState(false);
+  const [editDraft, setEditDraft] = useState('');
 
   const isAnalyzing = processingStep === 'analyzing';
-  // 표시용으로만 정리한 텍스트 - analyzeContract/수정하기에는 항상 원본 maskedText가 그대로 쓰인다.
-  const displayMaskedText = useMemo(() => formatMaskedTextForDisplay(maskedText), [maskedText]);
+  // 표시용으로만 정리한 텍스트 - analyzeContract에는 항상 maskedTextValue가 그대로 쓰인다.
+  const displayMaskedText = useMemo(() => formatMaskedTextForDisplay(maskedTextValue), [maskedTextValue]);
 
-  const handleEdit = () => {
-    const encoded = encodeBase64Url(maskedText);
-    router.push(`/contract/upload?text=${encoded}`);
+  const handleStartEdit = () => {
+    setEditDraft(displayMaskedText);
+    setIsEditingMaskedText(true);
+  };
+
+  const handleFinishEdit = () => {
+    setMaskedTextValue(editDraft);
+    setIsEditingMaskedText(false);
   };
 
   const handleAnalyze = async () => {
-    if (isAnalyzing) {
+    if (isAnalyzing || isEditingMaskedText) {
       return;
     }
 
@@ -154,7 +159,7 @@ export function ContractResultClient({
     setProcessingStep('analyzing');
 
     try {
-      const result = await analyzeContract(maskedText, true);
+      const result = await analyzeContract(maskedTextValue, true);
       setAnalysisResult(result);
       // 처음 분석 결과를 받은 시점에만 riskFlag=true인 첫 조항을 기본으로 펼쳐둔다.
       const firstRiskyIndex = result.clauses.findIndex((clause) => clause.riskFlag);
@@ -275,20 +280,30 @@ export function ContractResultClient({
                 ? `개인정보로 보이는 항목 ${maskedCount}개를 가렸어요. 아래 내용대로 분석을 진행할까요?`
                 : '분석 요청할 내용이에요. 아래 내용대로 분석을 진행할까요?'}
             </NoticeBox>
-            <div
-              className={`ansim-input whitespace-pre-wrap bg-slate-50 text-slate-700 ${
-                isMaskedTextExpanded ? 'min-h-36' : 'max-h-[200px] overflow-y-auto'
-              }`}
-            >
-              {displayMaskedText}
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsMaskedTextExpanded((prev) => !prev)}
-              className="mt-2 text-xs font-bold text-teal-700 hover:underline"
-            >
-              {isMaskedTextExpanded ? '접기' : '전체 보기'}
-            </button>
+            {isEditingMaskedText ? (
+              <textarea
+                value={editDraft}
+                onChange={(event) => setEditDraft(event.target.value)}
+                className="ansim-input min-h-48 resize-y whitespace-pre-wrap bg-slate-50 text-slate-700"
+              />
+            ) : (
+              <>
+                <div
+                  className={`ansim-input whitespace-pre-wrap bg-slate-50 text-slate-700 ${
+                    isMaskedTextExpanded ? 'min-h-36' : 'max-h-[200px] overflow-y-auto'
+                  }`}
+                >
+                  {displayMaskedText}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMaskedTextExpanded((prev) => !prev)}
+                  className="mt-2 text-xs font-bold text-teal-700 hover:underline"
+                >
+                  {isMaskedTextExpanded ? '접기' : '전체 보기'}
+                </button>
+              </>
+            )}
 
             {uncertainFields.length > 0 && (
               <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50 p-4">
@@ -318,14 +333,14 @@ export function ContractResultClient({
               <button
                 type="button"
                 disabled={isAnalyzing}
-                onClick={handleEdit}
+                onClick={isEditingMaskedText ? handleFinishEdit : handleStartEdit}
                 className="ansim-button-secondary flex-1 py-4 disabled:pointer-events-none disabled:opacity-50"
               >
-                수정하기
+                {isEditingMaskedText ? '수정 완료' : '수정하기'}
               </button>
               <button
                 type="button"
-                disabled={isAnalyzing}
+                disabled={isAnalyzing || isEditingMaskedText}
                 onClick={handleAnalyze}
                 className="ansim-button-primary flex-1 py-4 disabled:pointer-events-none disabled:opacity-50"
               >
@@ -637,10 +652,6 @@ export function ContractResultClient({
                 전문가 상담 안내받기
               </button>
             </div>
-
-            {analysisResult.disclaimer && (
-              <p className="text-center text-[10px] leading-relaxed text-slate-400">{analysisResult.disclaimer}</p>
-            )}
           </div>
         </>
       )}
