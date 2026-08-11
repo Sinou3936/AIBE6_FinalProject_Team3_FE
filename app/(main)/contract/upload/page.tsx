@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { AlertCircle, ArrowRight, CheckCircle2, Info, Loader2, RotateCcw, Upload } from 'lucide-react';
-import { decodeBase64Url, encodeBase64Url } from '../../../lib/base64Url';
+import { encodeBase64Url } from '../../../lib/base64Url';
+import { getContractAnalysisErrorMessage } from '../../../lib/contractAnalysisErrors';
 import { extractOcrText, maskContractText, submitContractInput } from '../../../services/contract-analysis';
 import { type ContractMaskingReviewPayload } from '../../../types/api';
 
@@ -21,24 +22,11 @@ const PROCESSING_STEP_LABELS: Record<Exclude<ProcessingStep, null>, string> = {
 
 export default function Page() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  // result 화면의 "수정하기"로 되돌아온 경우, 마스킹된 텍스트를 이어서 고칠 수 있게 프리필한다.
-  // useSearchParams()는 렌더 중 동기적으로 값을 읽을 수 있어 effect 없이 초기 state로 바로 계산한다.
-  const [text, setText] = useState(() => {
-    const encodedText = searchParams.get('text');
-    if (!encodedText) {
-      return '';
-    }
-    try {
-      return decodeBase64Url(encodedText);
-    } catch {
-      return '';
-    }
-  });
+  const [text, setText] = useState('');
   const [processingStep, setProcessingStep] = useState<ProcessingStep>(null);
   // 마스킹은 이제 시스템(maskContractText)이 처리하고, 분석 진행 동의는 result 페이지의
   // "이대로 분석 진행" 버튼이 대신하므로, 여기 체크박스는 업로드 범위 자가 확인 하나만 남긴다.
@@ -130,8 +118,10 @@ export default function Page() {
       setProcessingStep('masking');
       const maskResult = await maskContractText(text);
       navigateToMaskingReview({ ...maskResult, uncertainFields: [] });
-    } catch {
-      setSubmitError('특약사항 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (error) {
+      setSubmitError(
+        getContractAnalysisErrorMessage(error, '특약사항 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.'),
+      );
       setProcessingStep(null);
     }
   };
