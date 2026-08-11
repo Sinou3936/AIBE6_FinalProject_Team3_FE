@@ -1,13 +1,13 @@
 'use client';
 
 import { AlertTriangle, ArrowRight, FileSearch, Link2, Loader2 } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense, useEffect, useState } from 'react';
 import { quickActions, quickActionToneMap } from '../../data/dashboard';
 import { computeHomeSummaryCounts } from '../../lib/homeSummary';
 import { getPriorityAction } from '../../lib/priorityAction';
-import { classifyProfileLoadError, isSessionInvalidError } from '../../lib/sessionErrors';
+import { classifyProfileLoadError } from '../../lib/sessionErrors';
 import { getActivityHistory } from '../../services/activityHistory';
 import { getChecklistResult, getMyChecklistOverviews } from '../../services/checklist';
 import { getProperties } from '../../services/properties';
@@ -53,7 +53,6 @@ type PageData = {
 };
 
 function HomePageContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const notice = searchParams.get('notice') ?? undefined;
   const [data, setData] = useState<PageData | null>(null);
@@ -69,12 +68,7 @@ function HomePageContent() {
       try {
         profile = await getMyProfile();
       } catch (error) {
-        const classification = classifyProfileLoadError(error);
-        if (classification === 'session-invalid') {
-          router.push('/login?error=session_expired');
-          return;
-        }
-        if (classification === 'not-found') {
+        if (classifyProfileLoadError(error) === 'not-found') {
           profileNotFound = true;
         } else {
           // 실패 시 개인화 우선순위 카드는 미등록 상태 기준으로 표시하고, 아래 배너로 실패 사실을 알린다.
@@ -94,11 +88,7 @@ function HomePageContent() {
         const propertiesPage = await getProperties(undefined, { size: 100 });
         properties = propertiesPage.items;
         propertiesTotalCount = propertiesPage.totalElements;
-      } catch (error) {
-        if (isSessionInvalidError(error)) {
-          router.push('/login?error=session_expired');
-          return;
-        }
+      } catch {
         // 실패 시 "매물이 없다"고 단정하지 않도록 propertiesLoadFailed로 별도 표시하고,
         // 아래 배너로도 실패 사실을 알린다.
         propertiesLoadFailed = true;
@@ -108,11 +98,7 @@ function HomePageContent() {
       let activityHistory: ActivityHistoryItem[] = [];
       try {
         activityHistory = await getActivityHistory();
-      } catch (error) {
-        if (isSessionInvalidError(error)) {
-          router.push('/login?error=session_expired');
-          return;
-        }
+      } catch {
         // 백엔드에 이 엔드포인트가 아직 없어 항상 실패한다(app/services/activityHistory.ts 참고) -
         // 일시적 오류가 아니라 상시 상태라 배너로 알리지 않고, 분석한 특약사항 카운트/알림만 조용히
         // 빈 상태로 둔다. 엔드포인트가 실제로 생기면 이 catch에서도 loadError를 다시 세팅할 것.
@@ -121,11 +107,7 @@ function HomePageContent() {
       let checklistOverviews: ChecklistOverview[] = [];
       try {
         checklistOverviews = (await getMyChecklistOverviews()).items;
-      } catch (error) {
-        if (isSessionInvalidError(error)) {
-          router.push('/login?error=session_expired');
-          return;
-        }
+      } catch {
         // 실패 시 개인화 우선순위 카드는 "불러오지 못함" 상태로 표시하고, 아래 배너로도 실패 사실을 알린다.
         loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
       }
@@ -147,11 +129,8 @@ function HomePageContent() {
             };
           }),
         );
-      } catch (error) {
-        if (isSessionInvalidError(error)) {
-          router.push('/login?error=session_expired');
-          return;
-        }
+      } catch {
+        // 진행 중 체크리스트 요약 조회 실패는 위젯을 빈 채로 둔다(다른 위젯에는 영향 없음).
       }
 
       if (!cancelled) {
@@ -173,7 +152,6 @@ function HomePageContent() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!data) {
