@@ -7,7 +7,7 @@ import { parsePageParam } from '../../../lib/pageParam';
 import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import { getAdminUsers } from '../../../services/admin';
 import { type AdminUserListItemDto, type PageResponseDto } from '../../../types/api';
-import { useAdminCurrentUser } from '../layout';
+import { useAdminCurrentUser } from '../AdminCurrentUserContext';
 import { AdminUsersClient } from './AdminUsersClient';
 
 function AdminUsersPageContent() {
