@@ -114,7 +114,7 @@ Backend `docs/specs/auth-design.md`와 같은 성격의 **요구사항 명세서
 
 ### 버그/정확성
 
-1. `SignupFormClient.handleCheckNickname()`(`app/signup/SignupFormClient.tsx:30-41`)에 경쟁 상태가 있다. 닉네임을 바꿔가며 중복확인을 연달아 누르면(예: "abc" 확인 요청이 응답을 기다리는 동안 입력을 "abcd"로 바꿔 다시 확인) 두 요청 모두 클릭 시점의 `nickname` 값을 클로저로 들고 비동기로 진행되므로, 늦게 도착하는 응답이 최신 입력값과 무관하게 `nicknameCheckStatus`를 덮어쓸 수 있다. 실제 가입은 서버가 최종 검증을 다시 하므로 잘못된 닉네임으로 가입되지는 않지만(코드 주석의 "제출값=확인된 값" 보장은 trim 처리만 다루고 이 레이스는 다루지 않음), 화면에 "사용 가능한 닉네임입니다"가 최신 입력값과 다른 값에 대한 결과로 잘못 표시된 채 제출을 시도해 서버 409로 되돌아오는 사용자 경험 문제가 생길 수 있다. 요청을 보낼 때의 닉네임 값을 함께 캡처해, 응답이 왔을 때 현재 `nickname` 상태와 일치하는 경우에만 반영하도록 가드를 추가하는 것을 권장.
+1. ~~`SignupFormClient.handleCheckNickname()`(`app/signup/SignupFormClient.tsx:30-41`)에 경쟁 상태가 있다. 닉네임을 바꿔가며 중복확인을 연달아 누르면 늦게 도착하는 응답이 최신 입력값과 무관하게 `nicknameCheckStatus`를 덮어쓸 수 있다.~~ — ✅ **(2026-08-12 해결)** `latestNicknameRef`로 입력값의 최신 상태를 추적해, 응답 도착 시점에 요청 당시 값과 다르면(그 사이 입력이 바뀌었으면) 결과를 반영하지 않도록 가드 추가.
 
 ### 보안
 
