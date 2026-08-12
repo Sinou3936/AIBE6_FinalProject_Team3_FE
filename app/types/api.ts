@@ -272,7 +272,6 @@ export type ProfileImageConfirmRequestDto = {
 };
 
 export type ProfileRegisterRequestDto = {
-  nickname?: string;
   interestRegion: string;
   transactionType: UserTransactionTypeDto;
   currentStage?: string;

@@ -49,7 +49,6 @@ export function mapProfileFormInputToRegisterDto(input: ProfileUpdateInput): Pro
   }
 
   return {
-    nickname: input.nickname,
     interestRegion: input.interestRegion,
     transactionType: transactionTypeDomainToDto[input.transactionType],
     currentStage: input.currentStage ?? undefined,
