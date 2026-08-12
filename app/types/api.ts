@@ -530,10 +530,13 @@ export type AdminPropertyReportReviewRequestDto = {
 
 // --- 관리자 페이지: 통계 대시보드 (GET /admin/stats/dashboard) ---
 
+// 세 값 전부 "전체 누적"이 아니라 대시보드 조회 기간 내 신규 발생분이다(backend
+// AdminStatsService.summary() 참고) - 예전 필드명(totalUsers 등)이 이 사실과 반대로 읽혀
+// API 계약을 헷갈리게 했던 것을 backend와 함께 정정했다.
 export type AdminStatsSummaryDto = {
-  totalUsers: number;
-  totalProperties: number;
-  pendingReports: number;
+  newUsers: number;
+  newProperties: number;
+  newPendingReports: number;
 };
 
 export type AdminStatsTrendPointDto = { date: string; count: number };

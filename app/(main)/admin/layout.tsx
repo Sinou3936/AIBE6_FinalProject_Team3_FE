@@ -2,12 +2,27 @@
 
 import { Loader2 } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { isUnreachableError } from '../../lib/api/http';
 import { getCurrentUser } from '../../services/auth';
 import { AdminNav } from './AdminNav';
 
 type GateState = 'checking' | 'authorized' | 'forbidden' | 'unreachable';
+
+// 이 레이아웃이 role 게이트 목적으로 이미 확인한 본인 정보를 하위 페이지가 그대로 재사용하도록
+// Context로 내려준다 - 없으면 admin/users/page.tsx처럼 "본인 계정" 판단에 currentUserId가
+// 필요한 화면마다 getCurrentUser()를 또 호출해 /auth/me가 불필요하게 두 번 왕복하게 된다.
+// authorized 상태일 때만 값이 채워지므로(그 전엔 children 자체가 렌더되지 않음), 소비하는
+// 쪽은 null 체크 없이 바로 써도 된다 - useAdminCurrentUser()가 그 보장을 강제한다.
+const AdminCurrentUserContext = createContext<{ userId: number } | null>(null);
+
+export function useAdminCurrentUser(): { userId: number } {
+  const value = useContext(AdminCurrentUserContext);
+  if (!value) {
+    throw new Error('useAdminCurrentUser는 AdminLayout 하위(인가 완료 후)에서만 호출할 수 있습니다.');
+  }
+  return value;
+}
 
 // 관리자가 아닌 사용자에게는 이 경로가 존재한다는 사실 자체를 드러내지 않기 위해 리다이렉트가
 // 아니라 404와 동일한 화면을 보여준다. 인증 자체는 상위 (main)/layout.tsx(MainLayoutGate)가 이미
@@ -16,6 +31,7 @@ type GateState = 'checking' | 'authorized' | 'forbidden' | 'unreachable';
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [state, setState] = useState<GateState>('checking');
+  const [currentUserId, setCurrentUserId] = useState<number | undefined>(undefined);
   // "다시 시도" 버튼이 setState('checking')만 해서는 effect가 재실행되지 않는다(의존성 배열에
   // pathname만 있음) - 이 카운터를 같이 늘려서 재조회를 강제한다.
   const [retryToken, setRetryToken] = useState(0);
@@ -39,7 +55,12 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     getCurrentUser(undefined, controller.signal)
       .then((me) => {
         if (!cancelled) {
-          setState(me.role === 'ADMIN' ? 'authorized' : 'forbidden');
+          if (me.role === 'ADMIN') {
+            setCurrentUserId(me.userId);
+            setState('authorized');
+          } else {
+            setState('forbidden');
+          }
         }
       })
       .catch((error) => {
@@ -90,10 +111,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // currentUserId는 setState('authorized')보다 먼저 set돼 이 시점엔 항상 값이 있다(위 참고).
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-8">
-      <AdminNav />
-      {children}
-    </div>
+    <AdminCurrentUserContext.Provider value={{ userId: currentUserId as number }}>
+      <div className="container mx-auto max-w-6xl px-4 py-8">
+        <AdminNav />
+        {children}
+      </div>
+    </AdminCurrentUserContext.Provider>
   );
 }
