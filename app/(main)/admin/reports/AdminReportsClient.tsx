@@ -42,7 +42,11 @@ const REASON_LABEL: Record<PropertyReportReasonDto, string> = {
 
 // enum 값에 맞춰 타입을 좁혀둔다 - Record<string, string>이면 AdminPropertyReportStatusDto에 값이
 // 추가돼도 컴파일러가 이 매핑에 라벨 추가를 빠뜨린 걸 잡아주지 못한다.
-const STATUS_LABEL: Record<AdminPropertyReportStatusDto, string> = { RECEIVED: '접수', RESOLVED: '조치완료', REJECTED: '반려' };
+const STATUS_LABEL: Record<AdminPropertyReportStatusDto, string> = {
+  RECEIVED: '접수',
+  RESOLVED: '조치완료',
+  REJECTED: '반려',
+};
 const STATUS_TONE: Record<AdminPropertyReportStatusDto, string> = {
   RECEIVED: 'bg-orange-50 text-orange-700',
   RESOLVED: 'bg-emerald-50 text-emerald-700',
@@ -162,7 +166,9 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
         </select>
       </div>
 
-      {loadError && <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>}
+      {loadError && (
+        <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
+      )}
 
       {data && (
         <>
@@ -262,8 +268,8 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
               // 처리 전에 한 번 더 확인받는다(AdminUsersClient의 권한/정지 변경과 동일한 패턴).
               <div>
                 <p className="mb-4 text-sm text-slate-700">
-                  이 신고를 <strong>{pendingStatus === 'RESOLVED' ? '조치완료' : '반려'}</strong> 처리할까요? 처리 후에는
-                  되돌릴 수 없습니다.
+                  이 신고를 <strong>{pendingStatus === 'RESOLVED' ? '조치완료' : '반려'}</strong> 처리할까요? 처리
+                  후에는 되돌릴 수 없습니다.
                 </p>
                 <div className="flex justify-end gap-2">
                   <button

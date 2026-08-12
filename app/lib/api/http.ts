@@ -265,11 +265,7 @@ function normalizeHeaders(initHeaders?: HeadersInit, isFormData = false): Header
 // 401이 그대로 던져진다 — `PasswordUpdateFormClient`처럼 `isSessionInvalidErrorCode(error.code)`로
 // 감지해 `/login?error=session_expired`로 보내는 컴포넌트 레벨 fallback은 계속 필요하다(예:
 // refresh_token 자체가 이미 없거나 만료된 경우).
-function finalizeResponse<T>(
-  response: Response,
-  body: ApiResponse<T>,
-  sessionRefreshOutcome?: 'unreachable',
-): T {
+function finalizeResponse<T>(response: Response, body: ApiResponse<T>, sessionRefreshOutcome?: 'unreachable'): T {
   if (!response.ok) {
     throw new ApiError(
       body.error?.message ?? `API request failed: ${response.status}`,
@@ -280,7 +276,12 @@ function finalizeResponse<T>(
   }
 
   if (!body.success) {
-    throw new ApiError(body.error?.message ?? 'API request failed.', response.status, body.error, sessionRefreshOutcome);
+    throw new ApiError(
+      body.error?.message ?? 'API request failed.',
+      response.status,
+      body.error,
+      sessionRefreshOutcome,
+    );
   }
 
   return body.data;
@@ -291,9 +292,7 @@ function finalizeResponse<T>(
 // 경우다 — 호출부가 "무효 토큰이니 쿠키를 지워도 된다"와 "일시 장애라 쿠키는 그대로 둬야 한다"를
 // 구분하려면 이 둘을 뭉뚱그리면 안 된다.
 export type RefreshSessionOutcome =
-  | { status: 'success'; cookies: string[] }
-  | { status: 'rejected' }
-  | { status: 'unreachable' };
+  { status: 'success'; cookies: string[] } | { status: 'rejected' } | { status: 'unreachable' };
 
 /**
  * Access Token 쿠키가 만료(브라우저가 자동 삭제)된 상태에서 Refresh Token으로 세션을 갱신한다.
