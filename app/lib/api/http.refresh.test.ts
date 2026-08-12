@@ -121,9 +121,7 @@ describe('requestJson()과 caller AbortSignal', () => {
     const { requestJson } = await import('./http');
 
     const controller = new AbortController();
-    const pending = requestJson('/some/protected/path', { signal: controller.signal }).catch(
-      (error: unknown) => error,
-    );
+    const pending = requestJson('/some/protected/path', { signal: controller.signal }).catch((error: unknown) => error);
 
     // 원 요청이 이미 401을 받고 refresh 대기 중인 상태에서, 호출자가 라우트를 이동한다
     // (MainLayoutGate/admin-layout.tsx의 effect cleanup이 하는 것과 동일).
