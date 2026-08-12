@@ -37,12 +37,7 @@ export function SessionRecoverRetryButton({ next }: { next: string }) {
   };
 
   return (
-    <button
-      type="button"
-      onClick={handleRetry}
-      disabled={retrying}
-      className="font-bold underline disabled:opacity-50"
-    >
+    <button type="button" onClick={handleRetry} disabled={retrying} className="font-bold underline disabled:opacity-50">
       {retrying ? '재시도 중...' : '다시 시도'}
     </button>
   );
