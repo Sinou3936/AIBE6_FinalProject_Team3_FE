@@ -97,3 +97,21 @@
 7. ~~필수 항목 헬퍼 설명(`helperText`)이 FE mock에만 있고 Backend에는 아직 없음~~ ✅ **해결됨(2026-07-31)** — Backend가 `checklist_item_template.helper_text` 컬럼과 시드 데이터를 추가해서 실 API에서도 정상 노출됨
 8. ~~"최종 점검일" 표시 자리는 만들었지만 실제 날짜 데이터가 없음~~ ✅ **해결됨(2026-07-31)** — Backend가 `ChecklistOverviewResponse.lastCheckedAt` 필드와 이 값 기준 정렬을 함께 추가, FE는 `formatDateText`로 포맷만 해서 그대로 표시(당초 "추후로 미루기로" 했던 정렬 로직까지 Backend가 먼저 구현함)
 9. **(2026-07-30, 브레인스토밍 진행 중, 미해결)** "특약사항 분석" 화면과의 여정이 완전히 분리되어 있음 — `/contract/upload`가 `propertyId`를 아예 안 받고, 결과 화면(`ContractResultClient.tsx`)의 "체크리스트로 이동" 버튼도 `/properties/1/checklist`로 고정(`contract-analysis-design.md` 이슈 3번과 동일 사안). 오늘 CTA를 상시 노출로 바꾸면서 이 gap이 더 드러남 — propertyId를 조용히 실어 나르는 방안과, 분석 결과를 매물에 묶어 저장(DB 신규)하는 방안을 논의했지만 범위 확정 전 보류
+
+## 전수조사 결과 (2026-08-12)
+
+### 버그/정확성
+
+특별히 발견된 이슈 없음.
+- `app/lib/pageParam.ts`의 `parsePageParam`이 `?page=` 쿼리에 문자열/음수/소수 등 무엇이 와도 `Number.isInteger(parsed) && parsed >= 0`로 걸러 0(첫 페이지)으로 정규화하므로, `/checklists?page=abc`나 `?page=-1` 같은 조작에도 백엔드에 잘못된 값이 그대로 넘어가지 않음을 확인.
+- `ChecklistOverviewClient.tsx`의 이전/다음 페이지 링크가 `page`(현재)와 `hasNext`(백엔드 값)를 그대로 사용하고 있어, 화면에서 계산한 `totalPages`와 서버가 내려준 `hasNext`가 어긋날 여지가 없음.
+- `services/checklist.ts`의 `checklistRequestsInFlight` in-flight 공유 로직을 재검증 — GET이 성공하든 404로 POST 재시도를 하든 실패하든, `.finally()`에서 항상 `propertyId` 키를 지우므로 다음 호출이 오래된 Promise를 재사용해 멈춰있는 문제는 없음.
+
+### 보안
+
+특별히 발견된 이슈 없음. FE는 Backend가 이미 소유권/삭제 여부를 검증한 응답을 그대로 신뢰하는 구조이고, 이 문서가 다루는 파일들(`ChecklistOverviewClient.tsx`, `services/checklist.ts`, `repositories/checklistRepository.ts`, `mappers/checklist.ts`) 안에서 별도의 권한 판단이나 사용자 입력을 신뢰하는 로직이 없음을 확인.
+
+### 코드 품질 (중복/구조/일관성)
+
+1. **`checklistRepository.ts`의 mock `updateMockChecklistItem`이 실제 Backend `ChecklistItem.check()`의 "userNote 초기화" 규칙과 미묘하게 다르게 구현됨** — 실제 서버는 `check(boolean)` 호출 시 `issueFound`는 원래 CHECK 타입 항목에서 절대 true가 될 수 없는 필드라 손대지 않아도 안전하지만, mock의 `'checked' in request` 분기(`checklistRepository.ts:29-31`)는 `issueFound: false`를 명시적으로 강제 설정한다. 결과적으로 동작(항상 false)은 동일하지만, "왜 항상 false인지"에 대한 근거가 mock과 실제 서버에서 서로 다른 코드 경로(mock: 하드코딩 / 서버: 타입 검증으로 인한 불변식)로 갈라져 있어, 나중에 실제 서버 로직이 바뀌면 mock이 조용히 실제와 달라질 수 있는 구조다. 지금 당장 관찰 가능한 버그는 아니라 코드 품질 관점의 참고사항으로만 기록.
+2. **`ChecklistOverviewClient.tsx`가 매물의 실제 표시명(title) 대신 매물유형 문자열로 조합한 제목을 씀** — `mapChecklistOverviewDto`(`mappers/checklist.ts:85`)가 `propertyTitle`을 `${propertyTypeLabelMap[dto.propertyType]} 매물`(예: "오피스텔 매물")로 만드는데, 이는 Backend `ChecklistOverviewResponse`에 매물 이름/제목 필드 자체가 없어서 나온 불가피한 대체 값이다(Backend 쪽 필드 부재이지 FE 버그는 아님). 다만 매물 목록 화면(`PropertiesClient`, `PropertySummaryDto.title`)은 실제 제목을 보여주는 반면 체크리스트 목록만 매물유형 이름으로 뭉뚱그려 표시되어, 같은 매물이 두 화면에서 서로 다른 이름으로 보이는 사용자 경험상의 불일치가 있다. Backend `ChecklistOverviewResponse`에 실제 제목 필드를 추가하면 해결 가능 — 이번 조사 범위(FE 지정 파일)에서 코드를 수정하지는 않았으나 참고로 기록.
