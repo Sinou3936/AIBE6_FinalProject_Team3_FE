@@ -133,7 +133,13 @@ export type MockAdminDashboardParams = {
 };
 
 const DEFAULT_TREND_DAYS = 14;
-const REASONS: PropertyReportReasonDto[] = ['ALREADY_CONTRACTED', 'PRICE_MISMATCH', 'INFO_MISMATCH', 'DUPLICATE', 'ETC'];
+const REASONS: PropertyReportReasonDto[] = [
+  'ALREADY_CONTRACTED',
+  'PRICE_MISMATCH',
+  'INFO_MISMATCH',
+  'DUPLICATE',
+  'ETC',
+];
 
 function toIsoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -176,8 +182,14 @@ export function getMockAdminDashboardStats(params: MockAdminDashboardParams = {}
   const reportsInRange = mockReports.filter((report) => inRange(report.createdAt, startDate, endDate));
 
   const dates = eachDate(startDate, endDate);
-  const signups = countByDate(dates, usersInRange.map((user) => user.createdAt));
-  const propertyRegistrations = countByDate(dates, registrationsInRange.map((r) => r.createdAt));
+  const signups = countByDate(
+    dates,
+    usersInRange.map((user) => user.createdAt),
+  );
+  const propertyRegistrations = countByDate(
+    dates,
+    registrationsInRange.map((r) => r.createdAt),
+  );
 
   const registeredUserIds = new Set(mockPropertyRegistrations.map((r) => r.userId));
   const joinedUserIds = usersInRange.map((user) => user.id);

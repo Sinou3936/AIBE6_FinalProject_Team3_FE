@@ -8,12 +8,47 @@ import {
 // createdAt은 시간 없이 'YYYY-MM-DD'만 쓴다 - 통계 mock(adminRepository)이 기간 필터를 문자열
 // 비교로 단순하게 처리할 수 있게 하기 위함이다(ISO 날짜 형식은 사전순 비교가 곧 시간순 비교).
 export const initAdminUsers: AdminUserListItemDto[] = [
-  { id: 1, email: 'admin@algogyeyak.local', nickname: '관리자', role: 'ADMIN', status: 'ACTIVE', createdAt: '2026-06-15' },
-  { id: 2, email: 'sinlim.tenant@example.com', nickname: '김신림', role: 'USER', status: 'ACTIVE', createdAt: '2026-07-22' },
-  { id: 3, email: 'bongcheon.lee@example.com', nickname: '이봉천', role: 'USER', status: 'ACTIVE', createdAt: '2026-07-24' },
+  {
+    id: 1,
+    email: 'admin@algogyeyak.local',
+    nickname: '관리자',
+    role: 'ADMIN',
+    status: 'ACTIVE',
+    createdAt: '2026-06-15',
+  },
+  {
+    id: 2,
+    email: 'sinlim.tenant@example.com',
+    nickname: '김신림',
+    role: 'USER',
+    status: 'ACTIVE',
+    createdAt: '2026-07-22',
+  },
+  {
+    id: 3,
+    email: 'bongcheon.lee@example.com',
+    nickname: '이봉천',
+    role: 'USER',
+    status: 'ACTIVE',
+    createdAt: '2026-07-24',
+  },
   { id: 4, email: null, nickname: '박낙성대', role: 'USER', status: 'ACTIVE', createdAt: '2026-07-27' },
-  { id: 5, email: 'suspended.user@example.com', nickname: '정지된유저', role: 'USER', status: 'SUSPENDED', createdAt: '2026-07-28' },
-  { id: 6, email: 'withdrawn.user@example.com', nickname: '탈퇴한유저', role: 'USER', status: 'WITHDRAWN', createdAt: '2026-07-15' },
+  {
+    id: 5,
+    email: 'suspended.user@example.com',
+    nickname: '정지된유저',
+    role: 'USER',
+    status: 'SUSPENDED',
+    createdAt: '2026-07-28',
+  },
+  {
+    id: 6,
+    email: 'withdrawn.user@example.com',
+    nickname: '탈퇴한유저',
+    role: 'USER',
+    status: 'WITHDRAWN',
+    createdAt: '2026-07-15',
+  },
   { id: 7, email: 'newbie@example.com', nickname: '새가입자', role: 'USER', status: 'ACTIVE', createdAt: '2026-08-02' },
 ];
 

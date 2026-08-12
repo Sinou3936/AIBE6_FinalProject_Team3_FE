@@ -94,6 +94,8 @@ describe('AdminReportsClient', () => {
     fireEvent.click(screen.getByRole('button', { name: '조치완료' }));
     fireEvent.click(await screen.findByRole('button', { name: '확인' }));
 
-    await waitFor(() => expect(reviewAdminPropertyReport).toHaveBeenCalledWith(1, { status: 'RESOLVED', memo: undefined }));
+    await waitFor(() =>
+      expect(reviewAdminPropertyReport).toHaveBeenCalledWith(1, { status: 'RESOLVED', memo: undefined }),
+    );
   });
 });

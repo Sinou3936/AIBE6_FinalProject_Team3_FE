@@ -41,9 +41,7 @@ const STATUS_TONE: Record<AdminUserStatusDto, string> = {
   WITHDRAWN: 'bg-slate-100 text-slate-500',
 };
 
-type ActiveAction =
-  | { type: 'role'; user: AdminUserListItemDto }
-  | { type: 'status'; user: AdminUserListItemDto };
+type ActiveAction = { type: 'role'; user: AdminUserListItemDto } | { type: 'status'; user: AdminUserListItemDto };
 
 export function AdminUsersClient({ data, loadError, filters, currentUserId, onMutated }: AdminUsersClientProps) {
   const router = useRouter();
@@ -161,7 +159,9 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
         </button>
       </form>
 
-      {loadError && <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>}
+      {loadError && (
+        <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
+      )}
 
       {data && (
         <>

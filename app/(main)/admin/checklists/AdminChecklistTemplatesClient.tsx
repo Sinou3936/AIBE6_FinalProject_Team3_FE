@@ -228,10 +228,13 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
       </div>
 
       <p className="mb-4 text-sm text-slate-500">
-        여기서 수정·삭제해도 이미 만들어진 유저 체크리스트에는 영향이 없어요. 다음에 새로 생성되는 체크리스트부터 반영됩니다.
+        여기서 수정·삭제해도 이미 만들어진 유저 체크리스트에는 영향이 없어요. 다음에 새로 생성되는 체크리스트부터
+        반영됩니다.
       </p>
 
-      {loadError && <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>}
+      {loadError && (
+        <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
+      )}
 
       {data && (
         <Table
@@ -242,7 +245,9 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
               key: 'importance',
               header: '중요도',
               render: (row) => (
-                <Badge className={row.importance === 'REQUIRED' ? 'bg-teal-50 text-teal-700' : 'bg-slate-100 text-slate-600'}>
+                <Badge
+                  className={row.importance === 'REQUIRED' ? 'bg-teal-50 text-teal-700' : 'bg-slate-100 text-slate-600'}
+                >
                   {IMPORTANCE_LABEL[row.importance]}
                 </Badge>
               ),
