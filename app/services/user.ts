@@ -113,6 +113,12 @@ async function putFileToPresignedUrl(uploadUrl: string, file: File, tagging: str
   }
 }
 
+// logout()과 마찬가지로 목데이터 분기를 두지 않는다 - 실제 계정 삭제/익명화가 필요한 동작이라
+// 목데이터로 의미 있게 흉내낼 대상이 없다.
+export async function withdraw(): Promise<void> {
+  await requestJson<void>('/users/me', { method: 'DELETE' });
+}
+
 export async function checkNicknameAvailability(nickname: string): Promise<boolean> {
   if (useMockData) {
     return checkMockNicknameAvailable(nickname);
