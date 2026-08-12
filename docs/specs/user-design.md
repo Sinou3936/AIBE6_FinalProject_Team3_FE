@@ -11,9 +11,9 @@
 | 파일 | 역할 |
 | --- | --- |
 | `app/(main)/mypage/profile/page.tsx` + `ProfileClient.tsx` | 프로필 등록(온보딩)/수정 폼 — 하나의 컴포넌트가 `mode`로 분기 |
-| `app/(main)/mypage/page.tsx` + `MyPageClient.tsx` | 프로필 조회, 로그아웃, 회원 탈퇴 버튼(진입점만) |
+| `app/(main)/mypage/page.tsx` + `MyPageClient.tsx` | 프로필 조회, 로그아웃, 회원 탈퇴. **(2026-08-11 완료)** 탈퇴는 `WithdrawConfirmModal.tsx`(같은 디렉터리, `PropertyDeleteConfirmModal.tsx`와 동일 패턴)로 확인 후 실행 |
 | `app/(main)/home/page.tsx` + `app/lib/priorityAction.ts` | `currentStage` 기반 홈 화면 우선 안내 카드. **(2026-07-29)** 체크리스트 상태 판단에 checklist 도메인의 `app/services/checklist.ts`(`getMyChecklistOverviews`)도 함께 사용하게 됨 — user 도메인 문서지만 참고용으로 명시 |
-| `app/services/user.ts` | `GET /users/me`, `POST /users/me/profile`, `PATCH /users/me`, `GET /users/nickname-check` 호출. **(2026-08-03~04 추가)** `uploadProfileImage(file)`(presign → S3 직접 PUT → confirm), `resetProfileImage()`(`DELETE /users/me/profile-image`, 기본 이미지로 초기화) |
+| `app/services/user.ts` | `GET /users/me`, `POST /users/me/profile`, `PATCH /users/me`, `GET /users/nickname-check` 호출. **(2026-08-03~04 추가)** `uploadProfileImage(file)`(presign → S3 직접 PUT → confirm), `resetProfileImage()`(`DELETE /users/me/profile-image`, 기본 이미지로 초기화). **(2026-08-11 추가)** `withdraw()`(`DELETE /users/me`) — `logout()`과 동일한 이유로 목데이터 분기 없음. **(`feat/user-nickname-format` 브랜치 — 아직 `dev` 미머지·미배포)** `getNicknamePolicy()`(`GET /users/nickname-policy`) |
 | `app/mappers/user.ts` | DTO ↔ domain 변환 |
 | `app/lib/sessionErrors.ts` **(2026-07-29 신규)** | `redirectIfSessionInvalid(error)`(401이면 즉시 `/login?error=session_expired`)와 `classifyProfileLoadError(error)`(`getMyProfile()` 실패를 `'not-found'`\|`'unknown'`으로 분류, 내부적으로 앞의 함수 재사용) |
 | `app/ui/AccountUnavailableRedirect.tsx` **(2026-07-29 신규)** | `getMyProfile()`이 404(존재하지 않음/탈퇴)를 반환했을 때 렌더링하는 클라이언트 컴포넌트. 마운트 시 `logout()` 호출 후 결과와 무관하게 랜딩 페이지(`/`)로 이동 |
@@ -30,7 +30,7 @@
 | 성공 시 온보딩 반영된 홈 화면으로 이동 | ✅ **(2026-07-29 해결)** `mode === 'register'`일 때는 `router.push('/home')`으로 이동. 프로필 **수정**은 기존대로 `/mypage`로 돌아가도록 분기해, 온보딩 요구사항과 "편집 후 원래 화면으로" 관례를 모두 만족시킴 |
 | 실패: 필수 입력값 누락 | ✅ `required` 속성 + `transactionType` 미선택 시 자체 에러 문구로 제출 차단 |
 | 실패: 중복된 닉네임 | ✅ **(2026-07-31 변경)** 프로필 등록 화면엔 더 이상 닉네임 섹션이 없음 — 닉네임은 회원가입 시점(`app/signup/SignupFormClient.tsx`)에 동일한 "중복확인" 플로우로 이미 정해진다. 애초에 (마이페이지 온보딩이 아니라) 회원가입 때 정하는 이유는, 등록 전까지 닉네임이 비어 있으면 전역 헤더의 "{nickname}님" 표시가 빈 채로 보이는 문제가 있어서다(`MainLayoutClient.tsx`). 닉네임 변경은 이제 프로필 **수정** 화면에서만 가능(아래 "프로필 수정" 표 참고) — 회원가입 화면 자체는 Auth 문서 범위라 여기선 이 정도만 기록 |
-| 실패: 허용되지 않는 닉네임 | ❌ 클라이언트 쪽엔 금칙어 등 형식 검증이 없음 — 백엔드가 거부하면 에러 메시지를 그대로 노출하는 방식(Auth 문서에서 지적한 것과 같은 pass-through 패턴) |
+| 실패: 허용되지 않는 닉네임 | ⚠️ **부분 구현, `feat/user-nickname-format` 브랜치 — 아직 `dev` 미머지·미배포.** `SignupFormClient.tsx`가 `getNicknamePolicy()`로 받은 패턴(`pattern`/`title` 속성 + "중복확인" 클릭 시 정규식 선제 검사, 위반 시 `invalid` 상태로 서버 안내 문구 노출)을 반영해 한글/영문/숫자 형식은 이제 클라이언트에서도 막는다. **머지 전까지는 `dev`/배포판에서 여전히 클라이언트 쪽 형식 검증이 없다.** 그리고 머지 여부와 무관하게 욕설/금칙어는 클라이언트·백엔드 둘 다 아직 못 거름(Backend `docs/specs/user-design.md` 남은 이슈 9번 참고) — 백엔드가 거부하면 에러 메시지를 그대로 노출하는 pass-through 패턴은 유지됨 |
 | 실패: 입력값 길이 초과 | ✅ 닉네임 `maxLength={20}` |
 | 실패: 인증되지 않은 사용자 | ✅ `(main)/layout.tsx`가 상위에서 이미 막음(Auth 문서 참고) — 이 화면까지 도달했다면 인증된 상태가 보장됨 |
 
@@ -48,7 +48,7 @@
 | 요구사항 | 실제 구현 |
 | --- | --- |
 | 본인 프로필인지 확인 | ✅(간접) — `PATCH /users/me`가 인증 쿠키 기준으로 본인만 대상이 되는 구조라 FE가 별도로 확인할 게 없음 |
-| 입력값 길이/형식 검증 | ✅ **(2026-07-31)** 닉네임 길이(2~20자)만 클라이언트 검증 — 등록 화면엔 이제 이 필드가 없어(위 "프로필 등록" 표 참고) 수정 화면에서만 적용됨 |
+| 입력값 길이/형식 검증 | ⚠️ **(2026-07-31)** 닉네임 길이(2~20자)만 클라이언트 검증 — 등록 화면엔 이제 이 필드가 없어(위 "프로필 등록" 표 참고) 수정 화면에서만 적용됨. **(추가, `feat/user-nickname-format` 브랜치 — 아직 `dev` 미머지·미배포)** `ProfileClient.tsx`도 같은 방식(`getNicknamePolicy()` + `pattern`/`title` + "중복확인" 선제 검사)으로 형식 검증을 추가함 — 머지 전까지는 `dev`/배포판에서 여전히 길이만 검증됨 |
 | 닉네임 변경 시 중복 확인 | ✅ **(2026-07-31)** `isNicknameUnchanged`로 안 바꿨으면 재확인 생략, 바꿨으면 강제 — 닉네임 관련 UI는 이제 이 수정 화면에만 있음(등록 화면에는 없음, 위 "프로필 등록" 표 참고) |
 | 변경된 정보 저장 | ✅ `updateMyProfile` |
 | 실패: 인증 실패 / 중복 닉네임 / 잘못된 입력값 | ⚠️ 백엔드 메시지 그대로 노출(Auth 문서와 동일 패턴) |
@@ -56,11 +56,19 @@
 
 ## 회원 탈퇴 — 요구사항 대비
 
+**(2026-08-11 완료)** Backend가 `DELETE /users/me`(익명화 + 연관 데이터 정리 + 세션 무효화까지 한 번에 처리 — Backend `docs/specs/user-design.md` 참고)를 완성하면서, 그동안 빈 함수였던 `handleWithdrawClick`을 실제로 연결했다.
+
+1. "회원 탈퇴" 클릭 → `WithdrawConfirmModal`(`PropertyDeleteConfirmModal.tsx`와 동일 패턴 — 처리 중엔 배경 클릭으로 안 닫힘) 오픈, "탈퇴하면 되돌릴 수 없다"는 안내와 함께 확인/취소
+2. 확인 시 `withdraw()`(`DELETE /users/me`) 호출 → 성공하면 방어적으로 `logout()`을 한 번 더 호출한 뒤(아래 참고) 랜딩 페이지(`/`)로 이동
+3. 실패하면 모달 안에 서버 에러 메시지를 그대로 노출(`ApiError.message` pass-through, 다른 화면과 동일 패턴)
+
+**세션 무효화를 프론트에서 한 번 더 호출하는 이유**: `DELETE /users/me`가 이미 세션 무효화(쿠키 삭제)까지 best-effort로 처리하지만, 그 처리가 실패해도 탈퇴 자체는 성공으로 응답하도록 되어 있다(Backend 쪽 설계). 확실히 하기 위해 성공 후 `logout()`을 방어적으로 한 번 더 호출하는데, 이 시점엔 이미 쿠키/토큰이 없는 상태라 실질적으로는 아무 것도 안 하는 호출이다(`SessionLogoutService.logout()`이 토큰이 없으면 즉시 스킵 — Backend 확인 완료). 그래서 이 호출이 실패해도 에러를 삼키고 항상 랜딩 페이지로 이동한다 — 탈퇴 자체는 이미 끝난 뒤라 이 방어 호출의 실패가 사용자에게 "탈퇴 실패"로 잘못 보이면 안 되기 때문.
+
 | 요구사항 | 실제 구현 |
 | --- | --- |
-| 탈퇴 요청 | ❌ **완전 미구현.** `MyPageClient.tsx`에 "회원 탈퇴" 버튼은 있지만 `handleWithdrawClick`이 빈 함수 + `// TODO: 회원 탈퇴 확인 모달 연동 (백엔드 탈퇴 API 확정 후 진행)` 주석뿐. 클릭해도 아무 일도 안 일어남 |
-| 본인 여부 확인 / 상태 변경 / 개인정보 삭제·익명화 / 클라이언트 인증 정보 제거 | ❌ 위와 동일 — 호출하는 API 자체가 없음(`app/services/user.ts`에 탈퇴 관련 함수 없음) |
-| 성공/실패 결과 처리 | ❌ 미구현 |
+| 탈퇴 요청 | ✅ 위 흐름대로 완료 |
+| 본인 여부 확인 / 상태 변경 / 개인정보 삭제·익명화 / 클라이언트 인증 정보 제거 | ✅ 전부 Backend가 한 트랜잭션(+best-effort 세션 무효화)으로 처리, FE는 결과만 받아 이동 |
+| 성공/실패 결과 처리 | ✅ 위 3번 참고 |
 
 ## 홈 위젯 우선순위 — 요구사항 대비
 
@@ -82,8 +90,8 @@
 | 이메일/소셜 식별 정보 비공개 | O | ✅ `MyPageClient`/`ProfileClient` 어디에도 이메일이나 provider 식별자를 화면에 표시하는 코드가 없음(닉네임/이미지/관심정보만 노출) |
 | 이미지 업로드 시 형식/크기 검증 | O | ✅ **(2026-08-03~04 완료)** 클라이언트 단 검증(JPG/PNG, 5MB 이하)에 이어 실제 업로드까지 연동됨 — 위 "프로필 수정" 표 참고 |
 | 불필요한 개인정보 미수집 | O | FE는 화면에 입력받는 필드(닉네임/이미지 URL/지역/거래유형/현재단계) 외엔 아무것도 수집하지 않음 — 이 항목 자체는 준수 |
-| 탈퇴 시 개인정보 삭제/익명화 | O | ❌ 탈퇴 기능 자체가 없어 해당 없음 |
-| 탈퇴 사용자 OAuth 연동 정보 처리 기준 | O | Backend 정책 영역, FE 범위 밖(탈퇴 미구현이라 더더욱 해당 없음) |
+| 탈퇴 시 개인정보 삭제/익명화 | O | ✅ **(2026-08-11)** Backend가 처리, FE는 `DELETE /users/me` 호출 후 랜딩으로 이동만 담당 — 위 "회원 탈퇴" 절 참고 |
+| 탈퇴 사용자 OAuth 연동 정보 처리 기준 | O | Backend 정책 영역, FE 범위 밖(단 탈퇴 요청 자체는 이제 FE에서 정상 발생함) |
 | 선택 정보는 건너뛸 수 있음 | O | ⚠️ 어떤 필드가 "선택"인지 요구사항에 명시가 없는 상태에서, 실제 구현은 관심지역·거래유형은 `required`로 강제하고 `currentStage`(자취 단계)만 별도 필수 체크가 없어 사실상 선택처럼 동작 — 의도된 설계인지 우연인지 불명확 |
 | 입력값 오류 항목과 수정 방법을 명확히 표시 | O | ✅ 닉네임 중복확인 결과, 거래유형 미선택 등은 필드 근처에 인라인 문구로 표시됨 |
 | 미활용 정보는 필수로 요구하지 않음 | O | 확인 불가 — 백엔드가 실제로 각 필드를 어디에 쓰는지 이 문서만으로는 알 수 없음 |
@@ -102,7 +110,7 @@
 
 ## 남은 이슈 / 확인 필요 총정리
 
-1. **회원 탈퇴가 완전히 미구현 상태** — 버튼은 있지만 클릭해도 아무 동작이 없는 TODO 스텁. 백엔드 탈퇴 API가 나오면 그때 이어서 구현 필요(주석에도 이미 명시됨). **(2026-07-29)** 팀 논의 결과 property/checklist 등 타 도메인 작업이 더 진행된 뒤 다시 검토하기로 하고 보류
+1. ~~**회원 탈퇴가 완전히 미구현 상태**~~ — ✅ **2026-08-11 해결.** 버튼은 있지만 클릭해도 아무 동작이 없던 TODO 스텁이었음. **(2026-07-29)** 팀 논의 결과 property/checklist 등 타 도메인 작업이 더 진행된 뒤 다시 검토하기로 하고 보류했다가, Backend 탈퇴 API가 완성되면서 이어서 구현 완료 — 위 "회원 탈퇴" 절 참고
 2. **"취업 여부" 항목이 요구사항에는 있는데 구현에는 없음** — `currentStage`가 자취 경험만 다루고 취업 상태는 어디에도 없음. 요구사항이 잘못 적힌 건지, 스코프에서 빠진 건지 확인 필요. **(2026-07-29 검토)** Backend `docs/specs/user-design.md`에도 원 요구사항이 "자취/취업여부(currentStage)"로 두 개념이 한 필드명에 뭉뚱그려 있음을 확인 — FE만의 누락이 아니라 요구사항 자체의 모호함일 가능성. 온보딩 분기 영향은, 지금처럼 콘텐츠 차별화(취업 여부별 안내 문구 등) 없이 필드만 추가해서는 분기 효과가 없고, 4번(위젯 우선순위 재설계)과 묶어 다차원 분기로 설계해야 의미가 있다고 판단 — 아직 코드 변경은 없음
 3. ~~**`getPriorityAction()`의 `ctaHref: '/checklist'`가 존재하지 않는 경로를 가리킴**~~ — ✅ 2026-07-29 해결 (위 "홈 위젯 우선순위" 표 참고)
 4. **`currentStage` 기반 "위젯 우선순위"가 요구사항만큼 구현되지 않음** — 실제로는 카드 하나의 문구 분기 수준. 위젯을 실제로 재배치할지, 지금 수준으로 충분한지 확인 필요. **(2026-07-29)** 재배치 방향 아이디어는 정리했으나 미구현 — 위 표 참고
@@ -114,3 +122,4 @@
 10. **(2026-07-31 발견·해결) 마이페이지 "등록 매물" 미표시 + 홈 화면 상시 오류 배너** — 백엔드에 없는 `/mypage` 엔드포인트에 기대고 있던 게 원인. 위 "홈 위젯 우선순위" 표의 마지막 항목 참고. 관련해서 `getMyPageOverview`/`services/mypage.ts`는 실제 역할(특약사항 분석 등 최근 활동 내역)에 맞게 `getActivityHistory`/`services/activityHistory.ts`로 전체 리네임함
 11. **(2026-07-31 발견·해결) 체크리스트 진행 위젯/카운트가 실제 진행 상황과 무관하게 항상 "시작 전"으로 보였음** — 존재하지 않는 `property.checklist` 필드에 의존한 게 원인. 위 "홈 위젯 우선순위" 표의 마지막 항목 참고
 12. **(2026-07-31 발견·해결) 구글 계정으로 로그인 시 커스텀 프로필 사진이 깨져 보이는 경우가 있었음** — 구글 사진 서버(`lh3.googleusercontent.com`)가 실제 업로드된 사진에 한해 브라우저의 `Referer` 헤더를 이유로 요청을 차단하는 경우가 있는 것으로 보임(기본 생성 아바타는 영향 없음, 백엔드는 구글 `picture` 값을 가공 없이 그대로 전달함 — `GoogleOAuth2UserInfo.java`). `profileImageUrl`을 렌더링하는 세 곳(`MainLayoutClient.tsx`, `MyPageClient.tsx`, `ProfileClient.tsx`) 모두 `<img referrerPolicy="no-referrer">`로 수정해 브라우저가 이 헤더를 보내지 않도록 회피함
+13. **닉네임 욕설/금칙어 필터링 미구현** — 위 "프로필 등록"/"프로필 수정" 표에 추가한 형식 검증(`feat/user-nickname-format` 브랜치)도 한글/영문/숫자 형식만 막고 욕설은 못 거른다. Backend `docs/specs/user-design.md` 남은 이슈 9번과 동일한 사안 — 어근 목록 + 정규화 방식으로 방향만 정했고 코드는 아직 없음
