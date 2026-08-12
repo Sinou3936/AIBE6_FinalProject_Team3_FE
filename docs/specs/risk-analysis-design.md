@@ -57,3 +57,18 @@
 2. ~~150% 초과 시 "입력값을 다시 확인해주세요" 전용 경고 문구 없음~~ ✅ **해결됨(2026-08-07 정정)** — Backend 응답에 별도 필드는 없지만 `explanation` 문장 자체에 이미 그 문구가 포함되어 내려오고 FE도 그대로 표시 중임을 코드로 확인함(위 "보증금 안전성" 표 참고). Backend 계약 변경 불필요
 3. **`/contract/result`("특약사항 분석") 화면의 "보증금" 탭이 여전히 완전 정적 데이터** — `contract-analysis-design.md`에서 이미 지적된 문제. 이번 작업으로 실제 보증금 안전성 데이터 소스(`getDepositSafety`)는 준비됐지만, 그 탭에 실제로 연결하는 작업은 이번 스코프에 포함하지 않음 — 다음에 이 탭을 손볼 때 자연스러운 연동 지점
 4. **`app/data/property-detail.ts`의 정적 `riskSummaries`가 죽은 코드로 남음** — 매물 상세 카드가 실데이터로 바뀌면서 더 이상 아무 데서도 참조되지 않지만, 이번 계획 범위 밖이라 삭제하지 않고 그대로 둠
+
+## 전수조사 결과 (2026-08-12)
+
+### 버그/정확성
+
+1. **선순위보증금 반영 여부가 페이지 새로고침 시 화면에서 사라진다.** `mapDepositSafetyCheckDto`(app/mappers/risk-analysis.ts:56-68)가 `DepositSafetyCheckDto`의 `seniorDepositApplied`/`seniorDeposit`/`maxClaimAmount`(app/types/api.ts:657-659 — 백엔드가 재계산 반영 여부를 알려주려고 명시적으로 내려주는 필드)를 도메인 타입으로 옮기지 않고 그대로 버린다. `DepositSafetyCheck`(app/types/domain.ts:328-338)에는 이 세 필드가 아예 선언돼 있지 않다. 그 결과 `RiskAnalysisClient.tsx`(35-40번째 줄)의 선순위보증금/근저당 채권최고액 입력창은 `useState('')`로 항상 빈 값에서 시작한다 — 서버에는 이전에 `recalculate`로 반영된 계산 결과(`explanation`/`jeonseRatio`)가 그대로 남아있어 화면 위쪽 설명 문구는 그 값을 반영해 보여주는데, 그 아래 입력창은 마치 아무것도 입력한 적 없는 것처럼 비어 보인다. 사용자가 "반영이 안 됐나?" 하고 같은 값을 다시 입력·제출하거나, 실제로는 이미 적용된 근저당 채권최고액을 빼먹고 재계산해버릴 수 있다. `seniorDepositApplied`가 true일 때 입력창을 그 값으로 초기화하거나, 최소한 "선순위보증금 OOO원이 이미 반영돼 있어요" 같은 안내를 추가하는 게 필요해 보인다.
+2. **월세 매물의 판정불가 사유 문구가 부정확하게 노출된다(원인은 backend).** backend 전수조사에서 확인한 것처럼 `MarketDataClientImpl`이 월세(거래유형 미지원)와 단독/다가구(매물유형 미지원)를 구분하지 않고 둘 다 `PROPERTY_TYPE_UNSUPPORTED`로 내려보내는데, FE `riskCheckReasonCopy.PROPERTY_TYPE_UNSUPPORTED`(app/data/risk-analysis.ts:41, "이 매물 유형은 아직 지원하지 않아요")가 그 값을 그대로 옮겨 월세 매물에도 노출된다. 실제로는 매물유형이 아니라 거래유형(월세) 때문인데, FE 문구만 봐서는 "이 아파트/오피스텔 자체가 지원 안 되는 유형인가?"로 오해하기 쉽다. backend가 사유 코드를 세분화하기 전까지는 FE 문구를 "이 조건에서는 시세 확인이 어려워요"류로 중립화해 최소한 오해를 줄이는 방법도 있다.
+
+### 보안
+
+FE는 인증 쿠키(`requestJson`의 `credentials: 'include'`)로만 API를 호출하고 소유권 등 인가 판단은 전부 백엔드에 맡기는 구조라(backend 전수조사에서 4개 엔드포인트 모두 소유권 검증 확인함), 이 계층에서 새로 발견된 보안 이슈는 없다. `recalculateDepositSafety`(app/services/risk-analysis.ts:60-73)가 SSR용 `cookieHeader` 파라미터를 받지 않고 클라이언트 전용 뮤테이션으로만 쓰이는 것도 다른 mutation(`deleteProperty`/`reportProperty`)과 같은 패턴이라 문제 없음.
+
+### 코드 품질 (중복/구조/일관성)
+
+1. `getJeonseRatioTone`(app/data/risk-analysis.ts:57-65)이 backend `RiskPolicyConfig`의 80/100/150 기준선을 하드코딩으로 복제하고 있다. 이미 이 문서에 "FE 톤이 4색뿐이라 의도적으로 축소"한 절충으로 기록돼 있어 새로 발견한 문제는 아니지만, backend가 `jeonseRatioCautionFrom`/`WarnFrom`/`WarnTo` 값을 튜닝해도(예: 정책 값 변경) FE 색상 경계선은 값을 안 가져오므로 조용히 안 맞게 되는 구조적 위험이 있다는 점은 참고로 남겨둔다. 새 값을 응답 DTO에 실어주거나(`RiskPolicyConfig` 값 노출용 별도 엔드포인트), 최소한 두 값이 어긋나면 알아채기 쉽게 주석에 "backend RiskPolicyConfig와 동기화 필요"를 명시하는 정도의 보강이 있으면 좋겠다.

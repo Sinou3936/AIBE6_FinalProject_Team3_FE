@@ -12,11 +12,11 @@ Backend `docs/specs/auth-design.md`와 같은 성격의 **요구사항 명세서
 | --- | --- |
 | `app/login/page.tsx` + `LoginFormClient.tsx` | 이메일 로그인 폼, 구글/카카오 로그인 링크, URL 에러 파라미터 → 한글 메시지 매핑 |
 | `app/signup/page.tsx` + `SignupFormClient.tsx` | 이메일 회원가입 폼 |
-| `app/oauth/callback/route.ts` | 소셜 로그인 성공 후 리다이렉트 목적지(온보딩/홈) 결정 |
+| ~~`app/oauth/callback/route.ts`~~ | ~~소셜 로그인 성공 후 리다이렉트 목적지(온보딩/홈) 결정~~ — ⚠️ **(2026-08-12 정정)** 이 경로 자체가 더 이상 존재하지 않음. `crossOriginAuth` 여부에 따라 갈림: `crossOriginAuth=true`면 클라이언트 컴포넌트인 `app/oauth/callback/page.tsx`가 이 역할을 담당(아래 "전수조사 결과" 코드품질 2번 참고) |
 | `app/services/auth.ts` | 로그인/회원가입/로그아웃/비밀번호 변경/`GET /auth/me` 호출 |
 | `app/lib/api/http.ts` | 공통 fetch 래퍼(`requestJson`), `refreshSession`. **(2026-07-29)** `requestJson`이 브라우저 컨텍스트에서 401 + 세션 무효 코드를 감지하면 single-flight로 `POST /auth/refresh` → 성공 시 원 요청 1회 재시도까지 자동 처리(아래 "남은 이슈 2번" 참고). Server Component 경로(쿠키를 명시적으로 넘기는 호출)는 이 자동 재시도 대상이 아니라 여전히 `proxy.ts`/`session-recover`가 담당 |
 | `proxy.ts` | Next.js 미들웨어 — 보호된 경로 진입 시 access_token 쿠키 존재 여부 확인, 없으면 refresh 시도 |
-| `app/(main)/layout.tsx` | `GET /auth/me` 호출로 실제 세션 유효성 재확인, 실패 시 `/login?error=session_expired` |
+| `app/(main)/layout.tsx` | ~~`GET /auth/me` 호출로 실제 세션 유효성 재확인, 실패 시 `/login?error=session_expired`~~ — ⚠️ **(2026-08-12 정정)** `crossOriginAuth=true`일 때는 이 서버 컴포넌트 확인을 건너뛰고 클라이언트 컴포넌트 `MainLayoutGate.tsx`에 위임한다 — 항상 이 방식으로 동작하는 게 아님(아래 "전수조사 결과" 코드품질 2번 참고) |
 
 ## 이메일 회원가입 — 요구사항 대비
 
@@ -41,7 +41,7 @@ Backend `docs/specs/auth-design.md`와 같은 성격의 **요구사항 명세서
 | 요구사항 | 실제 구현 |
 | --- | --- |
 | 인증 코드 유효성 확인 / 제공자 사용자 정보 조회 / OAuthAccount 매칭 / 신규 생성 / 계정 연동 | Backend 책임 — FE는 `<a href={getGoogleLoginUrl()}>`로 백엔드 OAuth2 엔드포인트(`/oauth2/authorization/google`)로 브라우저를 그대로 보내는 것만 담당 |
-| 성공: 신규 사용자는 온보딩, 기존 사용자는 홈으로 이동 | ✅ `oauth/callback/route.ts`가 `getCurrentUser` → `getMyProfile` 순으로 확인해 분기 |
+| 성공: 신규 사용자는 온보딩, 기존 사용자는 홈으로 이동 | ✅ ~~`oauth/callback/route.ts`가 `getCurrentUser` → `getMyProfile` 순으로 확인해 분기~~ — **(2026-08-12 정정)** `crossOriginAuth` 여부에 따라 실제로 이 역할을 하는 파일이 다름(`route.ts`는 더 이상 존재하지 않음) — 위 "주요 화면/파일" 표 정정 및 아래 "전수조사 결과" 코드품질 2번 참고 |
 | 실패: 인증 토큰 미발급 | ✅ 콜백에 `error` 쿼리 파라미터가 있으면 검증 없이 그대로 `/login?error=...`로 전달, `/login` 페이지가 `oauth_login_failed`를 한글 메시지로 매핑(그 외 값은 기본 문구로 폴백) |
 
 ## 토큰 검증 — 요구사항 대비
@@ -107,3 +107,20 @@ Backend `docs/specs/auth-design.md`와 같은 성격의 **요구사항 명세서
    - frontend: `services/auth.ts`의 `getPasswordPolicy()`가 이 엔드포인트를 호출, `signup/page.tsx`/`mypage/password/page.tsx`(Server Component)가 조회해서 `SignupFormClient`/`PasswordUpdateFormClient`에 props로 전달 — 두 컴포넌트 모두 더 이상 정규식을 하드코딩하지 않음
    - 조회 실패(백엔드 다운 등 극히 드문 경우)에만 각 page.tsx의 하드코딩된 폴백 값을 씀 — 이 폴백이 실제 정책과 어긋나도 서버가 최종 검증에서 걸러주므로 이중 실패로 이어지지 않음
    - 브라우저로 직접 확인: `/signup` 접속 시 실제 백엔드 메시지가 렌더링되고, `input.checkValidity()`로 패턴이 실제 동작함을 검증함
+
+## 전수조사 결과 (2026-08-12)
+
+`app/login`, `app/signup`, `app/oauth`, `app/auth`, `app/services/auth.ts`, `app/lib/api/http.ts`(+테스트), `proxy.ts`, `app/(main)/layout.tsx`, `app/lib/useLogout.ts`, `app/lib/devLoginKey.ts`를 코드 기준으로 전수조사했다. 아래는 기존 문서에 없던 새 발견만 담았다. 계정 정지(SUSPENDED) 상태 노출 수준이 로그인 경로마다 다른 문제는 backend와 걸친 이슈라 backend `docs/specs/auth-design.md`의 전수조사 결과(보안 섹션 1번)에 적었다 — 이 문서에서는 그 결과를 그대로 반영하는 쪽(`login/page.tsx`의 `ERROR_MESSAGES.account_blocked`)만 관련되어 있고 FE 자체 결함은 아니다.
+
+### 버그/정확성
+
+1. `SignupFormClient.handleCheckNickname()`(`app/signup/SignupFormClient.tsx:30-41`)에 경쟁 상태가 있다. 닉네임을 바꿔가며 중복확인을 연달아 누르면(예: "abc" 확인 요청이 응답을 기다리는 동안 입력을 "abcd"로 바꿔 다시 확인) 두 요청 모두 클릭 시점의 `nickname` 값을 클로저로 들고 비동기로 진행되므로, 늦게 도착하는 응답이 최신 입력값과 무관하게 `nicknameCheckStatus`를 덮어쓸 수 있다. 실제 가입은 서버가 최종 검증을 다시 하므로 잘못된 닉네임으로 가입되지는 않지만(코드 주석의 "제출값=확인된 값" 보장은 trim 처리만 다루고 이 레이스는 다루지 않음), 화면에 "사용 가능한 닉네임입니다"가 최신 입력값과 다른 값에 대한 결과로 잘못 표시된 채 제출을 시도해 서버 409로 되돌아오는 사용자 경험 문제가 생길 수 있다. 요청을 보낼 때의 닉네임 값을 함께 캡처해, 응답이 왔을 때 현재 `nickname` 상태와 일치하는 경우에만 반영하도록 가드를 추가하는 것을 권장.
+
+### 보안
+
+특별히 발견된 이슈 없음. `sanitizeNextPath()`(`app/lib/nextPath.ts`)의 오픈 리다이렉트 방지가 `LoginFormClient`/`oauth/callback/page.tsx`/`SessionRecoverRetryButton.tsx`/`proxy.ts`/`session-recover/route.ts` 전 경로에서 일관되게 적용되는 것을 확인했고, `devLoginKey.ts`가 fragment(`#devkey=`)만 저장하고 쿼리스트링 값은 저장 없이 URL에서만 제거하는 것도 코드와 주석이 일치함을 확인했다.
+
+### 코드 품질 (중복/구조/일관성)
+
+1. `app/login/page.tsx:16-20`의 주석이 "백엔드 화이트리스트(`OAuth2AuthenticationFailureHandler`의 `DOMAIN_SPECIFIC_ERROR_CODES`)"를 언급하지만, 실제 backend `OAuth2AuthenticationFailureHandler`(`backend/src/main/java/com/algogyeyak/auth/handler/OAuth2AuthenticationFailureHandler.java:41-43`)에는 그런 이름의 화이트리스트가 없다 — `OAuth2AuthenticationException`이면 어떤 에러 코드든 조건 없이 그대로 전달한다. 실제 동작에는 문제가 없다(`ERROR_MESSAGES`가 단순 객체 조회라 모르는 코드는 안전하게 기본 문구로 빠진다)만, 존재하지 않는 백엔드 구조를 가리키는 주석이라 나중에 실제로 화이트리스트를 도입하려 하거나 이 주석을 신뢰해 코드를 찾아보다가 헛수고할 수 있다 — "조건 없이 전달되며, 여기 테이블에 없는 코드는 기본 문구로 폴백된다"로 정정 권장.
+2. 이 문서 자체가 현재 코드의 상당 부분(특히 크로스오리진 배포 분기)을 반영하지 못하고 있다. 문서는 `(main)/layout.tsx`가 항상 `GET /auth/me`를 직접 호출하고 `app/oauth/callback/route.ts`가 리다이렉트를 결정한다고 서술하지만, 실제로는 `crossOriginAuth`(프로젝트 결정 — "Cross-origin auth decision", 시나리오 C) 여부에 따라 완전히 다른 경로를 탄다: `crossOriginAuth=true`면 `(main)/layout.tsx`(`app/(main)/layout.tsx:21-23`)는 서버 컴포넌트에서의 확인을 건너뛰고 클라이언트 컴포넌트 `MainLayoutGate`(`app/(main)/MainLayoutGate.tsx`)에 위임하며, OAuth 콜백도 Route Handler가 아니라 클라이언트 컴포넌트인 `app/oauth/callback/page.tsx`이고, `/auth/session-recover` 재시도도 크로스오리진 전용 클라이언트 컴포넌트 `SessionRecoverRetryButton.tsx`가 처리한다. 이 문서가 가리키는 `app/oauth/callback/route.ts`라는 경로 자체가 이미 존재하지 않는 파일이라(현재는 `page.tsx`), 문서만 보고 코드를 찾으면 헛수고하게 된다. `crossOriginAuth` 분기 전체(`MainLayoutGate.tsx`, `oauth/callback/page.tsx`, `SessionRecoverRetryButton.tsx`, `login/page.tsx`의 분기 렌더링)를 반영하는 별도 갱신이 필요해 보인다.
