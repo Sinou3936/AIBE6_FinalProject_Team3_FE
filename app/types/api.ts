@@ -286,6 +286,12 @@ export type NicknameCheckResponseDto = {
   available: boolean;
 };
 
+export type NicknamePolicyDto = {
+  // <input pattern="..."> 속성값으로 그대로 쓸 수 있는 정규식(앞뒤 ^/$ 없음).
+  pattern: string;
+  message: string;
+};
+
 // --- Property CRUD (실제 백엔드 응답 형태. PropertySummaryDto는 아직 없는 기능(신호/전세가율/
 // 체크리스트 등)까지 포함한 목업 전용 타입이라 분리해서 둔다) ---
 

@@ -3,7 +3,7 @@
 import { ArrowLeft, Sparkles, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { regions } from '../../../data/regions_nested';
 import { userCurrentStageOptions, userTransactionTypeOptions } from '../../../data/user';
 import { ApiError } from '../../../lib/api/http';
@@ -14,6 +14,7 @@ import {
   updateMyProfile,
   uploadProfileImage,
 } from '../../../services/user';
+import { type NicknamePolicyDto } from '../../../types/api';
 import { type ProfileUpdateInput, type UserProfile } from '../../../types/domain';
 import { NoticeBox } from '../../../ui/NoticeBox';
 
@@ -26,6 +27,7 @@ type ProfileClientProps = {
   profile: UserProfile;
   mode: ProfileMode;
   loadError?: string;
+  nicknamePolicy: NicknamePolicyDto;
 };
 
 function toFormValues(profile: UserProfile): ProfileUpdateInput {
@@ -98,7 +100,7 @@ function buildInterestRegion(sido: string, sigungu: string, eupmyeondong: string
   return parts.join(' ');
 }
 
-export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) {
+export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: ProfileClientProps) {
   const router = useRouter();
   const [formValues, setFormValues] = useState<ProfileUpdateInput>(toFormValues(profile));
   const initialLocation = parseInterestRegion(profile.interestRegion);
@@ -116,9 +118,12 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
   // 기본 이미지로 되돌리기도 새 사진 선택과 마찬가지로 저장 버튼을 눌러야 실제로 반영된다.
   const [imageResetRequested, setImageResetRequested] = useState(false);
   const [nicknameCheckStatus, setNicknameCheckStatus] = useState<
-    'idle' | 'checking' | 'available' | 'duplicate' | 'error'
+    'idle' | 'checking' | 'available' | 'duplicate' | 'invalid' | 'error'
   >('idle');
   const [nicknameRequiredError, setNicknameRequiredError] = useState(false);
+  // nicknamePolicy.pattern은 <input pattern="...">용 비앵커 정규식이라, JS에서 전체 문자열 일치를
+  // 확인하려면 브라우저가 암묵적으로 해주는 ^(?:...)$ 감싸기를 직접 재현해야 한다.
+  const nicknamePattern = useMemo(() => new RegExp(`^(?:${nicknamePolicy.pattern})$`), [nicknamePolicy.pattern]);
 
   const sigunguOptions = getSigunguOptions(sido);
   const eupmyeondongOptions = getEupmyeondongOptions(sido, sigungu);
@@ -205,6 +210,10 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
     const nickname = formValues.nickname.trim();
     if (nickname.length < 2) {
       setNicknameCheckStatus('error');
+      return;
+    }
+    if (!nicknamePattern.test(nickname)) {
+      setNicknameCheckStatus('invalid');
       return;
     }
 
@@ -364,6 +373,8 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
                     placeholder="2~20자로 입력해 주세요"
                     minLength={2}
                     maxLength={20}
+                    pattern={nicknamePolicy.pattern}
+                    title={nicknamePolicy.message}
                     required
                   />
                   <button
@@ -380,6 +391,9 @@ export function ProfileClient({ profile, mode, loadError }: ProfileClientProps) 
                 )}
                 {nicknameCheckStatus === 'duplicate' && (
                   <p className="mt-1.5 text-sm font-bold text-red-600">이미 사용 중인 닉네임입니다.</p>
+                )}
+                {nicknameCheckStatus === 'invalid' && (
+                  <p className="mt-1.5 text-sm text-red-600">{nicknamePolicy.message}</p>
                 )}
                 {nicknameCheckStatus === 'error' && (
                   <p className="mt-1.5 text-sm text-red-600">닉네임 확인에 실패했습니다. 다시 시도해 주세요.</p>
