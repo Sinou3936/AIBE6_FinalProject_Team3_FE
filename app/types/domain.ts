@@ -223,11 +223,6 @@ export type ContractTab = {
   label: string;
 };
 
-export type ContractMissingItem = {
-  title: string;
-  description: string;
-};
-
 export type QuickActionTone = 'teal' | 'orange' | 'emerald' | 'blue';
 
 export type QuickAction = {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, ArrowRight, CheckCircle2, Info, Loader2, RotateCcw, Upload } from 'lucide-react';
 import { encodeBase64Url } from '../../../lib/base64Url';
 import { getContractAnalysisErrorMessage } from '../../../lib/contractAnalysisErrors';
@@ -22,6 +22,13 @@ const PROCESSING_STEP_LABELS: Record<Exclude<ProcessingStep, null>, string> = {
 
 export default function Page() {
   const router = useRouter();
+  // 죽은 코드 아님 - propertyId 전달에 사용됨. 매물 상세/체크리스트 화면의 "계약분석하기" 버튼이
+  // /contract/upload?propertyId={id}로 넘어올 때만 값이 있고, 그 외(직접 접속 등)엔 없거나 파싱에
+  // 실패해도 undefined로 안전하게 처리해 기존처럼 propertyId 없이 그대로 동작한다.
+  const searchParams = useSearchParams();
+  const propertyIdParam = searchParams.get('propertyId');
+  const parsedPropertyId = propertyIdParam ? Number(propertyIdParam) : NaN;
+  const propertyId = Number.isFinite(parsedPropertyId) ? parsedPropertyId : undefined;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isDragging, setIsDragging] = useState(false);
@@ -93,7 +100,7 @@ export default function Page() {
     try {
       if (selectedImage) {
         setProcessingStep('submitting-input');
-        const inputResult = await submitContractInput({ inputType: 'IMAGE', image: selectedImage });
+        const inputResult = await submitContractInput({ inputType: 'IMAGE', image: selectedImage, propertyId });
         if (inputResult.nextStep !== 'OCR') {
           throw new Error('예상하지 못한 응답입니다.');
         }
@@ -103,21 +110,21 @@ export default function Page() {
 
         setProcessingStep('masking');
         const maskResult = await maskContractText(ocrResult.extractedText);
-        navigateToMaskingReview({ ...maskResult, uncertainFields: ocrResult.uncertainFields });
+        navigateToMaskingReview({ ...maskResult, uncertainFields: ocrResult.uncertainFields, propertyId });
         return;
       }
 
       // 텍스트 직접 입력: 항상 nextStep이 'MASKING'이어야 정상이다. OCR을 거치지 않으므로
       // uncertainFields는 항상 빈 배열이다.
       setProcessingStep('submitting-input');
-      const inputResult = await submitContractInput({ inputType: 'TEXT', text });
+      const inputResult = await submitContractInput({ inputType: 'TEXT', text, propertyId });
       if (inputResult.nextStep === 'OCR') {
         throw new Error('이미지 입력이 필요합니다.');
       }
 
       setProcessingStep('masking');
       const maskResult = await maskContractText(text);
-      navigateToMaskingReview({ ...maskResult, uncertainFields: [] });
+      navigateToMaskingReview({ ...maskResult, uncertainFields: [], propertyId });
     } catch (error) {
       setSubmitError(
         getContractAnalysisErrorMessage(error, '특약사항 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.'),

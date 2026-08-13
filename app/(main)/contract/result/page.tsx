@@ -36,6 +36,7 @@ export default async function Page({ searchParams }: ResultPageProps) {
       maskedCount={payload?.maskedCount ?? 0}
       uncertainFields={payload?.uncertainFields ?? []}
       loadError={loadError}
+      propertyId={payload?.propertyId}
     />
   );
 }

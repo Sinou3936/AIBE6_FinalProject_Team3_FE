@@ -22,8 +22,7 @@ import { type ContractAnalysisResult } from '../types/domain';
 // mock 모드에서는 1~3단계를 입력값 그대로 통과시키고, 최종 분석 단계만 app/mocks/init 데이터를 반환한다.
 
 export type SubmitContractInputParams =
-  | { inputType: 'TEXT'; text: string; propertyId?: number }
-  | { inputType: 'IMAGE'; image: File; propertyId?: number };
+  { inputType: 'TEXT'; text: string; propertyId?: number } | { inputType: 'IMAGE'; image: File; propertyId?: number };
 
 export async function submitContractInput(params: SubmitContractInputParams): Promise<ContractInputResponseDto> {
   if (useMockData) {
@@ -93,14 +92,18 @@ export async function maskContractText(text: string): Promise<MaskContractTextRe
   return { maskedText: dto.maskedText, maskedCount: dto.maskedCount };
 }
 
-export async function analyzeContract(maskedText: string, userConfirmed: boolean): Promise<ContractAnalysisResult> {
+export async function analyzeContract(
+  maskedText: string,
+  userConfirmed: boolean,
+  propertyId?: number,
+): Promise<ContractAnalysisResult> {
   if (useMockData) {
     return getMockContractAnalysisResult();
   }
 
   const dto = await requestJson<ContractAnalysisResultDto>('/contract-analysis/analyze', {
     method: 'POST',
-    body: JSON.stringify({ maskedText, userConfirmed } satisfies ContractAnalyzeRequestDto),
+    body: JSON.stringify({ maskedText, userConfirmed, propertyId } satisfies ContractAnalyzeRequestDto),
   });
 
   return mapContractAnalysisResultDto(dto);
