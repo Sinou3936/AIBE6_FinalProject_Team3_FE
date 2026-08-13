@@ -317,14 +317,30 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
               )}
 
               {depositSafety !== undefined && (
-                <div className="mb-6 flex items-center justify-between rounded-xl bg-slate-50 p-4">
-                  <span className="text-sm font-bold text-slate-700">보증금 안전성</span>
-                  {depositSafety.status === 'calculated' && depositSafety.jeonseRatio !== null ? (
-                    <Badge className={apiStatusToneClassMap[getJeonseRatioTone(depositSafety.jeonseRatio)]}>
-                      전세가율 {depositSafety.jeonseRatio}%
-                    </Badge>
+                <div className="mb-6 rounded-xl bg-slate-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-700">보증금 안전성</span>
+                    {depositSafety.status === 'calculated' && depositSafety.jeonseRatio !== null ? (
+                      <Badge className={apiStatusToneClassMap[getJeonseRatioTone(depositSafety.jeonseRatio)]}>
+                        전세가율 {depositSafety.jeonseRatio}%
+                      </Badge>
+                    ) : (
+                      <Badge className={apiStatusToneClassMap.slate}>판정 불가</Badge>
+                    )}
+                  </div>
+                  {depositSafety.status === 'calculated' ? (
+                    <>
+                      {depositSafety.explanation && (
+                        <p className="mt-3 text-xs leading-relaxed text-slate-600">{depositSafety.explanation}</p>
+                      )}
+                      {depositSafety.referenceDate && (
+                        <p className="mt-1 text-[10px] text-slate-400">기준일: {depositSafety.referenceDate}</p>
+                      )}
+                    </>
                   ) : (
-                    <Badge className={apiStatusToneClassMap.slate}>판정 불가</Badge>
+                    depositSafety.reasonText && (
+                      <p className="mt-3 text-xs text-slate-500">{depositSafety.reasonText}</p>
+                    )
                   )}
                 </div>
               )}

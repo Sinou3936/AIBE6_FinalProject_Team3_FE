@@ -331,8 +331,13 @@ export type DepositSafetyCheck = {
   jeonseRatio: number | null;
   explanation: string | null;
   referenceDate: string | null;
+  sampleCount: number | null;
+  radiusMeters: number | null;
   reasonText: string | null;
   calculatedAt: string | null;
   disclaimer: string;
   recentOwnershipChangeWarning: boolean;
+  cautionFrom: number | null;
+  warnFrom: number | null;
+  warnTo: number | null;
 };

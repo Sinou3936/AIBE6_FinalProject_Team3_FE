@@ -146,8 +146,23 @@ export function RiskAnalysisClient({
               <>
                 <p className="mb-4 text-sm leading-relaxed text-slate-600">{depositSafety.explanation}</p>
                 {depositSafety.referenceDate && (
-                  <p className="mb-4 text-xs text-slate-400">기준일: {depositSafety.referenceDate}</p>
+                  <p className="mb-1 text-xs text-slate-400">기준일: {depositSafety.referenceDate}</p>
                 )}
+                {typeof depositSafety.sampleCount === 'number' && typeof depositSafety.radiusMeters === 'number' && (
+                  <p className="mb-1 text-xs text-slate-400">
+                    인근 매매 실거래가 {depositSafety.sampleCount}건(반경 {depositSafety.radiusMeters}m) 기준으로
+                    계산했어요.
+                  </p>
+                )}
+                {typeof depositSafety.cautionFrom === 'number' &&
+                  typeof depositSafety.warnFrom === 'number' &&
+                  typeof depositSafety.warnTo === 'number' && (
+                    <p className="mb-4 text-[10px] text-slate-400">
+                      판정 기준: {depositSafety.cautionFrom}% 미만 안전 · {depositSafety.cautionFrom}~
+                      {depositSafety.warnFrom}% 주의 · {depositSafety.warnFrom}~{depositSafety.warnTo}% 위험 ·{' '}
+                      {depositSafety.warnTo}% 초과 재확인 필요
+                    </p>
+                  )}
                 {depositSafety.recentOwnershipChangeWarning && (
                   <NoticeBox icon={AlertTriangle} iconClassName="text-orange-500" className="mb-4">
                     최근 소유권이 바뀐 매물이에요 — 더 꼼꼼히 확인하세요.
