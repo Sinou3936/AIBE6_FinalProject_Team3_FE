@@ -139,6 +139,7 @@ export function mapPropertyListItemDto(dto: PropertyListItemDto): PropertySummar
         : undefined,
     statusColor: propertyStatusColorMap.slate,
     location: { latitude: 0, longitude: 0 },
+    representativeImageUrl: dto.representativeImageUrl ?? undefined,
   };
 }
 

@@ -396,6 +396,8 @@ export type PropertyListItemDto = {
   signalSummary: string | null;
   // DepositSafetyCheck.status가 CALCULATED일 때만 값 존재(percent 정수, "%" 미포함).
   jeonseRatio: number | null;
+  // 가장 먼저 업로드된 이미지 URL. 매물에 이미지가 한 장도 없으면 null.
+  representativeImageUrl: string | null;
 };
 
 export type PropertyDetailAddressDto = {
