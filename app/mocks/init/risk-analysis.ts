@@ -19,6 +19,9 @@ export const initRiskSignalListDto: RiskSignalListDto = {
       checkedAt: '2026-07-30T09:00:00',
     },
     {
+      // 참고: 실제 backend는 이 신호를 아직 계산하지 않는다(multi-account-detection-enabled
+      // 플래그가 false) — 이 mock은 목업/데모 화면 확인용으로 "정상 판정된 것처럼" 값을
+      // 채워둔 것일 뿐, 이 값을 보고 기능이 이미 활성화됐다고 오해하지 않도록 주의.
       signalType: 'SAME_ACCOUNT_MULTIPLE',
       status: 'SUCCESS',
       reason: null,

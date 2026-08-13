@@ -24,6 +24,12 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
   >('idle');
   const [nicknameRequiredError, setNicknameRequiredError] = useState(false);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
+  // 중복확인 응답이 도착했을 때 입력값이 요청 시점과 여전히 같은지 비교하기 위한 최신값 ref.
+  // (2026-08-12) 닉네임을 빠르게 바꿔가며 중복확인을 연달아 누르면, 두 요청 모두 비동기로
+  // 진행되어 늦게 도착하는 응답이 최신 입력값과 무관하게 nicknameCheckStatus를 덮어쓸 수
+  // 있었다 - state(nickname)는 클로저에 갇혀 응답 시점엔 이미 낡은 값이라 ref로 최신값을
+  // 별도로 추적한다.
+  const latestNicknameRef = useRef('');
 
   const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
@@ -34,8 +40,12 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
     setNicknameRequiredError(false);
     try {
       const available = await checkNicknameAvailability(trimmed);
+      // 응답이 도착한 시점의 최신 입력값과 이 요청이 확인했던 값이 다르면(그 사이 사용자가
+      // 입력을 바꿨으면) 이 결과는 이미 낡은 것이니 화면에 반영하지 않는다.
+      if (latestNicknameRef.current.trim() !== trimmed) return;
       setNicknameCheckStatus(available ? 'available' : 'duplicate');
     } catch {
+      if (latestNicknameRef.current.trim() !== trimmed) return;
       setNicknameCheckStatus('error');
     }
   };
@@ -127,6 +137,7 @@ export function SignupFormClient({ passwordPolicy }: SignupFormClientProps) {
             onChange={(event) => {
               setNicknameCheckStatus('idle');
               setNicknameRequiredError(false);
+              latestNicknameRef.current = event.target.value;
               setNickname(event.target.value);
             }}
             placeholder="2~20자로 입력해 주세요"

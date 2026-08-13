@@ -207,9 +207,9 @@ export function getMockAdminDashboardStats(params: MockAdminDashboardParams = {}
 
   return {
     summary: {
-      totalUsers: usersInRange.length,
-      totalProperties: registrationsInRange.length,
-      pendingReports: reportsInRange.filter((report) => report.status === 'RECEIVED').length,
+      newUsers: usersInRange.length,
+      newProperties: registrationsInRange.length,
+      newPendingReports: reportsInRange.filter((report) => report.status === 'RECEIVED').length,
     },
     trends: { signups, propertyRegistrations },
     distributions: { byPropertyRegistration, byReportReason },
