@@ -89,6 +89,7 @@ export type ChecklistItemUpdateRequestDto = { checked: boolean } | { value: stri
 // GET /checklists 응답 원소 하나. checklistId는 아직 시작 안 한 매물이면 null.
 export type ChecklistOverviewDto = {
   propertyId: number;
+  title: string;
   checklistId: number | null;
   roadAddress: string | null;
   jibunAddress: string | null;
