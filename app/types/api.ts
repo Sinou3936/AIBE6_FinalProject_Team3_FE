@@ -665,10 +665,15 @@ export type DepositSafetyCheckDto = {
   maxClaimAmount: number | null;
   explanation: string | null;
   referenceDate: string | null;
+  sampleCount: number | null; // 기준가 산출에 쓰인 매매 실거래가 표본 수. CALCULATED일 때만
+  radiusMeters: number | null; // 표본 탐색 반경(300 또는 600). CALCULATED일 때만
   reason: DepositSafetyCheckReasonDto | null;
   calculatedAt: string | null;
   disclaimer: string;
   recentOwnershipChangeWarning: boolean;
+  cautionFrom: number | null; // 전세가율 판정 기준값(%) - 이 값부터 "주의". 계산 여부와 무관하게 항상 내려옴
+  warnFrom: number | null; // 이 값부터 "위험"
+  warnTo: number | null; // 이 값을 넘으면 "입력값 재확인 안내"
 };
 
 // POST /properties/{propertyId}/deposit-safety/recalculate 요청. seniorDeposit(선순위보증금)은

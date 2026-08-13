@@ -60,9 +60,14 @@ export function mapDepositSafetyCheckDto(dto: DepositSafetyCheckDto): DepositSaf
     jeonseRatio: dto.jeonseRatio,
     explanation: dto.explanation,
     referenceDate: dto.referenceDate,
+    sampleCount: dto.sampleCount,
+    radiusMeters: dto.radiusMeters,
     reasonText: dto.reason ? depositSafetyReasonCopy[dto.reason] : null,
     calculatedAt: dto.calculatedAt,
     disclaimer: dto.disclaimer,
     recentOwnershipChangeWarning: dto.recentOwnershipChangeWarning,
+    cautionFrom: dto.cautionFrom,
+    warnFrom: dto.warnFrom,
+    warnTo: dto.warnTo,
   };
 }
