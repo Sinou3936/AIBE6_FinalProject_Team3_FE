@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Copy,
-  Download,
   FileText,
   HelpCircle,
   Info,
@@ -17,7 +16,6 @@ import {
   MessageCircle,
   MessageSquare,
   Send,
-  Share2,
   ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -485,32 +483,12 @@ export function ContractResultClient({
         <>
           <div className="border-b border-slate-200 bg-white pb-10 pt-8">
             <div className="container mx-auto max-w-6xl px-4">
-              <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-                <div>
-                  <div className="mb-4 flex items-center gap-2">
-                    <Badge className="bg-orange-100 px-3 text-orange-700">분석 완료</Badge>
-                  </div>
-                  <h2 className="ansim-page-title mb-2">계약서 분석 결과입니다</h2>
-                  {analysisResult.summary && <p className="ansim-page-description">{analysisResult.summary}</p>}
+              <div>
+                <div className="mb-4 flex items-center gap-2">
+                  <Badge className="bg-orange-100 px-3 text-orange-700">분석 완료</Badge>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    disabled
-                    title="준비 중인 기능이에요."
-                    className="ansim-button-secondary cursor-not-allowed px-4 py-2.5 text-sm opacity-50"
-                  >
-                    <Download className="h-4 w-4" /> PDF 저장
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    title="준비 중인 기능이에요."
-                    className="ansim-button-primary cursor-not-allowed px-4 py-2.5 text-sm opacity-50"
-                  >
-                    <Share2 className="h-4 w-4" /> 결과 공유
-                  </button>
-                </div>
+                <h2 className="ansim-page-title mb-2">계약서 분석 결과입니다</h2>
+                {analysisResult.summary && <p className="ansim-page-description">{analysisResult.summary}</p>}
               </div>
 
               <div className="mt-10 grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -816,21 +794,11 @@ export function ContractResultClient({
                 </div>
               ))}
 
-            <div className="flex flex-col gap-4 pt-6 md:flex-row">
-              {propertyId != null && (
-                <Link href={`/properties/${propertyId}/checklist`} className="ansim-button-primary flex-1 py-4">
-                  계약 체크리스트로 이동 <ArrowRight className="h-5 w-5" />
-                </Link>
-              )}
-              <button
-                type="button"
-                disabled
-                title="준비 중인 기능이에요."
-                className="ansim-button-secondary flex-1 cursor-not-allowed py-4 opacity-50"
-              >
-                전문가 상담 안내받기
-              </button>
-            </div>
+            {propertyId != null && (
+              <Link href={`/properties/${propertyId}/checklist`} className="ansim-button-primary mt-6 w-full py-4">
+                계약 체크리스트로 이동 <ArrowRight className="h-5 w-5" />
+              </Link>
+            )}
           </div>
         </>
       )}
