@@ -1,10 +1,17 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { type AdminUserListItemDto, type PageResponseDto } from '../../../types/api';
 import { AdminUsersClient } from './AdminUsersClient';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
+
+const updateAdminUserRole = vi.fn();
+const updateAdminUserStatus = vi.fn();
+vi.mock('../../../services/adminActions', () => ({
+  updateAdminUserRole: (...args: unknown[]) => updateAdminUserRole(...args),
+  updateAdminUserStatus: (...args: unknown[]) => updateAdminUserStatus(...args),
 }));
 
 function user(overrides: Partial<AdminUserListItemDto>): AdminUserListItemDto {
@@ -65,5 +72,79 @@ describe('AdminUsersClient', () => {
 
     expect(screen.queryByText('본인 계정')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '관리자 지정' })).not.toBeInTheDocument();
+  });
+
+  // 회귀 테스트 - 한 유저에 대한 액션이 실패해 모달에 에러가 남은 채로 닫고, 다른 유저의
+  // 액션 모달을 열면 이전 에러가 그대로 보이던 문제. 새 액션을 열 때 actionError를 리셋해야 한다.
+  it('한 유저의 액션 실패 메시지가 다른 유저의 액션 모달에 남지 않는다', async () => {
+    updateAdminUserRole.mockRejectedValueOnce(new Error('권한 변경에 실패했습니다.'));
+
+    render(
+      <AdminUsersClient
+        data={page([
+          user({ id: 2, nickname: '유저둘', role: 'USER' }),
+          user({ id: 3, nickname: '유저셋', role: 'USER' }),
+        ])}
+        filters={filters}
+        currentUserId={1}
+      />,
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: '관리자 지정' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: '확인' }));
+
+    await waitFor(() => expect(screen.getByText('권한 변경에 실패했습니다.')).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole('button', { name: '취소' }));
+    fireEvent.click(screen.getAllByRole('button', { name: '관리자 지정' })[1]);
+
+    expect(screen.queryByText('권한 변경에 실패했습니다.')).not.toBeInTheDocument();
+  });
+
+  // (2026-08-12 추가) "정지" 액션 자체(성공/실패)를 검증하는 테스트가 지금까지 하나도 없었다 -
+  // updateAdminUserStatus가 실제로 (userId, {status:'SUSPENDED'})로 호출되는지, 성공 시 모달이
+  // 닫히고 onMutated가 불리는지를 확인한다.
+  it('정지 버튼 클릭 후 확인하면 updateAdminUserStatus를 호출하고 모달을 닫은 뒤 목록을 새로고침한다', async () => {
+    updateAdminUserStatus.mockResolvedValueOnce(undefined);
+    const onMutated = vi.fn();
+
+    render(
+      <AdminUsersClient
+        data={page([user({ id: 2, nickname: '유저둘', status: 'ACTIVE' })])}
+        filters={filters}
+        currentUserId={1}
+        onMutated={onMutated}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '정지' }));
+    expect(screen.getByText('이 유저를 정지할까요?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '확인' }));
+
+    await waitFor(() => expect(updateAdminUserStatus).toHaveBeenCalledWith(2, { status: 'SUSPENDED' }));
+    await waitFor(() => expect(screen.queryByText('이 유저를 정지할까요?')).not.toBeInTheDocument());
+    expect(onMutated).toHaveBeenCalledTimes(1);
+  });
+
+  // 실패 경로 - 컴포넌트 코드(confirmAction의 catch)는 실패 시 모달을 닫지 않고 actionError만
+  // 채워 사용자가 같은 모달에서 재시도하거나 취소할 수 있게 한다. 이 동작도 지금까지 정지
+  // 액션에서는 한 번도 검증된 적이 없었다.
+  it('정지 실패 시 모달을 닫지 않고 에러 메시지를 보여준다', async () => {
+    updateAdminUserStatus.mockRejectedValueOnce(new Error('정지 처리에 실패했습니다.'));
+
+    render(
+      <AdminUsersClient
+        data={page([user({ id: 2, nickname: '유저둘', status: 'ACTIVE' })])}
+        filters={filters}
+        currentUserId={1}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: '정지' }));
+    fireEvent.click(screen.getByRole('button', { name: '확인' }));
+
+    await waitFor(() => expect(screen.getByText('정지 처리에 실패했습니다.')).toBeInTheDocument());
+    expect(screen.getByText('이 유저를 정지할까요?')).toBeInTheDocument();
   });
 });

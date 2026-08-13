@@ -3,7 +3,7 @@ import { formatDateText } from '../mappers/property';
 import { initChecklistItemDtos } from '../mocks/init/checklist';
 import { getMockProperties } from './propertyRepository';
 import { type ChecklistItemUpdateRequestDto, type ChecklistStatusDto } from '../types/api';
-import { type Checklist, type ChecklistItem, type ChecklistOverview } from '../types/domain';
+import { type Checklist, type ChecklistItem, type ChecklistOverviewPage } from '../types/domain';
 import { type ChecklistSummary } from '../lib/checklistSummary';
 
 const MOCK_CHECKLIST_ID = 1;
@@ -79,13 +79,15 @@ export function getMockChecklistResult(): ChecklistSummary {
 
 // mock 모드에는 매물별로 분리된 체크리스트 저장소가 없고 전역 mockChecklistItemDtos 하나뿐이라,
 // 목록의 모든 매물이 같은 진행 상태를 공유한다 (실제 API 모드에서는 매물마다 실제로 다르게 나온다).
-export function getMockChecklistOverviews(): ChecklistOverview[] {
+// size는 항상 호출부(services/checklist.ts, 실제로는 checklists/page.tsx의 PAGE_SIZE)가 넘겨주는
+// 값을 그대로 쓴다 - mock 전용 상수를 따로 두면 화면이 쓰는 PAGE_SIZE와 나중에 어긋날 수 있다.
+export function getMockChecklistOverviews(page = 0, size = 5): ChecklistOverviewPage {
   const status = deriveMockChecklistStatus();
   // mock에는 매물/체크리스트 각각의 실제 수정 시각이 없어, Backend의 "체크리스트 없으면 매물
   // 수정시각으로 대체" 규칙을 흉내내는 대신 조회 시점을 그대로 쓴다.
   const lastCheckedAt = formatDateText(new Date().toISOString());
 
-  return getMockProperties().map((property) => ({
+  const allItems = getMockProperties().map((property) => ({
     propertyId: property.id,
     checklistId: status === 'NOT_STARTED' ? null : MOCK_CHECKLIST_ID,
     address: property.address,
@@ -94,4 +96,18 @@ export function getMockChecklistOverviews(): ChecklistOverview[] {
     status,
     lastCheckedAt,
   }));
+
+  const totalElements = allItems.length;
+  const totalPages = Math.max(1, Math.ceil(totalElements / size));
+  const start = page * size;
+  const items = allItems.slice(start, start + size);
+
+  return {
+    items,
+    page,
+    size,
+    totalElements,
+    totalPages,
+    hasNext: page + 1 < totalPages,
+  };
 }

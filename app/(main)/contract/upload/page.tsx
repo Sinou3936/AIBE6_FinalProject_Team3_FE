@@ -1,24 +1,15 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import {
-  AlertCircle,
-  ArrowRight,
-  Camera,
-  CheckCircle2,
-  FileText,
-  Image as ImageIcon,
-  Info,
-  Loader2,
-  RotateCcw,
-  Upload,
-} from 'lucide-react';
-import { decodeBase64Url, encodeBase64Url } from '../../../lib/base64Url';
+import { useRouter } from 'next/navigation';
+import { AlertCircle, ArrowRight, CheckCircle2, Info, Loader2, RotateCcw, Upload } from 'lucide-react';
+import { encodeBase64Url } from '../../../lib/base64Url';
+import { getContractAnalysisErrorMessage } from '../../../lib/contractAnalysisErrors';
 import { extractOcrText, maskContractText, submitContractInput } from '../../../services/contract-analysis';
 import { type ContractMaskingReviewPayload } from '../../../types/api';
 
 const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png'];
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
 const SUBMIT_BUTTON_LABEL = '특약사항 분석하기';
 
 type ProcessingStep = 'submitting-input' | 'ocr' | 'masking' | null;
@@ -31,29 +22,16 @@ const PROCESSING_STEP_LABELS: Record<Exclude<ProcessingStep, null>, string> = {
 
 export default function Page() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [isDragging, setIsDragging] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  // result 화면의 "수정하기"로 되돌아온 경우, 마스킹된 텍스트를 이어서 고칠 수 있게 프리필한다.
-  // useSearchParams()는 렌더 중 동기적으로 값을 읽을 수 있어 effect 없이 초기 state로 바로 계산한다.
-  const [text, setText] = useState(() => {
-    const encodedText = searchParams.get('text');
-    if (!encodedText) {
-      return '';
-    }
-    try {
-      return decodeBase64Url(encodedText);
-    } catch {
-      return '';
-    }
-  });
+  const [text, setText] = useState('');
   const [processingStep, setProcessingStep] = useState<ProcessingStep>(null);
+  // 마스킹은 이제 시스템(maskContractText)이 처리하고, 분석 진행 동의는 result 페이지의
+  // "이대로 분석 진행" 버튼이 대신하므로, 여기 체크박스는 업로드 범위 자가 확인 하나만 남긴다.
   const [checks, setChecks] = useState({
     specialClauseOnly: false,
-    maskedPrivacy: false,
-    consent: false,
   });
   const [submitError, setSubmitError] = useState<string | undefined>();
 
@@ -78,6 +56,10 @@ export default function Page() {
   const handleImageFile = (file: File) => {
     if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
       setSubmitError('JPG 또는 PNG 이미지만 업로드할 수 있습니다.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      setSubmitError('10MB 이하 이미지만 업로드 가능합니다.');
       return;
     }
     setSubmitError(undefined);
@@ -136,8 +118,10 @@ export default function Page() {
       setProcessingStep('masking');
       const maskResult = await maskContractText(text);
       navigateToMaskingReview({ ...maskResult, uncertainFields: [] });
-    } catch {
-      setSubmitError('특약사항 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+    } catch (error) {
+      setSubmitError(
+        getContractAnalysisErrorMessage(error, '특약사항 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.'),
+      );
       setProcessingStep(null);
     }
   };
@@ -205,27 +189,7 @@ export default function Page() {
               <Upload className="h-8 w-8 text-teal-600" />
             </div>
             <h3 className="mb-2 text-lg font-bold text-slate-950">특약사항 문구 업로드</h3>
-            <p className="mb-8 max-w-sm text-slate-500">
-              특약사항이 보이는 사진이나 PDF 일부를 올려 주세요. 전화번호, 계좌번호, 주민등록번호는 가린 뒤
-              분석합니다.
-            </p>
-            <div className="flex flex-wrap justify-center gap-3">
-              {[
-                [ImageIcon, '사진'],
-                [Camera, '직접 촬영'],
-                [FileText, 'PDF 일부'],
-              ].map(([Icon, label]) => {
-                const TypedIcon = Icon as typeof FileText;
-                return (
-                  <div
-                    key={label as string}
-                    className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-600"
-                  >
-                    <TypedIcon className="h-4 w-4" /> {label as string}
-                  </div>
-                );
-              })}
-            </div>
+            <p className="max-w-sm text-slate-500">클릭하거나 파일을 끌어다 놓으세요.</p>
           </>
         )}
       </div>
@@ -288,21 +252,15 @@ export default function Page() {
             <h4 className="font-bold text-slate-950">개인정보 확인</h4>
           </div>
           <div className="space-y-3">
-            {[
-              ['specialClauseOnly', '특약사항 부분만 올렸습니다.'],
-              ['maskedPrivacy', '전화번호, 계좌번호, 주민등록번호를 가렸습니다.'],
-              ['consent', '마스킹된 문구를 분석 요청하는 데 동의합니다.'],
-            ].map(([key, label]) => (
-              <label key={key} className="flex cursor-pointer items-start gap-3 rounded-lg bg-white/70 p-3">
-                <input
-                  type="checkbox"
-                  checked={checks[key as keyof typeof checks]}
-                  onChange={() => toggleCheck(key as keyof typeof checks)}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                />
-                <span className="text-sm leading-relaxed text-slate-700">{label}</span>
-              </label>
-            ))}
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg bg-white/70 p-3">
+              <input
+                type="checkbox"
+                checked={checks.specialClauseOnly}
+                onChange={() => toggleCheck('specialClauseOnly')}
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+              />
+              <span className="text-sm leading-relaxed text-slate-700">특약사항 부분만 올렸습니다.</span>
+            </label>
           </div>
         </div>
       </div>

@@ -12,7 +12,7 @@
 | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `app/(main)/properties/[id]/checklist/page.tsx` + `ChecklistClient.tsx` | 체크리스트 생성/조회/항목확인/결과확인 화면                                                                                            |
 | `app/(main)/checklists/page.tsx` + `ChecklistOverviewClient.tsx`        | 매물별 체크리스트 현황 목록 (요구사항엔 없는 화면 — 아래 "추가 구현" 참고)                                                             |
-| `app/services/checklist.ts`                                             | `POST/GET /properties/{id}/checklists`, `PATCH /checklists/{id}/items/{itemId}`, `GET /checklists/{id}/result`, `GET /checklists` 호출 |
+| `app/services/checklist.ts`                                             | `POST/GET /properties/{id}/checklists`, `PATCH /checklists/{id}/items/{itemId}`, `GET /checklists/{id}/result`, `GET /checklists`(2026-08-06부터 페이지네이션 파라미터 지원) 호출 |
 | `app/data/checklist.ts`                                                 | 5개 카테고리 탭 정의(아이콘/이름/순서)                                                                                                 |
 
 ## 체크리스트 생성 — 요구사항 대비
@@ -77,7 +77,7 @@
 
 ## 요구사항에 없던 추가 구현
 
-- **`GET /checklists`("내 체크리스트 목록") 및 `/checklists` 화면** — Backend 문서에도 동일하게 명시됨: 요구사항 명세서엔 없는 엔드포인트/화면. 매물마다 진입점이 따로 없어 상단 네비게이션 "현장 체크" 메뉴가 갈 곳이 없었던 문제를 해결하기 위해 오늘 추가함
+- **`GET /checklists`("내 체크리스트 목록") 및 `/checklists` 화면** — Backend 문서에도 동일하게 명시됨: 요구사항 명세서엔 없는 엔드포인트/화면. 매물마다 진입점이 따로 없어 상단 네비게이션 "현장 체크" 메뉴가 갈 곳이 없었던 문제를 해결하기 위해 추가함. **(2026-08-06 갱신)** Backend가 이 엔드포인트를 배열 대신 `PageResponse<ChecklistOverviewResponse>`로 응답하도록 바꾸면서, FE도 `ChecklistOverviewPage` 도메인 타입 도입 + `getMyChecklistOverviews({ page })` + 매물 목록(`PropertiesClient`)과 동일한 `<Link>` 기반 이전/다음 페이지 UI를 `/checklists` 화면에 추가해 대응함. `size`/`sort`는 보내지 않고 Backend 기본값(페이지 크기 20, 최종 점검일 최신순 고정 정렬)을 그대로 따름. mock 모드는 실제 API처럼 페이지가 나뉘는 걸 눈으로 확인할 수 있도록 5개씩 잘라서 흉내냄(mock 매물 데이터도 3개 → 20개로 확장)
 - **CHECK 항목의 "완료/미흡 + 메모"** — 요구사항은 CHECK 항목을 단순 체크(확인/미확인)로만 전제하는데, 실제 구현은 "완료"/"미흡" 2버튼 + 미흡 시 텍스트 메모(`userNote`)까지 지원. `hasIssue = issueFound(서버 자동 판단) || userNote != null(사용자 주관적 표시)`로 병합해서 "주의 항목" 카운트 하나로 통일해 보여줌
 - **"특약사항 분석하기" CTA 버튼** — 요구사항엔 도메인 간 이동 흐름 언급이 없음. **(2026-07-30 변경)** 원래는 필수 항목을 모두 채워야만(`missingRequiredCount === 0 && hasStarted`) 나타났는데, 매물 상세 화면에 이미 "체크리스트 시작"/"특약사항 분석하기"가 독립된 버튼으로 나란히 있다는 점과 상충된다고 판단(브레인스토밍 결론)해서 조건 없이 항상 노출로 바꿈. 문구도 "다음 단계: 특약사항 분석하기"(순차 진행 암시) → "특약사항도 AI로 분석해보세요"(독립 추천)로 변경
 - **체크리스트 상세 헤더의 매물 정보 표시**(2026-07-29 추가) — 요구사항엔 없지만, 목록 화면에서 여러 매물의 체크리스트를 오갈 수 있게 되면서 "지금 보고 있는 게 어느 매물인지" 표시가 필요해져 추가함
@@ -97,3 +97,21 @@
 7. ~~필수 항목 헬퍼 설명(`helperText`)이 FE mock에만 있고 Backend에는 아직 없음~~ ✅ **해결됨(2026-07-31)** — Backend가 `checklist_item_template.helper_text` 컬럼과 시드 데이터를 추가해서 실 API에서도 정상 노출됨
 8. ~~"최종 점검일" 표시 자리는 만들었지만 실제 날짜 데이터가 없음~~ ✅ **해결됨(2026-07-31)** — Backend가 `ChecklistOverviewResponse.lastCheckedAt` 필드와 이 값 기준 정렬을 함께 추가, FE는 `formatDateText`로 포맷만 해서 그대로 표시(당초 "추후로 미루기로" 했던 정렬 로직까지 Backend가 먼저 구현함)
 9. **(2026-07-30, 브레인스토밍 진행 중, 미해결)** "특약사항 분석" 화면과의 여정이 완전히 분리되어 있음 — `/contract/upload`가 `propertyId`를 아예 안 받고, 결과 화면(`ContractResultClient.tsx`)의 "체크리스트로 이동" 버튼도 `/properties/1/checklist`로 고정(`contract-analysis-design.md` 이슈 3번과 동일 사안). 오늘 CTA를 상시 노출로 바꾸면서 이 gap이 더 드러남 — propertyId를 조용히 실어 나르는 방안과, 분석 결과를 매물에 묶어 저장(DB 신규)하는 방안을 논의했지만 범위 확정 전 보류
+
+## 전수조사 결과 (2026-08-12)
+
+### 버그/정확성
+
+특별히 발견된 이슈 없음.
+- `app/lib/pageParam.ts`의 `parsePageParam`이 `?page=` 쿼리에 문자열/음수/소수 등 무엇이 와도 `Number.isInteger(parsed) && parsed >= 0`로 걸러 0(첫 페이지)으로 정규화하므로, `/checklists?page=abc`나 `?page=-1` 같은 조작에도 백엔드에 잘못된 값이 그대로 넘어가지 않음을 확인.
+- `ChecklistOverviewClient.tsx`의 이전/다음 페이지 링크가 `page`(현재)와 `hasNext`(백엔드 값)를 그대로 사용하고 있어, 화면에서 계산한 `totalPages`와 서버가 내려준 `hasNext`가 어긋날 여지가 없음.
+- `services/checklist.ts`의 `checklistRequestsInFlight` in-flight 공유 로직을 재검증 — GET이 성공하든 404로 POST 재시도를 하든 실패하든, `.finally()`에서 항상 `propertyId` 키를 지우므로 다음 호출이 오래된 Promise를 재사용해 멈춰있는 문제는 없음.
+
+### 보안
+
+특별히 발견된 이슈 없음. FE는 Backend가 이미 소유권/삭제 여부를 검증한 응답을 그대로 신뢰하는 구조이고, 이 문서가 다루는 파일들(`ChecklistOverviewClient.tsx`, `services/checklist.ts`, `repositories/checklistRepository.ts`, `mappers/checklist.ts`) 안에서 별도의 권한 판단이나 사용자 입력을 신뢰하는 로직이 없음을 확인.
+
+### 코드 품질 (중복/구조/일관성)
+
+1. **`checklistRepository.ts`의 mock `updateMockChecklistItem`이 실제 Backend `ChecklistItem.check()`의 "userNote 초기화" 규칙과 미묘하게 다르게 구현됨** — 실제 서버는 `check(boolean)` 호출 시 `issueFound`는 원래 CHECK 타입 항목에서 절대 true가 될 수 없는 필드라 손대지 않아도 안전하지만, mock의 `'checked' in request` 분기(`checklistRepository.ts:29-31`)는 `issueFound: false`를 명시적으로 강제 설정한다. 결과적으로 동작(항상 false)은 동일하지만, "왜 항상 false인지"에 대한 근거가 mock과 실제 서버에서 서로 다른 코드 경로(mock: 하드코딩 / 서버: 타입 검증으로 인한 불변식)로 갈라져 있어, 나중에 실제 서버 로직이 바뀌면 mock이 조용히 실제와 달라질 수 있는 구조다. 지금 당장 관찰 가능한 버그는 아니라 코드 품질 관점의 참고사항으로만 기록.
+2. ~~`ChecklistOverviewClient.tsx`가 매물의 실제 표시명(title) 대신 매물유형 문자열로 조합한 제목을 씀~~ ✅ **해결됨(2026-08-13)** — Backend `ChecklistOverviewResponse`에 `title` 필드가 추가되면서, FE도 `ChecklistOverviewDto`에 `title: string`을 추가하고 `mapChecklistOverviewDto`(`mappers/checklist.ts:85`)가 `${propertyTypeLabelMap[dto.propertyType]} 매물` 조합 대신 `dto.title`을 그대로 쓰도록 변경. 이제 매물 목록 화면과 체크리스트 목록 화면이 같은 매물에 대해 동일한 이름을 보여줌.

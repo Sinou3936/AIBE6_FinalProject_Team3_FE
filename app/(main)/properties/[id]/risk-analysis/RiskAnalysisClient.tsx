@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, ArrowLeft } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 import { apiStatusToneClassMap, getJeonseRatioTone, riskSignalTypeMeta } from '../../../../data/risk-analysis';
 import { cn } from '../../../../lib/cn';
@@ -9,6 +9,7 @@ import { formatIntegerInput } from '../../../../lib/numberFormat';
 import { recalculateDepositSafety } from '../../../../services/risk-analysis';
 import { type DepositSafetyCheck, type PropertyDetail, type RiskSignalList } from '../../../../types/domain';
 import { Badge } from '../../../../ui/Badge';
+import { Modal } from '../../../../ui/Modal';
 import { NoticeBox } from '../../../../ui/NoticeBox';
 
 type RiskAnalysisClientProps = {
@@ -38,6 +39,7 @@ export function RiskAnalysisClient({
   const [maxClaimAmount, setMaxClaimAmount] = useState('');
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [recalculateError, setRecalculateError] = useState<string | null>(null);
+  const [isSeniorDepositHelpOpen, setIsSeniorDepositHelpOpen] = useState(false);
 
   async function handleRecalculate() {
     setRecalculateError(null);
@@ -146,8 +148,23 @@ export function RiskAnalysisClient({
               <>
                 <p className="mb-4 text-sm leading-relaxed text-slate-600">{depositSafety.explanation}</p>
                 {depositSafety.referenceDate && (
-                  <p className="mb-4 text-xs text-slate-400">기준일: {depositSafety.referenceDate}</p>
+                  <p className="mb-1 text-xs text-slate-400">기준일: {depositSafety.referenceDate}</p>
                 )}
+                {typeof depositSafety.sampleCount === 'number' && typeof depositSafety.radiusMeters === 'number' && (
+                  <p className="mb-1 text-xs text-slate-400">
+                    인근 매매 실거래가 {depositSafety.sampleCount}건(반경 {depositSafety.radiusMeters}m) 기준으로
+                    계산했어요.
+                  </p>
+                )}
+                {typeof depositSafety.cautionFrom === 'number' &&
+                  typeof depositSafety.warnFrom === 'number' &&
+                  typeof depositSafety.warnTo === 'number' && (
+                    <p className="mb-4 text-[10px] text-slate-400">
+                      판정 기준: {depositSafety.cautionFrom}% 미만 안전 · {depositSafety.cautionFrom}~
+                      {depositSafety.warnFrom}% 주의 · {depositSafety.warnFrom}~{depositSafety.warnTo}% 위험 ·{' '}
+                      {depositSafety.warnTo}% 초과 재확인 필요
+                    </p>
+                  )}
                 {depositSafety.recentOwnershipChangeWarning && (
                   <NoticeBox icon={AlertTriangle} iconClassName="text-orange-500" className="mb-4">
                     최근 소유권이 바뀐 매물이에요 — 더 꼼꼼히 확인하세요.
@@ -155,9 +172,19 @@ export function RiskAnalysisClient({
                 )}
 
                 <div className="rounded-xl border border-slate-200 p-4">
-                  <p className="mb-3 text-xs font-bold text-slate-700">
-                    선순위보증금을 반영하면 더 정확하게 계산할 수 있어요
-                  </p>
+                  <div className="mb-3 flex items-center gap-1">
+                    <p className="text-xs font-bold text-slate-700">
+                      선순위보증금을 반영하면 더 정확하게 계산할 수 있어요
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setIsSeniorDepositHelpOpen(true)}
+                      aria-label="선순위보증금·근저당 채권최고액 설명 보기"
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <HelpCircle className="h-4 w-4" />
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label className="block">
                       <span className="mb-1 block text-xs text-slate-500">선순위보증금 (원)</span>
@@ -205,6 +232,29 @@ export function RiskAnalysisClient({
           </p>
         )}
       </div>
+
+      <Modal open={isSeniorDepositHelpOpen} onClose={() => setIsSeniorDepositHelpOpen(false)}>
+        <h3 className="mb-3 text-base font-bold text-slate-950">선순위보증금·근저당 채권최고액이 뭔가요?</h3>
+        <p className="mb-3 text-sm leading-relaxed text-slate-600">
+          <span className="font-bold">선순위보증금</span>은 나보다 먼저 전입신고와 확정일자를 받은 다른 세입자가
+          있다면, 그 사람의 보증금이에요. 집이 경매나 매매로 넘어가면 이 돈이 내 보증금보다 먼저 변제돼요.
+        </p>
+        <p className="mb-3 text-sm leading-relaxed text-slate-600">
+          <span className="font-bold">근저당 채권최고액</span>은 등기부등본(을구)에서 확인할 수 있는, 은행 등이 이
+          집에 설정해둔 담보의 최대 금액이에요. 보통 실제 대출금보다 110~130% 크게 잡혀 있고, 이 금액도 내
+          보증금보다 먼저 변제될 수 있어요.
+        </p>
+        <p className="mb-4 text-xs text-slate-500">
+          두 값 모두 등기부등본에서 확인하거나 임대인에게 직접 요청해서 알 수 있어요.
+        </p>
+        <button
+          type="button"
+          onClick={() => setIsSeniorDepositHelpOpen(false)}
+          className="ansim-button-secondary w-full py-2 text-sm"
+        >
+          확인
+        </button>
+      </Modal>
     </div>
   );
 }

@@ -13,7 +13,7 @@
 | `POST /properties/{propertyId}/risk-analysis`              | 신호 4종을 판정·저장하고 요약(`signalCount`)만 반환. 몇 번을 불러도 결과가 같은 upsert 구조 |
 | `GET /properties/{propertyId}/risk-signals`                | 신호 4종의 현재 상태 전체 목록                                                              |
 | `GET /properties/{propertyId}/deposit-safety`              | 보증금 안전성(전세가율) 조회                                                                |
-| `POST /properties/{propertyId}/deposit-safety/recalculate` | 선순위보증금 반영 재계산 — **FE 미연동**(아래 "남은 이슈" 참고)                             |
+| `POST /properties/{propertyId}/deposit-safety/recalculate` | 선순위보증금 반영 재계산 — **(2026-08-07 갱신) FE 연동 완료**(`RiskAnalysisClient.tsx`)      |
 
 ## 주요 화면 / 파일
 
@@ -42,8 +42,9 @@
 | 판정불가/실패 사유 구분                               | ✅ `UNAVAILABLE`/`FAILED`의 `reason`을 FE 로컬 매핑(`depositSafetyReasonCopy`)으로 변환                                                                                                                                                                                                     |
 | "전세만 대상, 월세는 판정불가" 명확 안내              | ✅ `TRANSACTION_TYPE_UNSUPPORTED` 사유가 오면 "월세 매물은 전세가율을 계산하지 않아요"로 표시                                                                                                                                                                                               |
 | checklist 소유권취득일 + 높은 전세가율 조합 보조 신호 | ✅ **해결됨** — Backend `DepositSafetyCheckResponse.recentOwnershipChangeWarning`을 그대로 받아서, 보증금 안전성 섹션에 "최근 소유권이 바뀐 매물이에요" 경고 배너로 표시. `checklist-design.md` 남은 이슈 4번("화면에 자리 자체가 없음")이 이걸로 해소됨                                    |
-| 150% 초과 시 "입력값을 다시 확인해주세요" 경고        | ⚠️ **부분 구현.** 실제 `DepositSafetyCheckResponse`엔 이 경고 전용 필드(예: `exceedsRecommendedRatio`)가 없다 — `jeonseRatio` 자체가 150% 이상이면 톤 배지가 red로 바뀌긴 하지만, "입력값 오류일 수 있다"는 별도 안내 문구는 없음. Backend에 값 검증/경고 필드가 추가되면 다시 볼 필요 있음 |
-| 선순위보증금/근저당 채권최고액 입력                   | ❌ **이번 스코프에서 제외.** `POST /deposit-safety/recalculate` 자체를 호출하지 않음. 전용 페이지에 "선순위보증금을 반영하면 더 정확하게 계산할 수 있어요 (곧 지원 예정)" placeholder 카드만 있음                                                                                           |
+| 150% 초과 시 "입력값을 다시 확인해주세요" 경고        | ✅ **(2026-08-07 정정, 실제로는 이미 구현되어 있었음)** 별도 boolean 필드는 없지만, `DepositSafetyCheckService.buildExplanation()`이 150% 초과 구간에서 "매우 높은 수치라 입력값을 다시 확인해보시는 게 좋아요"를 `explanation` 문장에 직접 포함해서 내려주고, FE `RiskAnalysisClient.tsx`가 그 `explanation`을 그대로 렌더링하고 있어 화면에 이미 뜨고 있음. 이전 버전 문서가 "전용 필드가 없다"를 "문구 자체가 없다"로 잘못 결론 낸 것으로 확인됨 |
+| 선순위보증금/근저당 채권최고액 입력                   | ✅ **(2026-08-07 해결)** `RiskAnalysisClient.tsx`에 선순위보증금·근저당 채권최고액 입력 폼(검증 + 로딩/에러 처리 포함)이 구현되어 `POST /deposit-safety/recalculate`를 실제로 호출함. 재계산 결과로 화면이 즉시 갱신됨                                                                       |
+| 매물 정보 변경 시 위험 신호/전세가율 최신화           | ✅ **(2026-08-07 확인)** Backend `RiskRecalculationService`가 매물 수정(`PropertyUpdatedEvent`) 커밋 이후 자동으로 신호를 재계산해 DB에 저장(REST 엔드포인트가 아니라 내부 이벤트 리스너). FE는 매물 상세/전용 페이지 진입마다 `GET /risk-signals`·`GET /deposit-safety`를 항상 새로 호출하고 있어 별도 연동 코드 없이 최신값이 자동 반영됨 |
 
 ## 요구사항에 없던 추가 구현
 
@@ -52,7 +53,22 @@
 
 ## 남은 이슈 / 확인 필요 총정리
 
-1. **`POST /deposit-safety/recalculate`(선순위보증금 입력 → 정밀 재계산) 미연동** — 화면엔 비활성 placeholder만 있고 실제 입력 폼/호출이 없음. 다음 라운드 작업 대상
-2. **150% 초과 시 "입력값을 다시 확인해주세요" 전용 경고 문구 없음** — Backend 응답에 이 판단을 위한 필드 자체가 없어서, 추가하려면 Backend 계약 변경이 선행되어야 함
+1. ~~`POST /deposit-safety/recalculate`(선순위보증금 입력 → 정밀 재계산) 미연동~~ ✅ **해결됨(2026-08-07 문서 갱신, 실제 구현은 그 이전 라운드에 완료됨)** — `RiskAnalysisClient.tsx`에 입력 폼과 API 연동이 이미 되어 있었는데 이 문서가 그 뒤로 갱신이 안 돼 있었음. 아울러 위험 신호 쪽도 Backend `RiskRecalculationService`가 매물 수정 시 자동 재계산하도록 이미 구현되어 있어(내부 이벤트 리스너, FE 연동 불필요), risk-analysis 도메인의 "재계산" 관련 항목은 전부 해결된 상태로 확인됨
+2. ~~150% 초과 시 "입력값을 다시 확인해주세요" 전용 경고 문구 없음~~ ✅ **해결됨(2026-08-07 정정)** — Backend 응답에 별도 필드는 없지만 `explanation` 문장 자체에 이미 그 문구가 포함되어 내려오고 FE도 그대로 표시 중임을 코드로 확인함(위 "보증금 안전성" 표 참고). Backend 계약 변경 불필요
 3. **`/contract/result`("특약사항 분석") 화면의 "보증금" 탭이 여전히 완전 정적 데이터** — `contract-analysis-design.md`에서 이미 지적된 문제. 이번 작업으로 실제 보증금 안전성 데이터 소스(`getDepositSafety`)는 준비됐지만, 그 탭에 실제로 연결하는 작업은 이번 스코프에 포함하지 않음 — 다음에 이 탭을 손볼 때 자연스러운 연동 지점
 4. **`app/data/property-detail.ts`의 정적 `riskSummaries`가 죽은 코드로 남음** — 매물 상세 카드가 실데이터로 바뀌면서 더 이상 아무 데서도 참조되지 않지만, 이번 계획 범위 밖이라 삭제하지 않고 그대로 둠
+
+## 전수조사 결과 (2026-08-12)
+
+### 버그/정확성
+
+1. **선순위보증금 반영 여부가 페이지 새로고침 시 화면에서 사라진다.** `mapDepositSafetyCheckDto`(app/mappers/risk-analysis.ts:56-68)가 `DepositSafetyCheckDto`의 `seniorDepositApplied`/`seniorDeposit`/`maxClaimAmount`(app/types/api.ts:657-659 — 백엔드가 재계산 반영 여부를 알려주려고 명시적으로 내려주는 필드)를 도메인 타입으로 옮기지 않고 그대로 버린다. `DepositSafetyCheck`(app/types/domain.ts:328-338)에는 이 세 필드가 아예 선언돼 있지 않다. 그 결과 `RiskAnalysisClient.tsx`(35-40번째 줄)의 선순위보증금/근저당 채권최고액 입력창은 `useState('')`로 항상 빈 값에서 시작한다 — 서버에는 이전에 `recalculate`로 반영된 계산 결과(`explanation`/`jeonseRatio`)가 그대로 남아있어 화면 위쪽 설명 문구는 그 값을 반영해 보여주는데, 그 아래 입력창은 마치 아무것도 입력한 적 없는 것처럼 비어 보인다. 사용자가 "반영이 안 됐나?" 하고 같은 값을 다시 입력·제출하거나, 실제로는 이미 적용된 근저당 채권최고액을 빼먹고 재계산해버릴 수 있다. `seniorDepositApplied`가 true일 때 입력창을 그 값으로 초기화하거나, 최소한 "선순위보증금 OOO원이 이미 반영돼 있어요" 같은 안내를 추가하는 게 필요해 보인다.
+2. **월세 매물의 판정불가 사유 문구가 부정확하게 노출된다(원인은 backend).** backend 전수조사에서 확인한 것처럼 `MarketDataClientImpl`이 월세(거래유형 미지원)와 단독/다가구(매물유형 미지원)를 구분하지 않고 둘 다 `PROPERTY_TYPE_UNSUPPORTED`로 내려보내는데, FE `riskCheckReasonCopy.PROPERTY_TYPE_UNSUPPORTED`(app/data/risk-analysis.ts:41, "이 매물 유형은 아직 지원하지 않아요")가 그 값을 그대로 옮겨 월세 매물에도 노출된다. 실제로는 매물유형이 아니라 거래유형(월세) 때문인데, FE 문구만 봐서는 "이 아파트/오피스텔 자체가 지원 안 되는 유형인가?"로 오해하기 쉽다. backend가 사유 코드를 세분화하기 전까지는 FE 문구를 "이 조건에서는 시세 확인이 어려워요"류로 중립화해 최소한 오해를 줄이는 방법도 있다.
+
+### 보안
+
+FE는 인증 쿠키(`requestJson`의 `credentials: 'include'`)로만 API를 호출하고 소유권 등 인가 판단은 전부 백엔드에 맡기는 구조라(backend 전수조사에서 4개 엔드포인트 모두 소유권 검증 확인함), 이 계층에서 새로 발견된 보안 이슈는 없다. `recalculateDepositSafety`(app/services/risk-analysis.ts:60-73)가 SSR용 `cookieHeader` 파라미터를 받지 않고 클라이언트 전용 뮤테이션으로만 쓰이는 것도 다른 mutation(`deleteProperty`/`reportProperty`)과 같은 패턴이라 문제 없음.
+
+### 코드 품질 (중복/구조/일관성)
+
+1. `getJeonseRatioTone`(app/data/risk-analysis.ts:57-65)이 backend `RiskPolicyConfig`의 80/100/150 기준선을 하드코딩으로 복제하고 있다. 이미 이 문서에 "FE 톤이 4색뿐이라 의도적으로 축소"한 절충으로 기록돼 있어 새로 발견한 문제는 아니지만, backend가 `jeonseRatioCautionFrom`/`WarnFrom`/`WarnTo` 값을 튜닝해도(예: 정책 값 변경) FE 색상 경계선은 값을 안 가져오므로 조용히 안 맞게 되는 구조적 위험이 있다는 점은 참고로 남겨둔다. 새 값을 응답 DTO에 실어주거나(`RiskPolicyConfig` 값 노출용 별도 엔드포인트), 최소한 두 값이 어긋나면 알아채기 쉽게 주석에 "backend RiskPolicyConfig와 동기화 필요"를 명시하는 정도의 보강이 있으면 좋겠다.

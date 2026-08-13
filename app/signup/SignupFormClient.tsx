@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
-import { ApiError } from '../lib/api/http';
+import { resolveErrorMessage } from '../lib/resolveErrorMessage';
 import { signup } from '../services/auth';
 import { checkNicknameAvailability } from '../services/user';
 import { type NicknamePolicyDto, type PasswordPolicyDto } from '../types/api';
@@ -25,6 +25,12 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
   >('idle');
   const [nicknameRequiredError, setNicknameRequiredError] = useState(false);
   const confirmPasswordRef = useRef<HTMLInputElement>(null);
+  // 중복확인 응답이 도착했을 때 입력값이 요청 시점과 여전히 같은지 비교하기 위한 최신값 ref.
+  // (2026-08-12) 닉네임을 빠르게 바꿔가며 중복확인을 연달아 누르면, 두 요청 모두 비동기로
+  // 진행되어 늦게 도착하는 응답이 최신 입력값과 무관하게 nicknameCheckStatus를 덮어쓸 수
+  // 있었다 - state(nickname)는 클로저에 갇혀 응답 시점엔 이미 낡은 값이라 ref로 최신값을
+  // 별도로 추적한다.
+  const latestNicknameRef = useRef('');
   // nicknamePolicy.pattern은 <input pattern="...">용 비앵커 정규식이라, JS에서 전체 문자열 일치를
   // 확인하려면 브라우저가 암묵적으로 해주는 ^(?:...)$ 감싸기를 직접 재현해야 한다.
   const nicknamePattern = useMemo(() => new RegExp(`^(?:${nicknamePolicy.pattern})$`), [nicknamePolicy.pattern]);
@@ -46,14 +52,19 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
     setNicknameRequiredError(false);
     try {
       const available = await checkNicknameAvailability(trimmed);
+      // 응답이 도착한 시점의 최신 입력값과 이 요청이 확인했던 값이 다르면(그 사이 사용자가
+      // 입력을 바꿨으면) 이 결과는 이미 낡은 것이니 화면에 반영하지 않는다.
+      if (latestNicknameRef.current.trim() !== trimmed) return;
       setNicknameCheckStatus(available ? 'available' : 'duplicate');
     } catch {
+      if (latestNicknameRef.current.trim() !== trimmed) return;
       setNicknameCheckStatus('error');
     }
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmitting) return;
 
     if (password !== confirmPassword) {
       // 폼의 암묵적 제출(입력란에서 Enter) 경로는 브라우저가 포커스를 되돌릴 수 있어,
@@ -71,14 +82,15 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
     setError(undefined);
 
     try {
-      await signup({ email, password, nickname });
+      // handleCheckNickname은 nickname.trim()으로 중복 확인을 했으므로, 여기서도 trim된 값을
+      // 보내야 한다 - 그대로 보내면 입력값에 앞뒤 공백이 남아 있을 때 "확인된 적 없는" 값이
+      // 제출되어 버린다(중복확인 통과 == 실제 제출값이라는 보장이 깨짐).
+      await signup({ email, password, nickname: nickname.trim() });
       // 방금 가입한 계정은 프로필을 등록한 적이 없으므로 곧장 등록 화면으로 보낸다.
       router.push('/mypage/profile');
       router.refresh();
     } catch (submitError) {
-      setError(
-        submitError instanceof ApiError ? submitError.message : '회원가입에 실패했습니다. 잠시 후 다시 시도해 주세요.',
-      );
+      setError(resolveErrorMessage(submitError, '회원가입에 실패했습니다. 잠시 후 다시 시도해 주세요.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -137,6 +149,7 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
             onChange={(event) => {
               setNicknameCheckStatus('idle');
               setNicknameRequiredError(false);
+              latestNicknameRef.current = event.target.value;
               setNickname(event.target.value);
             }}
             placeholder="2~20자로 입력해 주세요"

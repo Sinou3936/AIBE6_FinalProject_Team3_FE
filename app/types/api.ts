@@ -5,11 +5,9 @@ export type ApiErrorBody = {
   message: string;
 };
 
-export type ApiResponse<T> = {
-  success: boolean;
-  data: T;
-  error?: ApiErrorBody | null;
-};
+export type ApiResponse<T> =
+  | { success: true; data: T; error?: null }
+  | { success: false; data?: undefined; error: ApiErrorBody };
 
 // BE PageResponse<T> 그대로 - Spring Data Pageable 기반 목록 조회 응답의 공용 래퍼.
 export type PageResponseDto<T> = {
@@ -33,7 +31,7 @@ export type PropertySummaryDto = {
   marketDelta: string;
   checkSignalCount: number;
   signalSummary: string;
-  jeonseRatio: string;
+  jeonseRatio: number;
   checklistProgress: number;
   statusTone: ApiStatusTone;
   latitude: number;
@@ -50,7 +48,7 @@ export type ChecklistItemDto = {
   category: ChecklistCategoryDto;
   content: string;
   guideText: string | null;
-  // Backend checklist_item_template.helper_text 컬럼(예정) — 일부 필수 항목에만 값이 있고 나머지는 null.
+  // Backend checklist_item_template.helper_text 컬럼 — 일부 필수 항목에만 값이 있고 나머지는 null.
   helperText: string | null;
   importance: ChecklistImportanceDto;
   itemType: ChecklistItemTypeDto;
@@ -89,6 +87,7 @@ export type ChecklistItemUpdateRequestDto = { checked: boolean } | { value: stri
 // GET /checklists 응답 원소 하나. checklistId는 아직 시작 안 한 매물이면 null.
 export type ChecklistOverviewDto = {
   propertyId: number;
+  title: string;
   checklistId: number | null;
   roadAddress: string | null;
   jibunAddress: string | null;
@@ -174,6 +173,35 @@ export type ContractAnalysisResultDto = {
   disclaimer: string;
 };
 
+// POST /contract-analysis/chat. 조항 카드 안 미니 채팅에서 쓰는 추가 질문 - 이 조항 하나에 한정된
+// 대화라 clause 원문/위험여부/설명을 매번 같이 실어 보내고(서버 무저장 정책과 같은 이유로 이전 대화도
+// history로 들고 다님), 조항 카드 밖의 다른 대화와는 섞이지 않는다.
+export type ContractChatClauseContext = {
+  originalText: string;
+  riskFlag: boolean;
+  explanation: string;
+};
+
+export type ContractChatHistoryEntry = {
+  question: string;
+  answer: string;
+};
+
+export type ContractChatRequestDto = {
+  clause: ContractChatClauseContext;
+  question: string;
+  history?: ContractChatHistoryEntry[];
+};
+
+// 응답 형태는 명세받은 게 없어 analyzeContract 응답(ContractAnalysisResultDto)과 같은 패턴으로
+// 맞춰 추정했다 - answer 하나에 aiGeneratedNotice/disclaimer가 매 답변마다 같이 내려온다고 가정.
+// 실제 백엔드 응답이 다르면 이 타입과 mapper만 고치면 된다.
+export type ContractChatResponseDto = {
+  answer: string;
+  aiGeneratedNotice: string;
+  disclaimer: string;
+};
+
 export type ActivityHistoryItemDto = {
   title: string;
   type: string;
@@ -186,7 +214,10 @@ export type MeResponseDto = {
   email: string | null;
   nickname: string;
   profileImageUrl: string | null;
-  role: string;
+  // AdminRoleDto('USER' | 'ADMIN')와 같은 값이다 - admin 게이트 3곳(MainLayoutGate, (main)/layout.tsx,
+  // admin/layout.tsx)이 전부 이 필드 하나로 관리자 여부를 판단하는데, 예전엔 그냥 string이라
+  // 오타("Admin" 등)나 백엔드 계약 변경을 컴파일 타임에 전혀 못 잡았다.
+  role: AdminRoleDto;
 };
 
 export type PasswordPolicyDto = {
@@ -195,6 +226,9 @@ export type PasswordPolicyDto = {
   message: string;
 };
 
+// 관심 거래유형(User 도메인) 표기 - property 도메인의 PropertyTransactionTypeDto와 같은
+// 전세/월세 개념이지만 표기가 다르다('WOLSE' vs 'MONTHLY_RENT'). 두 값을 한 화면에서 비교해야
+// 하면 매핑이 필요하니 그대로 비교하지 말 것.
 export type UserTransactionTypeDto = 'JEONSE' | 'WOLSE';
 
 export type UserProfileDto = {
@@ -240,7 +274,6 @@ export type ProfileImageConfirmRequestDto = {
 };
 
 export type ProfileRegisterRequestDto = {
-  nickname?: string;
   interestRegion: string;
   transactionType: UserTransactionTypeDto;
   currentStage?: string;
@@ -260,6 +293,8 @@ export type NicknamePolicyDto = {
 // 체크리스트 등)까지 포함한 목업 전용 타입이라 분리해서 둔다) ---
 
 export type PropertyTypeDto = 'OFFICETEL' | 'MULTI_FAMILY' | 'DETACHED_HOUSE';
+// User 도메인의 UserTransactionTypeDto와 같은 전세/월세 개념이지만 표기가 다르다
+// ('MONTHLY_RENT' vs 'WOLSE'). 두 값을 한 화면에서 비교해야 하면 매핑이 필요하니 그대로 비교하지 말 것.
 export type PropertyTransactionTypeDto = 'JEONSE' | 'MONTHLY_RENT';
 export type PropertyStatusDto = 'ACTIVE' | 'DELETED';
 
@@ -283,6 +318,8 @@ export type CreatePropertyRequestDto = {
   deposit: number;
   monthlyRent?: number | null;
   area: number;
+  // 선택 입력 - 관리비 없는 매물도 있어 생략 가능. 값이 있으면 0 이상이어야 한다(BE @PositiveOrZero).
+  maintenanceFee?: number | null;
   description?: string | null;
   images?: PropertyImageDto[];
 };
@@ -350,6 +387,8 @@ export type PropertyListItemDto = {
   deposit: number;
   monthlyRent: number | null;
   area: number;
+  // 관리비 없는 매물이면 null.
+  maintenanceFee: number | null;
   roadAddress: string | null;
   jibunAddress: string | null;
   status: PropertyStatusDto;
@@ -357,6 +396,12 @@ export type PropertyListItemDto = {
   // 체크리스트를 아예 시작 안 했으면 null(분모가 없음), 시작했으면 0~100 사이 정수(반올림).
   checklistProgress: number | null;
   marketComparison: MarketComparisonDto;
+  // risk-analysis를 한 번도 안 돌린 매물이면 null(0건과 구분됨), 돌렸다면 실제 발견된 신호 개수.
+  checkSignalCount: number | null;
+  // checkSignalCount가 0 이하이면 null. 발견된 신호들의 설명을 이어붙인 요약 문자열.
+  signalSummary: string | null;
+  // DepositSafetyCheck.status가 CALCULATED일 때만 값 존재(percent 정수, "%" 미포함).
+  jeonseRatio: number | null;
 };
 
 export type PropertyDetailAddressDto = {
@@ -375,6 +420,8 @@ export type PropertyDetailResponseDto = {
   deposit: number;
   monthlyRent: number | null;
   area: number;
+  // 관리비 없는 매물이면 null.
+  maintenanceFee: number | null;
   description: string | null;
   address: PropertyDetailAddressDto;
   images: PropertyImageDto[];
@@ -396,6 +443,8 @@ export type UpdatePropertyRequestDto = {
   deposit: number;
   monthlyRent?: number | null;
   area: number;
+  // 선택 입력 - 관리비 없는 매물도 있어 생략 가능. 값이 있으면 0 이상이어야 한다(BE @PositiveOrZero).
+  maintenanceFee?: number | null;
   description?: string | null;
   images?: PropertyImageDto[];
 };
@@ -490,10 +539,13 @@ export type AdminPropertyReportReviewRequestDto = {
 
 // --- 관리자 페이지: 통계 대시보드 (GET /admin/stats/dashboard) ---
 
+// 세 값 전부 "전체 누적"이 아니라 대시보드 조회 기간 내 신규 발생분이다(backend
+// AdminStatsService.summary() 참고) - 예전 필드명(totalUsers 등)이 이 사실과 반대로 읽혀
+// API 계약을 헷갈리게 했던 것을 backend와 함께 정정했다.
 export type AdminStatsSummaryDto = {
-  totalUsers: number;
-  totalProperties: number;
-  pendingReports: number;
+  newUsers: number;
+  newProperties: number;
+  newPendingReports: number;
 };
 
 export type AdminStatsTrendPointDto = { date: string; count: number };
@@ -619,10 +671,15 @@ export type DepositSafetyCheckDto = {
   maxClaimAmount: number | null;
   explanation: string | null;
   referenceDate: string | null;
+  sampleCount: number | null; // 기준가 산출에 쓰인 매매 실거래가 표본 수. CALCULATED일 때만
+  radiusMeters: number | null; // 표본 탐색 반경(300 또는 600). CALCULATED일 때만
   reason: DepositSafetyCheckReasonDto | null;
   calculatedAt: string | null;
   disclaimer: string;
   recentOwnershipChangeWarning: boolean;
+  cautionFrom: number | null; // 전세가율 판정 기준값(%) - 이 값부터 "주의". 계산 여부와 무관하게 항상 내려옴
+  warnFrom: number | null; // 이 값부터 "위험"
+  warnTo: number | null; // 이 값을 넘으면 "입력값 재확인 안내"
 };
 
 // POST /properties/{propertyId}/deposit-safety/recalculate 요청. seniorDeposit(선순위보증금)은

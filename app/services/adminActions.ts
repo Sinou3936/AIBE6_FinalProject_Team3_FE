@@ -95,7 +95,10 @@ export async function updateAdminChecklistItemTemplate(
   request: AdminChecklistItemTemplateUpdateRequestDto,
 ): Promise<AdminChecklistItemTemplateDto> {
   if (useMockData) {
-    return ensureFound(updateMockAdminChecklistItemTemplate(templateId, request), '체크리스트 문항을 찾을 수 없습니다.');
+    return ensureFound(
+      updateMockAdminChecklistItemTemplate(templateId, request),
+      '체크리스트 문항을 찾을 수 없습니다.',
+    );
   }
   return requestJson<AdminChecklistItemTemplateDto>(`/admin/checklist-templates/${templateId}`, {
     method: 'PATCH',

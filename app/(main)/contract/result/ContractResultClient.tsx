@@ -1,7 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
@@ -15,19 +14,102 @@ import {
   HelpCircle,
   Info,
   Loader2,
+  MessageCircle,
   MessageSquare,
+  Send,
   Share2,
   ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { contractTabs, depositRatioMarkers, depositSafetyActions, missingItems } from '../../../data/contract-analysis';
-import { encodeBase64Url } from '../../../lib/base64Url';
-import { analyzeContract } from '../../../services/contract-analysis';
+import { getContractAnalysisErrorMessage } from '../../../lib/contractAnalysisErrors';
+import { analyzeContract, sendContractClauseQuestion } from '../../../services/contract-analysis';
 import { type ContractOcrUncertainField } from '../../../types/api';
-import { type ContractAnalysisResult, type ContractAnalysisTab, type ContractSummaryCard } from '../../../types/domain';
+import {
+  type ContractAnalysisResult,
+  type ContractAnalysisTab,
+  type ContractClause,
+  type ContractSummaryCard,
+} from '../../../types/domain';
 import { Badge } from '../../../ui/Badge';
 import { NoticeBox } from '../../../ui/NoticeBox';
 import { SummaryCard } from '../../../ui/SummaryCard';
+
+// 조항 카드 하나 안의 미니 채팅 대화 한 턴. 응답의 aiGeneratedNotice/disclaimer는 매 턴마다 반복
+// 표시하지 않고(채팅 섹션 상단에 고정 문구 한 번만 표시), 턴별로 저장하지도 않는다.
+// answer가 null이면 질문은 이미 보냈고 응답을 기다리는 중이라는 뜻 - 그 자리에 로딩을 표시한다.
+type ClauseChatEntry = {
+  question: string;
+  answer: string | null;
+};
+
+type ClauseChatState = {
+  input: string;
+  history: ClauseChatEntry[];
+  error?: string;
+};
+
+const EMPTY_CHAT_STATE: ClauseChatState = { input: '', history: [] };
+
+// 화면 표시 전용 정리 - 실제 분석/재제출에 쓰이는 원본 maskedText는 절대 건드리지 않는다.
+// OCR로 추출된 텍스트는 원본 문서의 줄바꿈을 그대로 따라가서 문장 중간에 어색하게 끊기는 경우가
+// 많아, 너무 짧은 줄은 다음 줄과 이어붙이고 빈 괄호/연속 빈 줄 같은 잡음만 걷어낸다.
+const SHORT_LINE_MERGE_THRESHOLD = 5;
+
+function formatMaskedTextForDisplay(text: string): string {
+  const lines = text
+    .split('\n')
+    // 마스킹 후 남은 빈 괄호("( )", "（　）" 등) 같은 의미 없는 잔여물을 제거.
+    .map((line) => line.replace(/[（(]\s*[）)]/g, '').trim());
+
+  const mergedLines: string[] = [];
+  let carry = '';
+
+  for (const line of lines) {
+    if (line.length === 0) {
+      if (carry) {
+        mergedLines.push(carry);
+        carry = '';
+      }
+      // 연속된 빈 줄은 하나의 문단 구분으로만 남기고 나머지는 접는다.
+      if (mergedLines.length > 0 && mergedLines[mergedLines.length - 1] !== '') {
+        mergedLines.push('');
+      }
+      continue;
+    }
+
+    const combined = carry ? `${carry} ${line}` : line;
+    if (combined.length <= SHORT_LINE_MERGE_THRESHOLD) {
+      // 아직도 너무 짧으면 다음 줄까지 계속 이어붙인다.
+      carry = combined;
+    } else {
+      mergedLines.push(combined);
+      carry = '';
+    }
+  }
+  if (carry) {
+    mergedLines.push(carry);
+  }
+
+  while (mergedLines.length > 0 && mergedLines[0] === '') {
+    mergedLines.shift();
+  }
+  while (mergedLines.length > 0 && mergedLines[mergedLines.length - 1] === '') {
+    mergedLines.pop();
+  }
+
+  return mergedLines.join('\n');
+}
+
+const UNCERTAIN_FIELDS_PREVIEW_COUNT = 5;
+
+// 화면 표시 전용 필터 - 백엔드 uncertainFields 데이터 자체는 건드리지 않는다. 글자 하나뿐이거나
+// 마침표/괄호/체크박스 기호/슬래시 등 순수 기호로만 된 항목은 "인식이 애매했다"고 봐도 사용자가
+// 확인할 실익이 없어 화면에서만 걸러낸다. \p{L}(문자)/\p{N}(숫자)이 하나도 없으면 순수 기호로 본다.
+function isMeaningfulUncertainField(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.length > 1 && /[\p{L}\p{N}]/u.test(trimmed);
+}
 
 type ContractResultClientProps = {
   maskedText: string;
@@ -48,8 +130,6 @@ export function ContractResultClient({
   loadError,
   propertyId,
 }: ContractResultClientProps) {
-  const router = useRouter();
-
   const [processingStep, setProcessingStep] = useState<'analyzing' | null>(null);
   const [analysisResult, setAnalysisResult] = useState<ContractAnalysisResult | null>(null);
   const [analysisError, setAnalysisError] = useState<string | undefined>();
@@ -59,16 +139,53 @@ export function ContractResultClient({
   // index들의 집합으로 관리한다.
   const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  // 조항 index별로 독립된 채팅 상태를 들고 있는다 - 다른 조항 카드의 대화와 섞이지 않는다.
+  const [chatStates, setChatStates] = useState<Record<number, ClauseChatState>>({});
+  const [isMaskedTextExpanded, setIsMaskedTextExpanded] = useState(false);
+  // "수정하기"는 이제 페이지 이동 없이 이 값을 인라인으로 바꾼다 - analyzeContract는 항상 이 값을 쓴다.
+  const [maskedTextValue, setMaskedTextValue] = useState(maskedText);
+  const [isEditingMaskedText, setIsEditingMaskedText] = useState(false);
+  const [editDraft, setEditDraft] = useState('');
+  // 편집 완료 후에는 maskedCount/uncertainFields가 원래 마스킹 시점 값 그대로라 더 이상 정확하지
+  // 않다 - 화면에서 숨기거나 "수정됨"으로 대체하기 위한 플래그.
+  const [hasEditedMaskedText, setHasEditedMaskedText] = useState(false);
+  const [isUncertainFieldsExpanded, setIsUncertainFieldsExpanded] = useState(false);
+  // 조항 index별 채팅 이력 스크롤 컨테이너. 아코디언이 접히면(언마운트) ref 콜백이 자동으로 지운다.
+  const chatContainerRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  // updateChatState가 마지막으로 건드린 index만 기억해뒀다가, 그 조항의 채팅창만 맨 아래로
+  // 스크롤한다 - 여러 조항을 동시에 펼쳐놓고 다른 조항 대화를 읽고 있을 때 그쪽까지 끌려
+  // 내려가지 않게 하기 위함이다.
+  const lastUpdatedChatIndexRef = useRef<number | null>(null);
 
   const isAnalyzing = processingStep === 'analyzing';
+  // 표시용으로만 정리한 텍스트 - analyzeContract에는 항상 maskedTextValue가 그대로 쓰인다.
+  const displayMaskedText = useMemo(() => formatMaskedTextForDisplay(maskedTextValue), [maskedTextValue]);
+  const displayableUncertainFields = useMemo(
+    () => uncertainFields.filter((field) => isMeaningfulUncertainField(field.text)),
+    [uncertainFields],
+  );
+  const visibleUncertainFields = isUncertainFieldsExpanded
+    ? displayableUncertainFields
+    : displayableUncertainFields.slice(0, UNCERTAIN_FIELDS_PREVIEW_COUNT);
+  const hiddenUncertainFieldsCount = displayableUncertainFields.length - visibleUncertainFields.length;
 
-  const handleEdit = () => {
-    const encoded = encodeBase64Url(maskedText);
-    router.push(`/contract/upload?text=${encoded}`);
+  const handleStartEdit = () => {
+    setEditDraft(displayMaskedText);
+    setIsEditingMaskedText(true);
   };
 
+  const handleFinishEdit = () => {
+    setMaskedTextValue(editDraft);
+    setHasEditedMaskedText(true);
+    setIsEditingMaskedText(false);
+  };
+
+  // 분석 결과가 이미 있으면 재분석 자체를 막는다 - 안 그러면 다른 조항 카드에서 채팅 응답을
+  // 기다리는 도중 재분석이 끝나 chatStates가 초기화되면서 그 응답이 조용히 유실될 수 있다.
+  const canAnalyze = !isAnalyzing && !isEditingMaskedText && analysisResult == null;
+
   const handleAnalyze = async () => {
-    if (isAnalyzing) {
+    if (!canAnalyze) {
       return;
     }
 
@@ -76,13 +193,15 @@ export function ContractResultClient({
     setProcessingStep('analyzing');
 
     try {
-      const result = await analyzeContract(maskedText, true);
+      const result = await analyzeContract(maskedTextValue, true);
       setAnalysisResult(result);
-      // 처음 분석 결과를 받은 시점에만 riskFlag=true인 첫 조항을 기본으로 펼쳐둔다.
+      // riskFlag=true인 첫 조항을 기본으로 펼쳐둔다. (재분석이 막혀있어 이 handleAnalyze는 이제
+      // 세션당 최대 한 번만 성공하므로, 아래 chatStates 초기화는 항상 빈 상태 위에서 실행된다.)
       const firstRiskyIndex = result.clauses.findIndex((clause) => clause.riskFlag);
       setExpandedIndices(firstRiskyIndex === -1 ? new Set() : new Set([firstRiskyIndex]));
-    } catch {
-      setAnalysisError('AI 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      setChatStates({});
+    } catch (error) {
+      setAnalysisError(getContractAnalysisErrorMessage(error, 'AI 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.'));
     } finally {
       setProcessingStep(null);
     }
@@ -112,6 +231,73 @@ export function ContractResultClient({
     }
   };
 
+  const getChatState = (index: number): ClauseChatState => chatStates[index] ?? EMPTY_CHAT_STATE;
+
+  // 답변 대기 중인(answer가 null인) 항목이 하나라도 있으면 전송 중인 것으로 본다 - 별도 isSending
+  // 플래그 없이도 항상 최대 한 개까지만 대기 상태가 존재하도록 보장된다(아래 send 가드 참고).
+  const isChatSending = (index: number): boolean => getChatState(index).history.some((entry) => entry.answer === null);
+
+  const updateChatState = (index: number, updater: (current: ClauseChatState) => ClauseChatState) => {
+    lastUpdatedChatIndexRef.current = index;
+    setChatStates((prev) => ({ ...prev, [index]: updater(prev[index] ?? EMPTY_CHAT_STATE) }));
+  };
+
+  // 새 질문/답변이 추가될 때마다(updateChatState 호출 시) 그 조항의 채팅창만 맨 아래로 스크롤한다.
+  useEffect(() => {
+    const index = lastUpdatedChatIndexRef.current;
+    if (index == null) {
+      return;
+    }
+    const container = chatContainerRefs.current.get(index);
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [chatStates]);
+
+  const handleSendChatMessage = async (index: number, clause: ContractClause) => {
+    const state = getChatState(index);
+    const question = state.input.trim();
+    if (!question || isChatSending(index)) {
+      return;
+    }
+
+    const historyForRequest = state.history
+      .filter((entry): entry is ClauseChatEntry & { answer: string } => entry.answer !== null)
+      .map(({ question: q, answer }) => ({ question: q, answer }));
+
+    // 응답을 기다리지 않고, 질문 말풍선부터 즉시 추가(answer: null = 로딩 표시 중)하고 입력창을 비운다.
+    const pendingEntryIndex = state.history.length;
+    updateChatState(index, (current) => ({
+      ...current,
+      input: '',
+      error: undefined,
+      history: [...current.history, { question, answer: null }],
+    }));
+
+    try {
+      const response = await sendContractClauseQuestion(
+        { originalText: clause.originalText, riskFlag: clause.riskFlag, explanation: clause.explanation },
+        question,
+        historyForRequest.length > 0 ? historyForRequest : undefined,
+      );
+      // 방금 추가했던 대기 중 질문 자리에 답변만 채워 넣는다(말풍선을 새로 만들지 않고 그 자리에서 교체).
+      updateChatState(index, (current) => ({
+        ...current,
+        history: current.history.map((entry, entryIndex) =>
+          entryIndex === pendingEntryIndex ? { ...entry, answer: response.answer } : entry,
+        ),
+      }));
+    } catch (error) {
+      // 실패하면 대기 중이던 질문 말풍선을 없애고, 입력값을 되살려서 재입력 없이 다시 보낼 수 있게 한다.
+      updateChatState(index, (current) => ({
+        ...current,
+        input: question,
+        error: getContractAnalysisErrorMessage(error, '답변을 받아오지 못했습니다. 잠시 후 다시 시도해 주세요.'),
+        history: current.history.filter((_, entryIndex) => entryIndex !== pendingEntryIndex),
+      }));
+    }
+  };
+
   const clauses = analysisResult?.clauses ?? [];
   const riskyClauseCount = clauses.filter((clause) => clause.riskFlag).length;
   const referenceClauseCount = clauses.length - riskyClauseCount;
@@ -137,24 +323,58 @@ export function ContractResultClient({
           <div className="ansim-card p-6">
             <h1 className="ansim-page-title mb-2">마스킹된 문구를 확인해주세요</h1>
             <NoticeBox icon={Info} iconClassName="text-teal-600" className="mb-4 bg-teal-50 text-teal-700">
-              {maskedCount > 0
-                ? `개인정보로 보이는 항목 ${maskedCount}개를 가렸어요. 아래 내용대로 분석을 진행할까요?`
-                : '분석 요청할 내용이에요. 아래 내용대로 분석을 진행할까요?'}
+              {hasEditedMaskedText
+                ? '직접 수정한 내용이에요. 아래 내용대로 분석을 진행할까요?'
+                : maskedCount > 0
+                  ? `개인정보로 보이는 항목 ${maskedCount}개를 가렸어요. 아래 내용대로 분석을 진행할까요?`
+                  : '분석 요청할 내용이에요. 아래 내용대로 분석을 진행할까요?'}
             </NoticeBox>
-            <div className="ansim-input min-h-36 whitespace-pre-wrap bg-slate-50 text-slate-700">{maskedText}</div>
+            {isEditingMaskedText ? (
+              <textarea
+                value={editDraft}
+                onChange={(event) => setEditDraft(event.target.value)}
+                className="ansim-input min-h-48 resize-y whitespace-pre-wrap bg-slate-50 text-slate-700"
+              />
+            ) : (
+              <>
+                <div
+                  className={`ansim-input whitespace-pre-wrap bg-slate-50 text-slate-700 ${
+                    isMaskedTextExpanded ? 'min-h-36' : 'max-h-[200px] overflow-y-auto'
+                  }`}
+                >
+                  {displayMaskedText}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMaskedTextExpanded((prev) => !prev)}
+                  className="mt-2 text-xs font-bold text-teal-700 hover:underline"
+                >
+                  {isMaskedTextExpanded ? '접기' : '전체 보기'}
+                </button>
+              </>
+            )}
 
-            {uncertainFields.length > 0 && (
+            {!hasEditedMaskedText && displayableUncertainFields.length > 0 && (
               <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50 p-4">
                 <p className="mb-2 flex items-center gap-2 text-sm font-bold text-orange-700">
                   <AlertCircle className="h-4 w-4" /> 이 부분들은 인식이 애매했어요, 확인해주세요
                 </p>
                 <ul className="space-y-1">
-                  {uncertainFields.map((field) => (
+                  {visibleUncertainFields.map((field) => (
                     <li key={field.index} className="text-sm text-orange-700">
                       · {field.text}
                     </li>
                   ))}
                 </ul>
+                {hiddenUncertainFieldsCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setIsUncertainFieldsExpanded(true)}
+                    className="mt-2 text-xs font-bold text-orange-700 hover:underline"
+                  >
+                    {hiddenUncertainFieldsCount}개 더 보기
+                  </button>
+                )}
               </div>
             )}
 
@@ -171,14 +391,15 @@ export function ContractResultClient({
               <button
                 type="button"
                 disabled={isAnalyzing}
-                onClick={handleEdit}
+                onClick={isEditingMaskedText ? handleFinishEdit : handleStartEdit}
                 className="ansim-button-secondary flex-1 py-4 disabled:pointer-events-none disabled:opacity-50"
               >
-                수정하기
+                {isEditingMaskedText ? '수정 완료' : '수정하기'}
               </button>
               <button
                 type="button"
-                disabled={isAnalyzing}
+                disabled={!canAnalyze}
+                title={analysisResult != null ? '이미 분석이 완료됐습니다.' : undefined}
                 onClick={handleAnalyze}
                 className="ansim-button-primary flex-1 py-4 disabled:pointer-events-none disabled:opacity-50"
               >
@@ -200,9 +421,6 @@ export function ContractResultClient({
                   </div>
                   <h2 className="ansim-page-title mb-2">계약서 분석 결과입니다</h2>
                   {analysisResult.summary && <p className="ansim-page-description">{analysisResult.summary}</p>}
-                  {analysisResult.aiGeneratedNotice && (
-                    <p className="mt-2 text-xs text-slate-400">{analysisResult.aiGeneratedNotice}</p>
-                  )}
                 </div>
                 <div className="flex items-center gap-3">
                   <button
@@ -234,6 +452,12 @@ export function ContractResultClient({
                   />
                 ))}
               </div>
+
+              {(analysisResult.aiGeneratedNotice || analysisResult.disclaimer) && (
+                <NoticeBox icon={Info} iconClassName="text-slate-500" className="mt-6 bg-slate-100 text-slate-600">
+                  {[analysisResult.aiGeneratedNotice, analysisResult.disclaimer].filter(Boolean).join(' ')}
+                </NoticeBox>
+              )}
             </div>
           </div>
 
@@ -338,6 +562,85 @@ export function ContractResultClient({
                               )}
                             </button>
                           </div>
+
+                          {(() => {
+                            const chatState = getChatState(index);
+                            const sending = isChatSending(index);
+                            return (
+                              <div className="mt-4 rounded-xl border border-slate-100 bg-white p-4">
+                                <h4 className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-950">
+                                  <MessageCircle className="h-4 w-4 text-teal-600" /> 더 궁금한 점이 있으신가요?
+                                </h4>
+                                <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
+                                  답변은 AI가 생성한 참고용 정보입니다.
+                                </p>
+
+                                {chatState.history.length > 0 && (
+                                  <div
+                                    ref={(el) => {
+                                      if (el) {
+                                        chatContainerRefs.current.set(index, el);
+                                      } else {
+                                        chatContainerRefs.current.delete(index);
+                                      }
+                                    }}
+                                    className="mb-4 max-h-72 space-y-4 overflow-y-auto"
+                                  >
+                                    {chatState.history.map((entry, entryIndex) => (
+                                      <div key={entryIndex} className="space-y-2">
+                                        <p className="ml-auto max-w-[85%] rounded-lg bg-teal-600 px-3 py-2 text-sm text-white">
+                                          {entry.question}
+                                        </p>
+                                        {entry.answer === null ? (
+                                          <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-500">
+                                            <Loader2 className="h-3 w-3 animate-spin" /> 답변을 준비하고 있어요...
+                                          </div>
+                                        ) : (
+                                          <p className="max-w-[85%] rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                                            {entry.answer}
+                                          </p>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {chatState.error && <p className="mb-2 text-xs text-red-600">{chatState.error}</p>}
+
+                                <div className="flex gap-2">
+                                  <input
+                                    type="text"
+                                    value={chatState.input}
+                                    disabled={sending}
+                                    onChange={(event) => {
+                                      const value = event.target.value;
+                                      updateChatState(index, (current) => ({ ...current, input: value }));
+                                    }}
+                                    onKeyDown={(event) => {
+                                      if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                                        event.preventDefault();
+                                        void handleSendChatMessage(index, item);
+                                      }
+                                    }}
+                                    placeholder="이 조항에 대해 더 물어보세요"
+                                    className="ansim-input flex-1 py-2 text-sm"
+                                  />
+                                  <button
+                                    type="button"
+                                    disabled={sending || chatState.input.trim().length === 0}
+                                    onClick={() => handleSendChatMessage(index, item)}
+                                    className="ansim-button-primary shrink-0 px-4 py-2 text-sm disabled:pointer-events-none disabled:opacity-50"
+                                  >
+                                    {sending ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Send className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -417,10 +720,6 @@ export function ContractResultClient({
                 전문가 상담 안내받기
               </button>
             </div>
-
-            {analysisResult.disclaimer && (
-              <p className="text-center text-[10px] leading-relaxed text-slate-400">{analysisResult.disclaimer}</p>
-            )}
           </div>
         </>
       )}

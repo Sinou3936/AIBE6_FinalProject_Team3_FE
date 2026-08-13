@@ -153,17 +153,17 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
       </p>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <SummaryCard label="신규 가입자" value={`${stats.summary.totalUsers.toLocaleString()}명`} icon={Users} />
+        <SummaryCard label="신규 가입자" value={`${stats.summary.newUsers.toLocaleString()}명`} icon={Users} />
         {/* 아래 추이 차트의 "매물등록"은 삭제된 매물도 등록 발생 자체로 집계하지만(백엔드
             PropertyRepository.findCreatedAtBetween 참고), 이 카드는 활성 상태만 센다(countByStatus
             AndCreatedAtBetween) - 같은 화면에서 두 숫자가 다른 기준으로 안 맞아 보이는 걸 막기 위해
             라벨에 "활성"임을 명시한다. */}
-        <SummaryCard label="신규 활성 매물" value={`${stats.summary.totalProperties.toLocaleString()}건`} icon={Home} />
+        <SummaryCard label="신규 활성 매물" value={`${stats.summary.newProperties.toLocaleString()}건`} icon={Home} />
         <SummaryCard
           label="신규 대기 신고"
-          value={`${stats.summary.pendingReports.toLocaleString()}건`}
+          value={`${stats.summary.newPendingReports.toLocaleString()}건`}
           icon={FileWarning}
-          tone={stats.summary.pendingReports > 0 ? 'orange' : 'default'}
+          tone={stats.summary.newPendingReports > 0 ? 'orange' : 'default'}
         />
       </div>
 
@@ -210,7 +210,9 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
 
       <div className="ansim-card p-5 lg:w-2/3">
         <h2 className="text-sm font-bold text-slate-700">매물 등록 여부별 유저 분포</h2>
-        <p className="mb-4 text-xs text-slate-400">선택한 기간에 가입한 사람 중, 매물을 등록한 사람 vs 등록하지 않은 사람</p>
+        <p className="mb-4 text-xs text-slate-400">
+          선택한 기간에 가입한 사람 중, 매물을 등록한 사람 vs 등록하지 않은 사람
+        </p>
         <ResponsiveContainer width="100%" height={280}>
           <PieChart margin={{ top: 20, right: 40, bottom: 20, left: 40 }}>
             <Pie

@@ -3,7 +3,7 @@
 import { Loader2 } from 'lucide-react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ApiError } from '../lib/api/http';
+import { isUnreachableError } from '../lib/api/http';
 import { getCurrentUser } from '../services/auth';
 import MainLayoutClient from './MainLayoutClient';
 
@@ -26,8 +26,14 @@ export default function MainLayoutGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    // 뒤로가기 등으로 라우트가 바뀌어 이 effect가 정리(cleanup)되면 진행 중이던 GET /auth/me(및
+    // 401 이후의 refresh-then-retry)를 실제로 중단시킨다. abort하지 않으면 이미 이 화면을 떠난
+    // 뒤에도 응답이 뒤늦게 도착해 requestJson 내부에서 redirectToSessionRecover()가 실행 시점의
+    // window.location(=이미 이동해버린 새 페이지)을 그대로 읽어 그 페이지를 강제로 세션 만료
+    // 처리해버리는 문제가 있었다.
+    const controller = new AbortController();
 
-    getCurrentUser()
+    getCurrentUser(undefined, controller.signal)
       .then((me) => {
         if (cancelled) return;
         setState({ status: 'ready', nickname: me.nickname, profileImageUrl: me.profileImageUrl, isAdmin: me.role === 'ADMIN' });
@@ -36,17 +42,18 @@ export default function MainLayoutGate({ children }: { children: ReactNode }) {
         if (cancelled) return;
         // 'rejected'(세션이 확실히 무효) 케이스는 requestJson이 이미 window.location.href로
         // session-recover로 이동시키는 중이라 여기 도달하지 않는다(다시는 resolve/reject되지
-        // 않는 Promise). 여기 도달하는 건 'unreachable'(네트워크 오류 등으로 refresh 자체를
-        // 시도 못한 경우)뿐이다 — 그 외 아직 못 다룬 에러도 안전하게 같은 경로로 보낸다.
+        // 않는 Promise). 여기 도달하는 건 최초 GET /auth/me 자체가 실패했거나(네트워크 오류,
+        // CORS 차단 등 - refresh 단계까지 가지도 못함) 401 이후 refresh 시도가 막힌 경우뿐이다 -
+        // 둘 다 isUnreachableError로 함께 판단해야 진짜 네트워크 장애를 "세션 만료"로 잘못
+        // 안내하지 않는다.
         const next = pathname + (searchParams.toString() ? `?${searchParams.toString()}` : '');
-        const errorParam = error instanceof ApiError && error.sessionRefreshOutcome === 'unreachable'
-          ? 'session_unavailable'
-          : 'session_expired';
+        const errorParam = isUnreachableError(error) ? 'session_unavailable' : 'session_expired';
         window.location.href = `/login?error=${errorParam}&next=${encodeURIComponent(next)}`;
       });
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [pathname, searchParams]);
 

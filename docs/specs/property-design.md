@@ -40,10 +40,11 @@
 | --- | --- |
 | 인증된 사용자 소유 매물만 조회 | ✅ Backend가 인증 쿠키 기준으로 필터링해 응답 |
 | 지역/면적/거래유형/주택유형/가격 범위로 검색 | ✅ `PropertiesClient`의 지역 검색창(region, 도로명/지번주소 부분일치) + 거래유형 필터 칩(전체/전세/월세) + "상세 필터" 패널(매물유형/면적범위/보증금범위, 거래유형이 월세일 때만 월세금액범위도 노출)이 URL 쿼리파라미터로 `getProperties`에 전달되고, BE `PropertySearchCondition`으로 실제 서버사이드 필터링됨. 기존엔 클라이언트에서 현재 페이지 내용만 걸러내던 방식이었는데 서버사이드로 전환됨 |
-| 정렬 조건 적용 | ❌ 정렬 기능 없음 — Backend가 내려준 순서(최근 등록순으로 추정) 그대로 표시 |
+| 정렬 조건 적용 | ~~❌ 정렬 기능 없음 — Backend가 내려준 순서(최근 등록순으로 추정) 그대로 표시~~ — ✅ **(2026-08-12 정정)** 정렬 UI가 이미 있음. `PropertiesClient.tsx`의 `sortOptions`(최신순/보증금 낮은순/보증금 높은순/면적 좁은순/면적 넓은순) select가 `sort` 쿼리파라미터로 BE에 전달됨(아래 "전수조사 결과" 버그/정확성 1번 참고) |
 | 삭제된 매물 제외 | Backend 책임(ACTIVE 상태만 응답) — FE는 별도 필터링 없이 그대로 신뢰 |
 | 페이지네이션 | ✅ BE가 `PageResponse`로 응답이 바뀌면서 `getProperties(cookieHeader, { page })`가 `page`/`size`/`sort` 쿼리 파라미터를 지원하게 됨. `PropertiesClient`에 이전/다음 페이지 링크(`?page=N`) 추가, 페이지 이동 시 현재 필터 조건도 그대로 유지됨(`buildPageHref`) |
 | 성공: 목록 + 지도 마커 | ⚠️ 목록 카드는 나오지만 지도 마커 표시는 이 화면에 없음(상세 화면에만 `KakaoMap` 있음) |
+| 확인 필요 신호 개수 / 전세가율 배지 | ✅ `PropertiesClient`/`PropertyListItem`의 조건부 렌더링은 이전부터 있었으나, BE 응답(`PropertyListItemDto`)에 필드 자체가 없어 항상 "준비 중"만 보였음 — BE에 `checkSignalCount`/`signalSummary`/`jeonseRatio` 필드가 추가되면서 실제 값으로 연동됨. `jeonseRatio`는 BE가 percent 정수만 내려주는 컨벤션이라 FE 타입을 `string`→`number`로 정정하고 "%" 포맷팅을 FE에서 붙이도록 수정(`getJeonseRatioDisplay`) |
 | 검색 결과 없음 → 빈 목록 | ✅ "조건에 맞는 매물이 없습니다" 문구 |
 | 실패: 인증 실패/잘못된 검색 조건 | ✅ 인증 실패는 `(main)/layout.tsx`가 상위에서 처리(Auth 문서 참고). "잘못된 검색 조건"(면적/보증금/월세 범위의 최소값이 최대값보다 큰 경우)은 BE의 `PROPERTY_INVALID_SEARCH_CONDITION` 에러 메시지를 그대로 화면에 노출 |
 
@@ -54,7 +55,7 @@
 | 매물 존재/접근 권한 확인 | Backend 책임 — FE는 응답 실패 시 "매물을 찾을 수 없습니다"로 통합 표시 |
 | 기본 정보 + 주소 정보 조회 | ✅ |
 | 실거래가 비교 결과 조회 | ✅ `priceHistory`/`marketDelta` 있으면 차트로, 없으면 "아직 실거래가 비교 정보가 없어요" |
-| 위험 신호·안전성 정보 조회 | ⚠️ 응답에 해당 필드가 없으면(현재는 항상 없음 — risk-analysis 도메인 미연동) "준비 중" 배지 + 정적 안내 문구로 대체. 실제 데이터 연동 여부는 이 도메인 범위 밖 |
+| 위험 신호·안전성 정보 조회 | ✅ **연동됨.** `PropertyDetailResponse`엔 관련 필드가 없지만, `page.tsx`가 매물 상세를 불러올 때 `GET /risk-signals`/`GET /deposit-safety`를 별도로 호출해 `PropertyDetailClient`의 "확인 필요 신호"/"보증금 안전성" 카드를 채운다. 목록은 N개 매물을 한 번에 다뤄야 해서 `PropertyListResponse`에 요약 필드를 넣었지만, 상세는 매물 1건만 보면 되므로 별도 API 호출 2건으로 충분해 이렇게 설계된 것으로 보임. 한 번도 계산된 적 없는 매물(`depositSafety.status === 'notChecked'`)이면 `POST /risk-analysis`를 자동 트리거해 계산 후 다시 조회 |
 | 임장 체크리스트 생성 여부 확인 | ✅ BE 응답의 `checklistCreated`를 반영해 버튼 문구가 "현장 체크리스트 시작" / "현장 체크리스트 이어보기"로 갈림 |
 | 누적 신고 여부(존재 유무) 조회 | ✅ BE 응답의 `reported`(본인 신고 여부)를 반영해 신고 버튼이 비활성화되고 "이미 신고한 매물이에요" 배너가 뜸. 이번 세션에서 막 신고한 경우(`reportSuccess`)도 동일하게 취급 |
 | 신고 내용 원문/신고자 정보 비노출 | N/A — 신고 여부(boolean)만 받아오고 신고 내역 자체는 조회하지 않으므로 노출될 것도 없음 |
@@ -128,13 +129,32 @@
 
 ## 남은 이슈 / 확인 필요 총정리
 
-1. **매물 등록 폼에 사진 입력 UI가 없음** — 요구사항은 "선택적으로 매물 사진을 입력"한다고 되어 있고 상세 화면은 표시 준비가 되어 있는데, 애초에 넣을 방법이 없다. 파일 업로드/URL 입력 중 어느 쪽으로 갈지 방향이 필요함(User 도메인의 프로필 사진과 같은 결정이 필요)
+1. ~~**매물 등록 폼에 사진 입력 UI가 없음** — 요구사항은 "선택적으로 매물 사진을 입력"한다고 되어 있고 상세 화면은 표시 준비가 되어 있는데, 애초에 넣을 방법이 없다. 파일 업로드/URL 입력 중 어느 쪽으로 갈지 방향이 필요함(User 도메인의 프로필 사진과 같은 결정이 필요)~~ — ✅ **(2026-08-12 정정)** 해소됨. `app/ui/PropertyImageUploader.tsx` + `app/services/propertyImages.ts`가 presigned S3 업로드(`upload-url` → S3 PUT → `confirm`) 플로우를 갖추고 있어 등록/수정 폼에서 실제로 사진을 첨부할 수 있다(아래 "전수조사 결과" 도입부 참고)
 2. **등록 성공 후 목적지가 상세가 아니라 목록** — 코드 주석은 "상세 API가 아직 실제 응답 형태에 안 맞다"고 되어 있는데, 실제로 `PropertyDetailClient`는 이미 real API DTO를 그대로 소비하는 것처럼 보인다. 주석이 낡은 건지, 아직 못 옮긴 이유가 따로 있는지 확인 필요
 3. **매물 수정에서 주소·거래유형을 아예 수정 불가로 막아둔 것이 요구사항과 전제 자체가 다름** — 요구사항은 "주소 변경 시 재정규화" 같은 흐름을 전제하는데, 실제 설계는 "주소/유형 바뀌면 재등록"이다. 요구사항 쪽을 수정할지, 지금 설계(재등록 유도)를 공식 정책으로 문서화할지 팀 논의 필요
 4. ~~매물 목록에 검색/정렬/페이지네이션이 텍스트 검색 하나만 빼고 전부 없음~~ → **페이지네이션(이전/다음 페이지 이동), 지역/면적/거래유형/매물유형/보증금·월세 범위 검색, 정렬 UI(최신순/보증금↑↓/면적↑↓) 모두 추가됨**(`PropertiesClient` 필터 UI + BE `PropertySearchCondition`/`sort` 쿼리파라미터)
 5. ~~상세 화면이 "체크리스트 진행 여부"와 "신고 누적 여부"를 서버에서 조회해서 보여주지 않음~~ → BE에 `checklistCreated`/`reported` 필드가 추가되면서 해소됨(위 상세조회 표 참고)
 6. ~~매물 삭제 확인이 앱 자체 `Modal` 대신 브라우저 `window.confirm()`~~ → **`PropertyDeleteConfirmModal`(신고 모달과 동일한 `Modal` 기반 패턴)로 교체됨**
-7. **목록/상세에 보이는 매물 제목이 실제 저장값이 아님** — `mapPropertyListItemDto`/`mapPropertyDetailResponseDto`(`app/mappers/property.ts`)가 `propertyType`만 보고 `"오피스텔 매물"`처럼 그때그때 만들어내는 문자열이다. BE `Property`에 `title` 컬럼이 아예 없어서 벌어지는 일(`property-design.md`(BE) 18번 참고) — BE에 `title` 컬럼 추가가 합의됐고, 별도 이슈로 진행되면 등록 폼에 제목 입력 필드 추가 + 이 자동생성 로직 제거가 함께 필요함
-8. **관리비(`maintenance`) 필드가 요구사항 명세에 없는데 UI엔 표시 슬롯이 남아있음** — BE `Property` 요구사항 필드 목록(id/userId/address/propertyType/transactionType/deposit/monthlyRent/askingPrice/area/status)에 관리비가 없고, 실제 BE 엔티티에도 대응 컬럼이 없다. FE `PropertySummary`/`PropertyDetail`엔 `maintenance?: string` 필드가 있고 목록 카드는 `property.maintenance ?? '관리비 정보 없음'`으로 무조건 렌더링해서 실사용 매물마다 "관리비 정보 없음"만 항상 찍힘. 팀 논의 결과 추후 실제로 쓸 가능성이 있어 일단 유지하기로 함 — BE에 컬럼이 추가되면 그때 register/edit 폼 입력란 + 매퍼 연결이 함께 필요함
+7. ~~**목록/상세에 보이는 매물 제목이 실제 저장값이 아님** — `mapPropertyListItemDto`/`mapPropertyDetailResponseDto`(`app/mappers/property.ts`)가 `propertyType`만 보고 `"오피스텔 매물"`처럼 그때그때 만들어내는 문자열이다. BE `Property`에 `title` 컬럼이 아예 없어서 벌어지는 일(`property-design.md`(BE) 18번 참고) — BE에 `title` 컬럼 추가가 합의됐고, 별도 이슈로 진행되면 등록 폼에 제목 입력 필드 추가 + 이 자동생성 로직 제거가 함께 필요함~~ — ✅ **(2026-08-12 정정)** 해소됨. `app/(main)/properties/register/page.tsx`/`PropertyEditClient.tsx`가 `title` 입력 필드를 갖고 있고, `mapPropertyListItemDto`/`mapPropertyDetailResponseDto`가 자동생성 문구 대신 `dto.title`을 그대로 쓴다(아래 "전수조사 결과" 도입부 참고)
+8. ~~관리비(`maintenance`) 필드가 요구사항 명세에 없는데 UI엔 표시 슬롯이 남아있음~~ → **BE `Property`에 `maintenanceFee`(nullable Long) 컬럼이 추가되면서 해소됨.** 등록/수정 폼에 관리비 입력란(선택, 0 이상)이 생겼고, `mapPropertyListItemDto`/`mapPropertyDetailResponseDto`(`app/mappers/property.ts`)의 `formatMaintenanceText`가 `null`(입력 안 함) → `undefined`, `0`(명시적으로 관리비 없음) → `"관리비 없음"`, 양수 → `"관리비 N만원"`으로 구분해서 채운다. 목록 카드/상세 화면 렌더링 로직 자체는 이미 `property.maintenance` 조건부 렌더링을 갖추고 있어서 변경 없이 그대로 실데이터를 받게 됐다.
 9. ~~매물 목록 카드의 "체크리스트" 칸이 항상 "준비 중"~~ → **BE `PropertyListResponse.checklistProgress`(체크리스트 미시작 시 null, 시작했으면 0~100 반올림 정수) 추가 + FE `mapPropertyListItemDto`에서 `PropertySummary.checklist`로 연결하며 해소됨.** BE는 `ChecklistItemRepository.findProgressByUserId`가 유저 전체 체크리스트 문항을 `property.id` 기준 GROUP BY로 한 번에 집계하는 방식이라 매물 개수와 무관하게 쿼리 1회, N+1 없음. **"시세 대비" 칸은 여전히 "준비 중"** — `PropertySummary.marketDelta`는 실제 API가 채우지 않는 필드로 남아있음(`types/domain.ts` 참고). 시세 대비(실거래가)는 국토부/카카오 API를 매물마다 동기 호출해야 해서 캐싱 없이 목록에 붙이면 페이지 로딩이 크게 느려짐 — 캐싱(Redis 등) 도입 후로 보류
 10. ~~매물 목록 카드 오른쪽의 "주소 중복 확인/보증금 수치 확인/현장 점검" 3개 칩이 완전히 정적 UI~~ → **제거됨.** 어떤 매물 데이터와도 연결되지 않고 항상 동일한 아이콘·색·문구로 표시돼 실제로 확인/완료된 것처럼 오해를 줄 수 있었음. 같은 작업에서 매물 상세 화면(모바일 상단바)의 공유/찜(하트) 버튼도 함께 제거함 — `onClick`이 없어 눌러도 아무 동작을 안 했고, 코드베이스 전체에 찜/공유 기능을 구현한 흔적이 전혀 없어 완전히 장식용으로 남아있던 상태였음
+
+## 전수조사 결과 (2026-08-12)
+
+재확인 결과: 기존 "남은 이슈" 1번("사진 입력 UI 자체가 없음")과 7번("제목이 실제 저장값이 아님")이 실제로는 이미 해소돼 있었다 — `app/(main)/properties/register/page.tsx`/`PropertyEditClient.tsx`가 `title` 입력 필드를 갖고 있고 `mapPropertyListItemDto`/`mapPropertyDetailResponseDto`(`app/mappers/property.ts`)가 자동생성 문구 대신 `dto.title`을 그대로 쓰며, `app/ui/PropertyImageUploader.tsx` + `app/services/propertyImages.ts`가 presigned S3 업로드(`upload-url` → S3 PUT → `confirm`) 플로우를 통해 등록/수정 폼에서 실제로 사진을 첨부할 수 있다. 이 문서의 "남은 이슈" 목록이 그 이전 상태를 기준으로 작성돼 있어 실제 코드와 벌어져 있다 — 다음 업데이트 때 1/7번을 해소로 표시 필요. 아래는 이 재확인 과정에서 새로 발견한 것과, 문서 자체의 내부 불일치다.
+
+### 버그/정확성
+
+1. ~~문서 내부 불일치: "매물 목록 조회" 표(라인 43)는 "정렬 조건 적용 | ❌ 정렬 기능 없음"이라고 되어 있는데, 같은 문서의 "남은 이슈" 4번은 "정렬 UI(최신순/보증금↑↓/면적↑↓) 모두 추가됨"이라고 반대로 적혀 있다. 실제 코드를 확인한 결과 정렬 UI는 이미 존재한다.~~ — ✅ **(2026-08-12 해결)** 위 "매물 목록 조회" 표(라인 43)를 취소선+정정으로 반영해 문서 내부 모순을 해소함.
+2. **(2026-08-12 사용자 지적으로 재조사, 신규 발견) 매물 목록 화면에서 브라우저 뒤로/앞으로가기 시 필터 입력창이 실제 목록과 어긋난다.** `PropertiesClient.tsx:67-73`가 `region`/`propertyType`/`minArea`/`maxArea`/`minDeposit`/`maxDeposit` 등 필터 입력값을 `useState(filter.x ?? ...)`로 **최초 마운트 시 한 번만** seed한다. 부모 `page.tsx`는 `useSearchParams()`로 URL이 바뀔 때마다 새 `filter`를 계산해 내려주고 목록 데이터(`propertyPage`)는 `useEffect([page, filterKey])`로 정확히 재요청되지만, `PropertiesClient`는 리마운트되지 않으므로(같은 컴포넌트 인스턴스 유지) 이 새 `filter` prop이 로컬 `useState`에 반영되지 않는다. 즉 뒤로가기로 이전 필터 조건의 URL로 돌아가면 **목록(카드)은 정확한 결과로 바뀌지만 검색창/드롭다운은 방금 전 입력값을 계속 보여준다.** 흥미롭게도 같은 저장소의 `AdminDashboardClient.tsx`(66-68행)·`AdminUsersClient.tsx`(56-58행)·`AdminReportsClient.tsx`(70-72행)는 이미 이 정확히 같은 문제를 주석으로 설명하며 `useEffect`로 `filters` prop이 바뀔 때마다 로컬 state를 재동기화하는 처리를 해뒀다 — admin 3개 화면엔 이미 적용된 패턴이 매물 목록(그리고 아래 확인 필요하지만 유사 구조일 가능성이 있는 다른 필터 화면들)에는 빠져있는 상태다. 수정 방향: admin 컴포넌트들이 쓴 것과 동일하게 `useEffect(() => { setRegion(filter.region ?? ''); ... }, [filter])`를 추가하면 된다.
+
+### 보안
+
+1. 특별히 발견된 이슈 없음 — 이 도메인의 FE 코드는 인증/소유권 판단을 전부 Backend 응답에 위임하고 자체적으로 민감한 판단을 내리지 않는 구조라(기존 문서의 관찰과 동일), 이번 재조사에서도 FE 코드 자체에서 새로 발견된 보안 이슈는 없었다. (Backend 쪽 이미지 업로드 confirm 소유권 검증 누락은 `backend/docs/specs/property-design.md` 전수조사 결과 참고 — FE `propertyImages.ts`는 BE가 내려준 값을 그대로 쓸 뿐이라 FE 코드 자체의 결함은 아니다.)
+
+### 코드 품질 (중복/구조/일관성)
+
+1. `PropertyImageUploader.tsx`의 "대표사진(첫 이미지)" 기능은 주석에서도 명시하듯 BE가 이미지 순서를 보장하는 컬럼(`@OrderBy` 등) 없이 저장 시점 삽입 순서에만 의존한다는 것을 알고 있는 상태로 설계돼 있다(`backend property-design.md` 전수조사 결과의 `PropertyImage.sortOrder` 죽은 필드 항목과 동일 사안). FE가 이 한계를 인지하고 있다는 점은 긍정적이지만, 근본 해결은 BE가 순서를 실제로 보장해야 가능하므로 FE만으로 고칠 수 있는 문제는 아니다 — BE 수정과 함께 처리해야 함을 명시.
+2. `register/page.tsx:94`의 "매물 상세(/properties/{id})는 아직 실제 API 응답 형태에 안 맞춰져 있어 별도 이슈로 미뤄뒀다"는 주석은 실제로 `PropertyDetailClient`/`mapPropertyDetailResponseDto`가 이미 실제 `PropertyDetailResponseDto`를 정상 소비하는 것과 맞지 않는 낡은 주석이다(기존 "남은 이슈" 2번과 동일 사안이라 새 항목으로 세지는 않지만, 코드 재확인 결과 이 주석 자체가 근거를 잃은 상태임을 다시 확인함 — 등록 성공 후 목록이 아닌 상세로 이동하도록 바꾸는 작업과 이 주석 제거를 함께 처리하는 것을 권장).
+3. **(2026-08-12 사용자 지적으로 재조사) 상세/수정/체크리스트/위험분석 화면의 "뒤로" 버튼(`ArrowLeft`)이 실제 이전 화면이 아니라 고정 경로로 이동한다.** `PropertyDetailClient.tsx:84`·`PropertyEditClient.tsx:117`는 항상 `<Link href="/properties">`로, `ChecklistClient.tsx:161`·`RiskAnalysisClient.tsx:74`는 항상 `<Link href={`/properties/${propertyId}`}>`로 이동한다(`router.back()`이 아님). 필터/페이지를 적용해 매물 목록을 보다가 상세로 들어간 사용자가 상세에서 이 버튼을 누르면 필터가 초기화된 `/properties`(1페이지)로 돌아가 방금 보던 목록 맥락을 잃는다 — 위 버그 2번(필터 입력창 미동기화)과 별개로, "뒤로" 버튼 자체가 브라우저 히스토리를 타지 않는 설계라 URL 동기화를 완벽히 고쳐도 이 버튼을 눌렀을 때는 여전히 맥락이 끊긴다. 의도적 설계일 수도 있지만(목록 상태가 복잡해 항상 안전한 기본 목록으로 보내는 방어적 선택), 문서에 그 의도가 명시돼 있지 않다.
