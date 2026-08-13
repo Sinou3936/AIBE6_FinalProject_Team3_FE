@@ -100,8 +100,8 @@ Backend 문서의 같은 패턴이 FE에도 그대로 나타났었는데, risk-a
 
 ### 버그/정확성
 
-1. `app/types/api.ts`의 `ChecklistItemDto.helperText` 주석("Backend checklist_item_template.helper_text 컬럼(예정)")이 실제 구현 상태보다 낡았다. 이 문서 위쪽 표와 `checklist-design.md`에 따르면 helperText 컬럼은 2026-07-31에 이미 구현되어 FE 연동까지 끝났고(`app/mocks/init/checklist.ts`도 실제로 여러 항목에 긴 helperText 본문을 채워두고 있다), "(예정)"이라는 문구만 남아 아직 안 된 것처럼 보인다. 사소하지만 타입 정의 파일의 주석이라 다른 사람이 이 파일만 보고 "아직 구현 안 됐구나"로 오판할 수 있어 정정이 필요하다. (`app/types/api.ts:53`)
-2. `app/mocks/init/risk-analysis.ts`의 `initRiskSignalListDto`가 `SAME_ACCOUNT_MULTIPLE` 신호를 `status: 'SUCCESS'`(신호 발견됨)로 채워두고 있는데, 이 문서의 backend 쪽 설정(`risk-policy.multi-account-detection-enabled: false`, 2026-08-12 기준에도 여전히 꺼진 상태)에 따르면 실제 backend는 이 신호를 아직 계산하지 않는다("동일 계정 다수 등록 활성화 여부"는 여러 design 문서에 팀 결정 대기로 남아있는 항목이다). mock이 "나중에 켜질 상태"를 미리 SUCCESS로 보여주고 있어서, 이 mock만 보고 화면을 만들면 이 신호가 이미 살아있는 것으로 오해하기 쉽다. 심각하지 않지만 `status: 'UNDETERMINABLE'`로 바꾸거나, 주석으로 "현재 비활성 상태를 가정한 미래 값"임을 명시해두는 게 안전하다. (`app/mocks/init/risk-analysis.ts:22-27`)
+1. ~~`app/types/api.ts`의 `ChecklistItemDto.helperText` 주석("Backend checklist_item_template.helper_text 컬럼(예정)")이 실제 구현 상태보다 낡았다.~~ — ✅ **(2026-08-12 해결)** "(예정)" 문구를 제거해 이미 구현된 컬럼임을 정확히 반영.
+2. ~~`app/mocks/init/risk-analysis.ts`의 `initRiskSignalListDto`가 `SAME_ACCOUNT_MULTIPLE` 신호를 `status: 'SUCCESS'`(신호 발견됨)로 채워두고 있는데, 실제 backend는 이 신호를 아직 계산하지 않는다(`multi-account-detection-enabled: false`) — 이 mock만 보고 화면을 만들면 이 신호가 이미 살아있는 것으로 오해하기 쉽다.~~ — ✅ **(2026-08-12 해결)** 해당 항목 위에 "실제 backend는 아직 계산하지 않으며, 이 값은 목업/데모 확인용일 뿐"이라는 주석을 추가.
 
 ### 보안
 
@@ -109,8 +109,8 @@ Backend 문서의 같은 패턴이 FE에도 그대로 나타났었는데, risk-a
 
 ### 코드 품질 (중복/구조/일관성)
 
-1. `app/types/api.ts`의 `ApiResponse<T>`가 `{ success: boolean; data: T; error?: ApiErrorBody | null }`로 정의되어 있어 `data`가 항상 존재하는 것처럼 타입이 잡힌다. 그런데 실제 backend `ApiResponse` record는 `@JsonInclude(NON_NULL)`이라 실패 응답에는 `data` 필드 자체가 JSON에서 빠진다 — 즉 실패 시 `body.data`는 런타임에 `undefined`인데 타입은 `T`라고 주장한다. 지금은 `app/lib/api/http.ts`의 `finalizeResponse`가 `response.ok`/`error` 유무를 먼저 확인해 던지고, 그 이후에만 `body.data`를 반환하는 단일 통로라 실제 버그로 이어지진 않는다. 다만 타입 자체가 이 관계를 표현하지 못해서, 이 통로를 거치지 않고 `ApiResponse<T>`를 직접 다루는 코드가 새로 생기면 `success` 체크 없이 `.data`에 접근하는 실수를 컴파일 타임에 잡아줄 수 없다. `{ success: true; data: T; error?: null } | { success: false; data?: never; error: ApiErrorBody }` 같은 판별 유니온으로 바꾸면 이 위험을 원천적으로 없앨 수 있다.
-2. `UserTransactionTypeDto`(`'JEONSE' | 'WOLSE'`, `user` 도메인 선호 거래유형)와 `PropertyTransactionTypeDto`(`'JEONSE' | 'MONTHLY_RENT'`, `property` 도메인 실제 거래유형)가 같은 전세/월세 개념을 서로 다른 문자열(로마자 표기 vs 영문 의역)로 표현한다. 두 도메인이 독립적으로 설계된 결과로 보이며 지금은 실사용에 문제를 일으키지 않지만, 두 값을 한 화면에서 나란히 비교해야 하는 기능이 생기면(예: "선호 거래유형과 실제 매물 거래유형이 다릅니다" 안내) 매번 별도 매핑 코드가 필요하다. Backend 계약을 통일하는 건 스코프가 크므로, 최소한 `app/types/api.ts`에 두 타입이 서로 다른 표기를 쓴다는 주석을 남겨 향후 혼동을 줄이는 정도가 현실적이다.
+1. ~~`app/types/api.ts`의 `ApiResponse<T>`가 `{ success: boolean; data: T; error?: ApiErrorBody | null }`로 정의되어 있어 `data`가 항상 존재하는 것처럼 타입이 잡힌다. 그런데 실제 backend `ApiResponse` record는 `@JsonInclude(NON_NULL)`이라 실패 응답에는 `data` 필드 자체가 JSON에서 빠진다 — 즉 실패 시 `body.data`는 런타임에 `undefined`인데 타입은 `T`라고 주장한다.~~ — ✅ **(2026-08-12 해결)** `{ success: true; data: T; error?: null } | { success: false; data?: undefined; error: ApiErrorBody }` 판별 유니온으로 변경. 사용처가 `app/types/api.ts`(정의)와 `app/lib/api/http.ts`(단일 통로) 2곳뿐이라 블라스트 반경이 작음을 먼저 확인한 뒤 반영 — `readApiResponse`의 실패 폴백에서 더 이상 `data: undefined as T` 같은 캐스팅이 필요 없어졌고, `finalizeResponse`에서 `!body.success` 분기 이후 `body.data`가 `T`로 정확히 좁혀져(narrowing) 타입 안전성이 실제로 개선됨.
+2. ~~`UserTransactionTypeDto`(`'JEONSE' | 'WOLSE'`, `user` 도메인 선호 거래유형)와 `PropertyTransactionTypeDto`(`'JEONSE' | 'MONTHLY_RENT'`, `property` 도메인 실제 거래유형)가 같은 전세/월세 개념을 서로 다른 문자열로 표현한다.~~ — ✅ **(2026-08-12 해결)** Backend 계약을 통일하는 건 스코프가 커서, 대신 두 타입 선언부에 서로 다른 표기를 쓴다는 주석을 각각 추가.
 3. `app/mocks/init/**`의 구조 자체는 일관돼 있다 — 도메인마다 정확히 하나의 init 파일이 있고, 각각 대응하는 `app/repositories/{도메인}Repository.ts` 하나가 그 init 데이터를 소비하는 1:1 구조를 전 도메인이 동일하게 따른다(`admin.ts`→`adminRepository.ts`, `checklist.ts`→`checklistRepository.ts` 등). 별도의 공용 인덱스/매니페스트 파일이 없는 점도 이 1:1 구조상 자연스러워 문제로 보지 않았다.
 
 ## 테스트 코드 품질 전수조사 결과 (2026-08-12)
@@ -132,7 +132,7 @@ Backend 문서의 같은 패턴이 FE에도 그대로 나타났었는데, risk-a
 ### 기타 (비활성화된 테스트, 과도한 mock 의존, 플레이키 가능성)
 
 1. **`.skip`/`xit`/`xdescribe`/`.only`로 비활성화된 테스트는 저장소 전체에 없다** (`*.test.ts`/`*.test.tsx` 7개 파일 전체 grep 기준).
-2. **7개 파일 중 6개가 서비스 계층(`services/auth`, `services/adminActions`)을 `vi.mock`으로 완전히 대체한다** — `AdminReportsClient.test.tsx`/`AdminUsersClient.test.tsx`는 UI 상호작용(모달 확인/취소, 에러 리셋)만 검증하는 컴포넌트 테스트이므로 이 자체는 적절한 경계 설정이다. 다만 그 결과로 "실제 API 요청/응답 파싱이 올바른가"를 검증하는 테스트가 이 7개 파일 안에는 전혀 없다 — `http.refresh.test.ts`가 `fetch`를 직접 mock해 요청/응답 흐름을 검증하는 유일한 예외이고, 나머지는 모두 그보다 상위 계층(hooks/컴포넌트)의 오케스트레이션만 다룬다. 프로젝트 전체로 보면 "HTTP 계층 자체의 동작"과 "그 위에 얹힌 컴포넌트/훅의 오케스트레이션"이 나뉘어 테스트되고 있어 구조적으로는 합리적이지만, 두 계층 사이(예: 실제 `services/auth.ts`가 `http.ts`를 올바르게 호출하는지)를 잇는 테스트는 비어 있다.
+2. ~~**7개 파일 중 6개가 서비스 계층(`services/auth`, `services/adminActions`)을 `vi.mock`으로 완전히 대체한다** — ... 두 계층 사이(예: 실제 `services/auth.ts`가 `http.ts`를 올바르게 호출하는지)를 잇는 테스트는 비어 있다.~~ — ✅ **(2026-08-12 부분 해결, auth 범위)** `app/services/auth.test.ts`를 신설해 `services/auth.ts`가 `http.ts`를 mock하지 않고 실제로 거치는 통합 테스트를 추가함 — `getCurrentUser()`/`login()`/`logout()`이 실제로 만드는 요청 경로·메서드·바디, 성공 응답의 `data` 언래핑, 401 실패 응답이 `ApiError`(코드/메시지 보존)로 던져지는지, `isLoggedIn()`이 `requestJson` 경로를 타지 않아 401에도 예외 없이 `false`를 반환하는지까지 확인. 다른 도메인의 서비스 계층(`services/adminActions` 등)은 이번 범위(Auth/Admin/공통) 밖이라 같은 공백이 남아있음.
 3. **플레이키 가능성이 있는 시간/순서 의존 테스트는 발견하지 못했다** — `http.refresh.test.ts`가 `AbortController`/`vi.waitFor`로 비동기 순서를 다루지만 실제 타이머(`vi.useFakeTimers` 등)나 고정되지 않은 `sleep`에 의존하지 않고, pending Promise를 수동으로 resolve/reject하는 패턴(`resolveRefresh!(...)`)을 써서 타이밍 경쟁 없이 결정적으로 동작한다. 나머지 파일들도 `waitFor`/`findBy*`로 React 상태 업데이트를 기다릴 뿐 `setTimeout` 기반 로직을 테스트하는 곳은 없다.
 
 ## 홈 화면 및 공용 lib 유틸 전수조사 결과 (2026-08-12)

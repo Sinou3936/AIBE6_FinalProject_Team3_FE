@@ -357,7 +357,6 @@ async function readApiResponse<T>(response: Response): Promise<ApiResponse<T>> {
   } catch {
     return {
       success: false,
-      data: undefined as T,
       error: {
         code: 'INVALID_RESPONSE',
         message: 'API response is not valid JSON.',
