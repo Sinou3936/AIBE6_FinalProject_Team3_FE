@@ -244,8 +244,13 @@ export type FeatureCardData = {
   description: string;
 };
 
+// 랜딩페이지에서 비회원도 카드를 눌러 실제 결과 화면과 비슷한 정적 예시를 미리 볼 수 있게
+// 한다(LandingFeatureDemoModal 참고) - demoKey로 어떤 예시를 보여줄지 연결한다.
+export type LandingDemoKey = 'market' | 'contract' | 'deposit' | 'checklist';
+
 export type TonedFeatureCardData = FeatureCardData & {
   tone: string;
+  demoKey: LandingDemoKey;
 };
 
 export type SummaryItem = readonly [label: string, value: string];

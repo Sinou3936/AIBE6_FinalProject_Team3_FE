@@ -6,8 +6,10 @@ import { ArrowRight, CheckCircle2, Shield } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { landingFeatures, landingSummaryItems } from './data/landing';
 import { DevLoginButton } from './DevLoginButton';
+import { LandingFeatureDemoModal } from './LandingFeatureDemoModal';
 import { captureDevLoginKeyFromUrl, getStoredDevLoginKey } from './lib/devLoginKey';
 import { isLoggedIn as checkIsLoggedIn } from './services/auth';
+import { type LandingDemoKey } from './types/domain';
 import { Badge } from './ui/Badge';
 import { FeatureCard } from './ui/FeatureCard';
 
@@ -24,6 +26,9 @@ export default function Page() {
   // localStorage를 읽어버려 방금 들어온 `#devkey=` 부트스트랩 링크에서도 버튼이 숨는 문제가 생길 수
   // 있다. 캡처와 조회를 이 effect 하나 안에서 순서대로 실행해 그 경쟁을 원천적으로 없앤다.
   const [devLoginKey, setDevLoginKey] = useState<string | null>(null);
+  // 비회원도 카드를 눌러 실제 결과 화면과 비슷한 정적 예시를 볼 수 있게 한다 - 어떤 예시를
+  // 열었는지만 기억하면 되므로 클릭한 카드의 demoKey를 그대로 상태로 쓴다.
+  const [openDemoKey, setOpenDemoKey] = useState<LandingDemoKey | null>(null);
 
   useEffect(() => {
     // `/#devkey=...` 부트스트랩 링크로 들어온 경우 dev-login 열쇠를 localStorage에 저장하고
@@ -107,7 +112,8 @@ export default function Page() {
               처음 계약하는 사람에게 필요한 확인만 모았습니다
             </h2>
             <p className="text-slate-600">
-              확정 판단이 아니라, 계약 전 다시 물어봐야 할 신호를 빠르게 잡아주는 것이 목표입니다.
+              확정 판단이 아니라, 계약 전 다시 물어봐야 할 신호를 빠르게 잡아주는 것이 목표입니다. 카드를 눌러
+              실제 결과 화면 예시를 미리 볼 수 있어요.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -118,11 +124,14 @@ export default function Page() {
                 className="p-6"
                 iconClassName={`mb-5 h-11 w-11 rounded-xl p-3 ${feature.tone}`}
                 descriptionClassName="text-sm text-slate-600"
+                onClick={() => setOpenDemoKey(feature.demoKey)}
               />
             ))}
           </div>
         </div>
       </section>
+
+      <LandingFeatureDemoModal demoKey={openDemoKey} onClose={() => setOpenDemoKey(null)} ctaHref={startHref} />
 
       <section className="py-16">
         <div className="container mx-auto max-w-4xl px-4 text-center">
