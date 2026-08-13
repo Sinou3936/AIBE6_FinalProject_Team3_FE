@@ -49,7 +49,7 @@ Backend `docs/specs/auth-design.md`와 같은 성격의 **요구사항 명세서
 | 요구사항 | 실제 구현 |
 | --- | --- |
 | Access Token 서명/만료/사용자 상태 검증 | Backend 책임 — FE는 검증 로직 자체가 없음 |
-| 실패 시 접근 제한 | ✅ 2단계로 구현: ① `proxy.ts`가 보호 경로 진입 시 `access_token` 쿠키 존재만 가볍게 확인 ② `(main)/layout.tsx`가 `GET /auth/me` 실제 호출로 최종 확인, 실패 시 `/login?error=session_expired` |
+| 실패 시 접근 제한 | ✅ 2단계로 구현: ① `proxy.ts`가 보호 경로 진입 시 `access_token` 쿠키 존재만 가볍게 확인 ② ~~`(main)/layout.tsx`가 `GET /auth/me` 실제 호출로 최종 확인~~ — **(2026-08-13 정정)** `crossOriginAuth=false`(같은 도메인 배포)일 때만 이 경로. `crossOriginAuth=true`면 서버 컴포넌트 확인 자체를 건너뛰고 클라이언트 컴포넌트 `MainLayoutGate.tsx`가 브라우저에서 직접 `getCurrentUser()`를 호출해 확인한다(아래 "전수조사 결과" 코드품질 2번 참고). 실패 시 `/login?error=session_expired`로 보내는 결과는 두 경로 다 동일 |
 | 실패 사유 제공 | ✅ **화면 문구는 의도적으로 통합, 코드 분기는 구분해서 인식.** FE는 전부 동일한 "로그인 세션을 확인할 수 없습니다" 문구로 보여준다 — 토큰이 없든/무효하든/만료됐든 사용자가 취해야 할 행동은 "다시 로그인" 하나뿐이라 문구를 나눠도 실질적 이득이 없고, `AUTH_INVALID_CREDENTIALS`(이메일/비밀번호 오류 통합)와 같은 철학의 연장. **(2026-07-28)** 백엔드가 `ErrorCode.AUTH_TOKEN_MISSING`/`AUTH_TOKEN_INVALID`/`AUTH_TOKEN_EXPIRED`로 사유를 세분화하면서(`fix/auth-access_token&refresh_token` 브랜치, `dev` 머지 대기 중), FE의 "재로그인 필요 여부" 판단 로직(`isSessionInvalidErrorCode`)이 이 네 코드를 전부 인식하도록 갱신했다 — **화면에 보여줄 문구를 나누자는 게 아니라, "재로그인 페이지로 보낼지 말지"를 정확히 판단하려면 새 코드들도 "세션 무효"로 인식해야 하기 때문**(안 그러면 만료/무효 케이스에서 재로그인 유도 자체가 아예 안 걸림 — 아래 "남은 이슈 2번" 참고). 사유별로 다른 문구/로깅이 필요해지면 이 함수 내부만 확장하면 됨 |
 
 ## 토큰 재발급 — 요구사항 대비

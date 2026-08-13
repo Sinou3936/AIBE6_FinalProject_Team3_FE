@@ -41,7 +41,7 @@
 
 ### 3. 파일/이미지 업로드가 어느 도메인에도 실제로 구현되어 있지 않음
 
-**(2026-08-07 정정)** `contract-analysis`는 이미지 업로드(드래그앤드롭/파일선택/미리보기, JPG·PNG 형식 검증)가 실제로 구현됐습니다 — 아래는 이제 `user`/`property` 두 도메인에만 해당합니다. `contract-analysis`도 여전히 크기 제한 검증은 없어서, 그 부분만 셋이 같은 처지입니다.
+**(2026-08-07 정정)** `contract-analysis`는 이미지 업로드(드래그앤드롭/파일선택/미리보기, JPG·PNG 형식 검증)가 실제로 구현됐습니다 — 아래는 이제 `user`/`property` 두 도메인에만 해당합니다. ~~`contract-analysis`도 여전히 크기 제한 검증은 없어서, 그 부분만 셋이 같은 처지입니다.~~ — **(2026-08-12 정정)** 더 이상 사실이 아님. `upload/page.tsx`에 이미 `MAX_IMAGE_SIZE_BYTES`(10MB) 클라이언트 검증이 구현돼 있음(`contract-analysis-design.md` 전수조사 결과 참고) — 크기 검증이 없는 건 `user`/`property` 두 도메인뿐.
 
 - `user`: 프로필 사진 — `<input type="url">`로 URL 문자열만 입력받음(파일 업로드 아님)
 - `property`: 매물 사진 — 입력 UI 자체가 없음(표시 준비는 되어 있는데 넣을 방법이 없음)
