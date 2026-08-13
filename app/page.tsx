@@ -69,11 +69,8 @@ export default function Page() {
               <Link href={startHref} className="ansim-button-primary px-7 py-4 text-base">
                 내 조건으로 시작하기 <ArrowRight className="h-5 w-5" />
               </Link>
-              <Link
-                href={loggedIn ? '/contract/upload' : `/login?next=${encodeURIComponent('/contract/upload')}`}
-                className="ansim-button-secondary px-7 py-4 text-base"
-              >
-                계약서 바로 분석하기
+              <Link href="/preview/market" className="ansim-button-secondary px-7 py-4 text-base">
+                회원가입 없이 예시보기
               </Link>
             </div>
           </div>
