@@ -9,9 +9,11 @@ vi.mock('next/navigation', () => ({
 
 const updateAdminUserRole = vi.fn();
 const updateAdminUserStatus = vi.fn();
+const bulkUpdateAdminUserStatus = vi.fn();
 vi.mock('../../../services/adminActions', () => ({
   updateAdminUserRole: (...args: unknown[]) => updateAdminUserRole(...args),
   updateAdminUserStatus: (...args: unknown[]) => updateAdminUserStatus(...args),
+  bulkUpdateAdminUserStatus: (...args: unknown[]) => bulkUpdateAdminUserStatus(...args),
 }));
 
 function user(overrides: Partial<AdminUserListItemDto>): AdminUserListItemDto {
@@ -146,5 +148,83 @@ describe('AdminUsersClient', () => {
 
     await waitFor(() => expect(screen.getByText('정지 처리에 실패했습니다.')).toBeInTheDocument());
     expect(screen.getByText('이 유저를 정지할까요?')).toBeInTheDocument();
+  });
+
+  // 탈퇴 유저/본인 계정은 단건 액션 버튼도 이미 숨긴다(위 테스트 참고) - 일괄처리 체크박스도
+  // 같은 이유로 같은 대상을 선택 불가로 막아야 한다.
+  it('본인 계정과 탈퇴한 유저의 체크박스는 비활성화된다', () => {
+    render(
+      <AdminUsersClient
+        data={page([
+          user({ id: 1, nickname: '관리자', role: 'ADMIN' }),
+          user({ id: 2, nickname: '탈퇴유저', status: 'WITHDRAWN' }),
+          user({ id: 3, nickname: '일반유저' }),
+        ])}
+        filters={filters}
+        currentUserId={1}
+      />,
+    );
+
+    const checkboxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+    // 0번은 헤더(전체선택), 1~3번이 각 행(관리자 본인/탈퇴유저/일반유저) 순서.
+    expect(checkboxes[1]).toBeDisabled();
+    expect(checkboxes[2]).toBeDisabled();
+    expect(checkboxes[3]).not.toBeDisabled();
+  });
+
+  it('체크박스로 선택하면 일괄처리 액션바가 나타나고, 일괄 정지를 확인하면 선택된 id로 bulkUpdateAdminUserStatus를 호출한다', async () => {
+    bulkUpdateAdminUserStatus.mockResolvedValueOnce({ succeededIds: [2, 3], failures: [] });
+    const onMutated = vi.fn();
+
+    render(
+      <AdminUsersClient
+        data={page([user({ id: 2, nickname: '유저둘' }), user({ id: 3, nickname: '유저셋' })])}
+        filters={filters}
+        currentUserId={1}
+        onMutated={onMutated}
+      />,
+    );
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[1]);
+    fireEvent.click(checkboxes[2]);
+
+    expect(screen.getByText('2명 선택됨')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '선택 정지' }));
+    expect(screen.getByText('선택한 2명을 정지할까요?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '확인' }));
+
+    await waitFor(() =>
+      expect(bulkUpdateAdminUserStatus).toHaveBeenCalledWith({ userIds: [2, 3], status: 'SUSPENDED' }),
+    );
+    expect(await screen.findByText('일괄 처리 결과')).toBeInTheDocument();
+    expect(screen.getByText('성공 2명')).toBeInTheDocument();
+    expect(onMutated).toHaveBeenCalledTimes(1);
+  });
+
+  it('일괄처리가 부분 실패하면 결과 모달에 실패 항목을 보여준다', async () => {
+    bulkUpdateAdminUserStatus.mockResolvedValueOnce({
+      succeededIds: [2],
+      failures: [{ id: 3, errorCode: 'ADMIN_LAST_ADMIN_ACCOUNT', message: '마지막 남은 관리자 계정은 강등하거나 정지할 수 없습니다.' }],
+    });
+
+    render(
+      <AdminUsersClient
+        data={page([user({ id: 2, nickname: '유저둘' }), user({ id: 3, nickname: '유저셋', role: 'ADMIN' })])}
+        filters={filters}
+        currentUserId={1}
+      />,
+    );
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]); // 전체 선택
+
+    fireEvent.click(screen.getByRole('button', { name: '선택 정지' }));
+    fireEvent.click(screen.getByRole('button', { name: '확인' }));
+
+    expect(await screen.findByText('성공 1명, 실패 1명')).toBeInTheDocument();
+    expect(screen.getByText(/마지막 남은 관리자 계정은 강등하거나 정지할 수 없습니다/)).toBeInTheDocument();
   });
 });
