@@ -41,7 +41,7 @@ export default async function SignupPage() {
         </p>
 
         <Link href="/" className="mt-6 block text-center text-xs text-slate-400 hover:text-slate-600">
-          랜딩 페이지로 돌아가기
+          홈페이지로 돌아가기
         </Link>
       </div>
     </div>
