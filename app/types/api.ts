@@ -491,6 +491,19 @@ export type AdminUserStatusUpdateRequestDto = {
   status: 'ACTIVE' | 'SUSPENDED';
 };
 
+export type AdminUserBulkStatusUpdateRequestDto = {
+  userIds: number[];
+  status: 'ACTIVE' | 'SUSPENDED';
+};
+
+// 일괄 처리는 원자적 전체성공/전체실패가 아니라 항목별로 성공/실패가 갈릴 수 있다(자기 자신 변경
+// 금지, 마지막 관리자 보호 등 기존 단건 API의 가드가 그대로 적용됨) - backend
+// AdminBulkActionResponse와 대응.
+export type AdminBulkActionResponseDto = {
+  succeededIds: number[];
+  failures: { id: number; errorCode: string; message: string }[];
+};
+
 // --- 관리자 페이지: 매물 신고 검토 (GET/PATCH /admin/property-reports) ---
 
 export type AdminPropertyReportStatusDto = 'RECEIVED' | 'RESOLVED' | 'REJECTED';
@@ -529,6 +542,12 @@ export type AdminPropertyReportDetailDto = {
 
 // status는 RESOLVED/REJECTED만 허용한다 - RECEIVED로 되돌리는 것은 이 API의 목적이 아니다.
 export type AdminPropertyReportReviewRequestDto = {
+  status: 'RESOLVED' | 'REJECTED';
+  memo?: string;
+};
+
+export type AdminPropertyReportBulkReviewRequestDto = {
+  reportIds: number[];
   status: 'RESOLVED' | 'REJECTED';
   memo?: string;
 };

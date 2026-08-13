@@ -1,4 +1,5 @@
 import {
+  type AdminBulkActionResponseDto,
   type AdminChecklistItemTemplateCreateRequestDto,
   type AdminChecklistItemTemplateDto,
   type AdminChecklistItemTemplateUpdateRequestDto,
@@ -96,6 +97,27 @@ export function updateMockAdminUserStatus(userId: number, status: AdminUserStatu
   return toUserDetail(user);
 }
 
+// 실제 backend(AdminUserService.bulkUpdateStatus)와 달리 자기 자신/마지막 관리자 가드는 재현하지
+// 않는다 - 이 mock 계층의 다른 단건 함수들도 그 가드 없이 상태만 그대로 반영하는 것과 일관된다.
+// "존재하지 않는 id"만 실패로 담아, UI가 실제로 부분 실패 결과를 어떻게 그리는지는 검증할 수 있게 한다.
+export function bulkUpdateMockAdminUserStatus(
+  userIds: number[],
+  status: 'ACTIVE' | 'SUSPENDED',
+): AdminBulkActionResponseDto {
+  const succeededIds: number[] = [];
+  const failures: AdminBulkActionResponseDto['failures'] = [];
+  for (const userId of userIds) {
+    const user = mockUsers.find((candidate) => candidate.id === userId);
+    if (!user) {
+      failures.push({ id: userId, errorCode: 'ADMIN_USER_NOT_FOUND', message: '존재하지 않는 사용자입니다.' });
+      continue;
+    }
+    user.status = status;
+    succeededIds.push(userId);
+  }
+  return { succeededIds, failures };
+}
+
 export function getMockAdminPropertyReports(
   params: AdminPropertyReportSearchParams = {},
 ): PageResponseDto<AdminPropertyReportListItemDto> {
@@ -125,6 +147,31 @@ export function reviewMockAdminPropertyReport(
   detail.reviewMemo = request.memo ?? null;
   listItem.status = request.status;
   return detail;
+}
+
+// 실제 backend(AdminPropertyReportService.bulkReview)와 달리 본인 신고 셀프검토 금지 가드는
+// 재현하지 않는다 - reviewMockAdminPropertyReport와 동일하게 "존재하지 않는 id"만 실패로 담는다.
+export function bulkReviewMockAdminPropertyReports(
+  reportIds: number[],
+  request: AdminPropertyReportReviewRequestDto,
+): AdminBulkActionResponseDto {
+  const succeededIds: number[] = [];
+  const failures: AdminBulkActionResponseDto['failures'] = [];
+  for (const reportId of reportIds) {
+    const detail = mockReportDetails[reportId];
+    const listItem = mockReports.find((report) => report.id === reportId);
+    if (!detail || !listItem) {
+      failures.push({ id: reportId, errorCode: 'ADMIN_PROPERTY_REPORT_NOT_FOUND', message: '존재하지 않는 신고입니다.' });
+      continue;
+    }
+    detail.status = request.status;
+    detail.reviewerId = 1;
+    detail.reviewedAt = new Date().toISOString().slice(0, 10);
+    detail.reviewMemo = request.memo ?? null;
+    listItem.status = request.status;
+    succeededIds.push(reportId);
+  }
+  return { succeededIds, failures };
 }
 
 export type MockAdminDashboardParams = {
