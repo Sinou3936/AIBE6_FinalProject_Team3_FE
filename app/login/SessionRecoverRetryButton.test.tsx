@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../lib/api/http';
 import { SessionRecoverRetryButton } from './SessionRecoverRetryButton';
 
 const getCurrentUser = vi.fn();
@@ -46,5 +47,19 @@ describe('SessionRecoverRetryButton', () => {
     fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
 
     await waitFor(() => expect(window.location.href).toBe('/mypage'));
+  });
+
+  // (2026-08-12 추가) getCurrentUser()가 일시적 네트워크/서버 장애(isUnreachableError)로
+  // reject되면, 페이지 이동을 시작하지 않고 버튼을 다시 누를 수 있는 상태(retrying=false)로
+  // 되돌려야 한다 - 이 catch 분기를 지키는 테스트가 없어서, 조건을 반대로 바꾸거나
+  // setRetrying(false)를 지워도 잡아낼 수 없었다.
+  it('일시적 오류로 실패하면 이동하지 않고 다시 시도할 수 있는 상태로 되돌아온다', async () => {
+    getCurrentUser.mockRejectedValueOnce(new ApiError('network error', 0));
+
+    render(<SessionRecoverRetryButton next="/mypage" />);
+    fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+
+    expect(await screen.findByRole('button', { name: '다시 시도' })).not.toBeDisabled();
+    expect(window.location.href).toBe('');
   });
 });

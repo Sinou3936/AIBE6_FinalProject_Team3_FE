@@ -5,11 +5,9 @@ export type ApiErrorBody = {
   message: string;
 };
 
-export type ApiResponse<T> = {
-  success: boolean;
-  data: T;
-  error?: ApiErrorBody | null;
-};
+export type ApiResponse<T> =
+  | { success: true; data: T; error?: null }
+  | { success: false; data?: undefined; error: ApiErrorBody };
 
 // BE PageResponse<T> 그대로 - Spring Data Pageable 기반 목록 조회 응답의 공용 래퍼.
 export type PageResponseDto<T> = {
@@ -50,7 +48,7 @@ export type ChecklistItemDto = {
   category: ChecklistCategoryDto;
   content: string;
   guideText: string | null;
-  // Backend checklist_item_template.helper_text 컬럼(예정) — 일부 필수 항목에만 값이 있고 나머지는 null.
+  // Backend checklist_item_template.helper_text 컬럼 — 일부 필수 항목에만 값이 있고 나머지는 null.
   helperText: string | null;
   importance: ChecklistImportanceDto;
   itemType: ChecklistItemTypeDto;
@@ -227,6 +225,9 @@ export type PasswordPolicyDto = {
   message: string;
 };
 
+// 관심 거래유형(User 도메인) 표기 - property 도메인의 PropertyTransactionTypeDto와 같은
+// 전세/월세 개념이지만 표기가 다르다('WOLSE' vs 'MONTHLY_RENT'). 두 값을 한 화면에서 비교해야
+// 하면 매핑이 필요하니 그대로 비교하지 말 것.
 export type UserTransactionTypeDto = 'JEONSE' | 'WOLSE';
 
 export type UserProfileDto = {
@@ -286,6 +287,8 @@ export type NicknameCheckResponseDto = {
 // 체크리스트 등)까지 포함한 목업 전용 타입이라 분리해서 둔다) ---
 
 export type PropertyTypeDto = 'OFFICETEL' | 'MULTI_FAMILY' | 'DETACHED_HOUSE';
+// User 도메인의 UserTransactionTypeDto와 같은 전세/월세 개념이지만 표기가 다르다
+// ('MONTHLY_RENT' vs 'WOLSE'). 두 값을 한 화면에서 비교해야 하면 매핑이 필요하니 그대로 비교하지 말 것.
 export type PropertyTransactionTypeDto = 'JEONSE' | 'MONTHLY_RENT';
 export type PropertyStatusDto = 'ACTIVE' | 'DELETED';
 
@@ -530,10 +533,13 @@ export type AdminPropertyReportReviewRequestDto = {
 
 // --- 관리자 페이지: 통계 대시보드 (GET /admin/stats/dashboard) ---
 
+// 세 값 전부 "전체 누적"이 아니라 대시보드 조회 기간 내 신규 발생분이다(backend
+// AdminStatsService.summary() 참고) - 예전 필드명(totalUsers 등)이 이 사실과 반대로 읽혀
+// API 계약을 헷갈리게 했던 것을 backend와 함께 정정했다.
 export type AdminStatsSummaryDto = {
-  totalUsers: number;
-  totalProperties: number;
-  pendingReports: number;
+  newUsers: number;
+  newProperties: number;
+  newPendingReports: number;
 };
 
 export type AdminStatsTrendPointDto = { date: string; count: number };
