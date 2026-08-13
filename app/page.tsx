@@ -70,7 +70,7 @@ export default function Page() {
                 내 조건으로 시작하기 <ArrowRight className="h-5 w-5" />
               </Link>
               <Link href="/preview/market" className="ansim-button-secondary px-7 py-4 text-base">
-                회원가입 없이 둘러보기
+                회원가입 없이 예시보기
               </Link>
             </div>
           </div>
