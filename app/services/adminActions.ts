@@ -1,6 +1,8 @@
 import { useMockData } from '../config/dataSource';
 import { requestJson } from '../lib/api/http';
 import {
+  bulkReviewMockAdminPropertyReports,
+  bulkUpdateMockAdminUserStatus,
   createMockAdminChecklistItemTemplate,
   deleteMockAdminChecklistItemTemplate,
   getMockAdminPropertyReportDetail,
@@ -10,11 +12,14 @@ import {
   updateMockAdminUserStatus,
 } from '../repositories/adminRepository';
 import {
+  type AdminBulkActionResponseDto,
   type AdminChecklistItemTemplateCreateRequestDto,
   type AdminChecklistItemTemplateDto,
   type AdminChecklistItemTemplateUpdateRequestDto,
+  type AdminPropertyReportBulkReviewRequestDto,
   type AdminPropertyReportDetailDto,
   type AdminPropertyReportReviewRequestDto,
+  type AdminUserBulkStatusUpdateRequestDto,
   type AdminUserDetailDto,
   type AdminUserRoleUpdateRequestDto,
   type AdminUserStatusUpdateRequestDto,
@@ -58,6 +63,18 @@ export async function updateAdminUserStatus(
   });
 }
 
+export async function bulkUpdateAdminUserStatus(
+  request: AdminUserBulkStatusUpdateRequestDto,
+): Promise<AdminBulkActionResponseDto> {
+  if (useMockData) {
+    return bulkUpdateMockAdminUserStatus(request.userIds, request.status);
+  }
+  return requestJson<AdminBulkActionResponseDto>('/admin/users/bulk-status', {
+    method: 'PATCH',
+    body: JSON.stringify(request),
+  });
+}
+
 export async function getAdminPropertyReportDetail(reportId: number): Promise<AdminPropertyReportDetailDto> {
   if (useMockData) {
     return ensureFound(getMockAdminPropertyReportDetail(reportId), '신고를 찾을 수 없습니다.');
@@ -73,6 +90,18 @@ export async function reviewAdminPropertyReport(
     return ensureFound(reviewMockAdminPropertyReport(reportId, request), '신고를 찾을 수 없습니다.');
   }
   return requestJson<AdminPropertyReportDetailDto>(`/admin/property-reports/${reportId}/review`, {
+    method: 'PATCH',
+    body: JSON.stringify(request),
+  });
+}
+
+export async function bulkReviewAdminPropertyReports(
+  request: AdminPropertyReportBulkReviewRequestDto,
+): Promise<AdminBulkActionResponseDto> {
+  if (useMockData) {
+    return bulkReviewMockAdminPropertyReports(request.reportIds, { status: request.status, memo: request.memo });
+  }
+  return requestJson<AdminBulkActionResponseDto>('/admin/property-reports/bulk-review', {
     method: 'PATCH',
     body: JSON.stringify(request),
   });

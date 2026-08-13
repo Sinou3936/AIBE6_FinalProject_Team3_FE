@@ -136,10 +136,13 @@ export type OcrExtractResponseDto = {
 // upload -> result 페이지 전달용 조합 페이로드. 백엔드가 내려주는 단일 응답이 아니라, OCR 단계의
 // uncertainFields와 마스킹 단계의 maskedText/maskedCount를 FE가 한 번에 묶어 query string에 싣는다.
 // 텍스트 직접 입력 경로는 OCR을 안 거치므로 uncertainFields가 항상 빈 배열이다.
+// propertyId는 매물 상세/체크리스트 화면에서 "계약분석하기"로 넘어온 경우에만 있고, 그 외에는
+// undefined - result 페이지가 "계약 체크리스트로 이동" 버튼을 보여줄지 결정하는 데도 쓰인다.
 export type ContractMaskingReviewPayload = {
   maskedText: string;
   maskedCount: number;
   uncertainFields: ContractOcrUncertainField[];
+  propertyId?: number;
 };
 
 export type ContractMaskingRequestDto = {
@@ -402,6 +405,8 @@ export type PropertyListItemDto = {
   signalSummary: string | null;
   // DepositSafetyCheck.status가 CALCULATED일 때만 값 존재(percent 정수, "%" 미포함).
   jeonseRatio: number | null;
+  // 가장 먼저 업로드된 이미지 URL. 매물에 이미지가 한 장도 없으면 null.
+  representativeImageUrl: string | null;
 };
 
 export type PropertyDetailAddressDto = {
@@ -495,6 +500,19 @@ export type AdminUserStatusUpdateRequestDto = {
   status: 'ACTIVE' | 'SUSPENDED';
 };
 
+export type AdminUserBulkStatusUpdateRequestDto = {
+  userIds: number[];
+  status: 'ACTIVE' | 'SUSPENDED';
+};
+
+// 일괄 처리는 원자적 전체성공/전체실패가 아니라 항목별로 성공/실패가 갈릴 수 있다(자기 자신 변경
+// 금지, 마지막 관리자 보호 등 기존 단건 API의 가드가 그대로 적용됨) - backend
+// AdminBulkActionResponse와 대응.
+export type AdminBulkActionResponseDto = {
+  succeededIds: number[];
+  failures: { id: number; errorCode: string; message: string }[];
+};
+
 // --- 관리자 페이지: 매물 신고 검토 (GET/PATCH /admin/property-reports) ---
 
 export type AdminPropertyReportStatusDto = 'RECEIVED' | 'RESOLVED' | 'REJECTED';
@@ -533,6 +551,12 @@ export type AdminPropertyReportDetailDto = {
 
 // status는 RESOLVED/REJECTED만 허용한다 - RECEIVED로 되돌리는 것은 이 API의 목적이 아니다.
 export type AdminPropertyReportReviewRequestDto = {
+  status: 'RESOLVED' | 'REJECTED';
+  memo?: string;
+};
+
+export type AdminPropertyReportBulkReviewRequestDto = {
+  reportIds: number[];
   status: 'RESOLVED' | 'REJECTED';
   memo?: string;
 };

@@ -3,8 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
-import { getAdminPropertyReportDetail, reviewAdminPropertyReport } from '../../../services/adminActions';
 import {
+  bulkReviewAdminPropertyReports,
+  getAdminPropertyReportDetail,
+  reviewAdminPropertyReport,
+} from '../../../services/adminActions';
+import {
+  type AdminBulkActionResponseDto,
   type AdminPropertyReportDetailDto,
   type AdminPropertyReportListItemDto,
   type AdminPropertyReportStatusDto,
@@ -53,6 +58,15 @@ const STATUS_TONE: Record<AdminPropertyReportStatusDto, string> = {
   REJECTED: 'bg-slate-100 text-slate-500',
 };
 
+type ReportBulkAction = { status: 'RESOLVED' | 'REJECTED' };
+
+// 이미 조치완료/반려된 신고는 backend가 RECEIVED만 재검토 대상으로 허용한다(transitionTo 참고) -
+// 상세 모달의 처리 버튼도 RECEIVED일 때만 보여주는 것과 같은 이유로, 일괄처리 체크박스 대상도
+// RECEIVED로만 제한한다.
+function isReportBulkSelectable(row: AdminPropertyReportListItemDto): boolean {
+  return row.status === 'RECEIVED';
+}
+
 export function AdminReportsClient({ data, loadError, filters, onMutated }: AdminReportsClientProps) {
   const router = useRouter();
   const [status, setStatus] = useState(filters.status);
@@ -67,6 +81,13 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
   // 호출하지 않고 확인 단계를 한 번 거치게 한다.
   const [pendingStatus, setPendingStatus] = useState<'RESOLVED' | 'REJECTED' | null>(null);
 
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkAction, setBulkAction] = useState<ReportBulkAction | null>(null);
+  const [bulkMemo, setBulkMemo] = useState('');
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [bulkError, setBulkError] = useState<string | undefined>();
+  const [bulkResult, setBulkResult] = useState<AdminBulkActionResponseDto | null>(null);
+
   // 필터 select의 로컬 state는 useState(filters.x)로 최초 1회만 seed되므로, 브라우저 뒤로/앞으로
   // 가기로 filters props만 바뀌는 경우엔 반영되지 않아 테이블은 새 필터 결과를 보여주는데 select는
   // 이전 값을 계속 보여주는 것처럼 어긋난다. filters가 바뀔 때마다 로컬 state를 다시 맞춰준다.
@@ -76,6 +97,13 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
     setStatus(filters.status);
     setReason(filters.reason);
   }, [filters.status, filters.reason]);
+
+  // data가 바뀔 때(필터 이동/페이지 이동/일괄처리 후 재조회)마다 선택 상태를 비운다 - 이전 목록에서
+  // 선택했던 id가 새 목록에 없는 채로 남아있으면 "선택 N건"이 실제 화면과 어긋나 보인다.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedIds(new Set());
+  }, [data]);
 
   function navigate(next: Partial<Filters & { page: number }>) {
     const merged = { status, reason, page: 0, ...next };
@@ -131,6 +159,61 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
     }
   }
 
+  function toggleSelect(key: string | number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key as number)) {
+        next.delete(key as number);
+      } else {
+        next.add(key as number);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAll(selectableRows: AdminPropertyReportListItemDto[]) {
+    setSelectedIds((prev) => {
+      const allSelected = selectableRows.length > 0 && selectableRows.every((row) => prev.has(row.id));
+      const next = new Set(prev);
+      selectableRows.forEach((row) => {
+        if (allSelected) {
+          next.delete(row.id);
+        } else {
+          next.add(row.id);
+        }
+      });
+      return next;
+    });
+  }
+
+  function closeBulkModal() {
+    setBulkAction(null);
+    setBulkResult(null);
+    setBulkError(undefined);
+    setBulkMemo('');
+  }
+
+  async function confirmBulkAction() {
+    if (!bulkAction) return;
+    setBulkSubmitting(true);
+    setBulkError(undefined);
+    try {
+      const result = await bulkReviewAdminPropertyReports({
+        reportIds: Array.from(selectedIds),
+        status: bulkAction.status,
+        memo: bulkMemo.trim() || undefined,
+      });
+      setBulkAction(null);
+      setBulkResult(result);
+      setSelectedIds(new Set());
+      onMutated?.();
+    } catch (error) {
+      setBulkError(resolveErrorMessage(error, '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'));
+    } finally {
+      setBulkSubmitting(false);
+    }
+  }
+
   return (
     <div>
       <h1 className="ansim-page-title mb-6">신고 관리</h1>
@@ -170,9 +253,41 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
         <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
       )}
 
+      {selectedIds.size > 0 && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-100 bg-teal-50 px-4 py-3">
+          <span className="text-sm font-bold text-teal-700">{selectedIds.size}건 선택됨</span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setBulkAction({ status: 'RESOLVED' })}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            >
+              선택 조치완료
+            </button>
+            <button
+              onClick={() => setBulkAction({ status: 'REJECTED' })}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50"
+            >
+              선택 반려
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="rounded-lg px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-slate-600"
+            >
+              선택 해제
+            </button>
+          </div>
+        </div>
+      )}
+
       {data && (
         <>
           <Table
+            selection={{
+              selectedKeys: selectedIds,
+              onToggle: toggleSelect,
+              onToggleAll: toggleSelectAll,
+              isRowSelectable: isReportBulkSelectable,
+            }}
             columns={[
               { key: 'id', header: 'ID', render: (row) => row.id },
               { key: 'propertyAddress', header: '매물 주소', render: (row) => row.propertyAddress ?? '-' },
@@ -336,6 +451,69 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
               </div>
             )}
           </div>
+        )}
+      </Modal>
+
+      <Modal open={bulkAction !== null || bulkResult !== null} onClose={() => (bulkSubmitting ? undefined : closeBulkModal())}>
+        {bulkResult ? (
+          <div>
+            <h2 className="mb-2 text-lg font-bold text-slate-950">일괄 처리 결과</h2>
+            <p className="mb-3 text-sm text-slate-700">
+              성공 {bulkResult.succeededIds.length}건
+              {bulkResult.failures.length > 0 ? `, 실패 ${bulkResult.failures.length}건` : ''}
+            </p>
+            {bulkResult.failures.length > 0 && (
+              <ul className="mb-4 max-h-40 space-y-1 overflow-y-auto rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+                {bulkResult.failures.map((failure) => (
+                  <li key={failure.id}>
+                    ID {failure.id}: {failure.message}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="flex justify-end">
+              <button onClick={closeBulkModal} className="ansim-button-primary px-4 py-2 text-sm">
+                확인
+              </button>
+            </div>
+          </div>
+        ) : (
+          bulkAction && (
+            <div>
+              <h2 className="mb-2 text-lg font-bold text-slate-950">
+                선택한 {selectedIds.size}건을 {bulkAction.status === 'RESOLVED' ? '조치완료' : '반려'} 처리할까요? 처리
+                후에는 되돌릴 수 없습니다.
+              </h2>
+              <label className="mb-1 block text-xs font-bold text-slate-600">
+                처리 메모 (선택, 선택한 항목 전체에 동일하게 적용됩니다, {bulkMemo.length}/{MEMO_MAX_LENGTH}자)
+              </label>
+              <textarea
+                value={bulkMemo}
+                onChange={(event) => setBulkMemo(event.target.value)}
+                rows={2}
+                maxLength={MEMO_MAX_LENGTH}
+                placeholder="처리 메모 (선택)"
+                className="ansim-input mb-3 w-full resize-none"
+              />
+              {bulkError && <p className="mb-3 text-sm text-red-600">{bulkError}</p>}
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={closeBulkModal}
+                  disabled={bulkSubmitting}
+                  className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={confirmBulkAction}
+                  disabled={bulkSubmitting}
+                  className="ansim-button-primary px-4 py-2 text-sm disabled:opacity-50"
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          )
         )}
       </Modal>
     </div>

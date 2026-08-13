@@ -372,7 +372,7 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
           </button>
 
           <Link
-            href="/contract/upload"
+            href={`/contract/upload?propertyId=${propertyId}`}
             className="ansim-button-secondary flex flex-1 items-center justify-center gap-2 px-5 py-3"
           >
             특약사항도 AI로 분석해보세요 <ArrowRight className="h-4 w-4" />
