@@ -14,6 +14,8 @@ import {
   TrendingUp,
   Volume2,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { isLoggedIn as checkIsLoggedIn } from '../../services/auth';
 import { type LandingDemoKey } from '../../types/domain';
 import { Badge } from '../../ui/Badge';
 
@@ -305,6 +307,21 @@ const BODIES: Record<LandingDemoKey, () => React.JSX.Element> = {
 
 export function PreviewClient({ demoKey }: PreviewClientProps) {
   const Body = BODIES[demoKey];
+  // 비회원 전용 미리보기라 기본값은 '/login'이지만, 이미 로그인된 사용자가 이 페이지를 보고
+  // CTA를 누르면 로그인 폼을 다시 보게 되는 어색함을 막기 위해 랜딩페이지(app/page.tsx)와
+  // 동일한 방식으로 로그인 여부를 확인한다(실패해도 강제 이동시키지 않는 비강제 확인용 -
+  // services/auth.ts의 isLoggedIn() 참고).
+  const [loggedIn, setLoggedIn] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    checkIsLoggedIn().then((result) => {
+      if (!cancelled) setLoggedIn(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const ctaHref = loggedIn ? '/home' : '/login';
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -336,7 +353,7 @@ export function PreviewClient({ demoKey }: PreviewClientProps) {
           <p className="text-sm text-slate-600">
             실제 값은 매물/계약서 정보에 따라 달라져요. 내 매물로 직접 확인해보세요.
           </p>
-          <Link href="/login" className="ansim-button-primary px-7 py-3">
+          <Link href={ctaHref} className="ansim-button-primary px-7 py-3">
             무료로 시작하기 <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
