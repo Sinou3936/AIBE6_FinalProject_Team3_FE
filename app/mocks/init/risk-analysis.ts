@@ -48,8 +48,13 @@ export const initDepositSafetyCheckDto: DepositSafetyCheckDto = {
   maxClaimAmount: null,
   explanation: '전세가율이 80%를 넘어 보증금 반환에 다소 주의가 필요해요.',
   referenceDate: '2026-07-28',
+  sampleCount: 5,
+  radiusMeters: 300,
   reason: null,
   calculatedAt: '2026-07-30T09:00:00',
   disclaimer: '확정 판단이 아닌 참고용 정보이며, 법률·등기 검토를 대체하지 않습니다.',
   recentOwnershipChangeWarning: true,
+  cautionFrom: 80,
+  warnFrom: 100,
+  warnTo: 150,
 };
