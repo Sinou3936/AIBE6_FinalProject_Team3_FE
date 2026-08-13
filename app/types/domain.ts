@@ -37,6 +37,8 @@ export type PropertySummary = {
   checklist?: number;
   statusColor: string;
   location: PropertyLocation;
+  // 매물에 이미지가 한 장도 없으면 undefined.
+  representativeImageUrl?: string;
 };
 
 /**

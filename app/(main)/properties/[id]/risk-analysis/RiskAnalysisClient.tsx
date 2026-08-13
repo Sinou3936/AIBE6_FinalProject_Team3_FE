@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, ArrowLeft, HelpCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, HelpCircle, ImageOff } from 'lucide-react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { apiStatusToneClassMap, getJeonseRatioTone, riskSignalTypeMeta } from '../../../../data/risk-analysis';
 import { cn } from '../../../../lib/cn';
@@ -91,6 +92,24 @@ export function RiskAnalysisClient({
         {loadError && (
           <div className="ansim-card mb-6 border-red-100 bg-red-50 p-4 text-sm text-red-700">{loadError}</div>
         )}
+
+        {property &&
+          (property.images.length > 0 ? (
+            <div className="relative mb-6 h-40 w-full overflow-hidden rounded-2xl">
+              <Image
+                src={property.images[0].imageUrl}
+                alt={property.title}
+                fill
+                sizes="(min-width: 768px) 640px, 100vw"
+                className="object-cover"
+              />
+            </div>
+          ) : (
+            <div className="mb-6 flex h-40 w-full flex-col items-center justify-center gap-2 rounded-2xl bg-slate-100 text-slate-400">
+              <ImageOff className="h-8 w-8" />
+              <p className="text-sm">등록된 사진이 없어요</p>
+            </div>
+          ))}
 
         {riskSignals && (
           <div className="ansim-card mb-6 bg-white p-6">
