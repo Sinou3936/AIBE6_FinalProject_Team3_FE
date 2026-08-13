@@ -137,10 +137,13 @@ export type OcrExtractResponseDto = {
 // upload -> result 페이지 전달용 조합 페이로드. 백엔드가 내려주는 단일 응답이 아니라, OCR 단계의
 // uncertainFields와 마스킹 단계의 maskedText/maskedCount를 FE가 한 번에 묶어 query string에 싣는다.
 // 텍스트 직접 입력 경로는 OCR을 안 거치므로 uncertainFields가 항상 빈 배열이다.
+// propertyId는 매물 상세/체크리스트 화면에서 "계약분석하기"로 넘어온 경우에만 있고, 그 외에는
+// undefined - result 페이지가 "계약 체크리스트로 이동" 버튼을 보여줄지 결정하는 데도 쓰인다.
 export type ContractMaskingReviewPayload = {
   maskedText: string;
   maskedCount: number;
   uncertainFields: ContractOcrUncertainField[];
+  propertyId?: number;
 };
 
 export type ContractMaskingRequestDto = {

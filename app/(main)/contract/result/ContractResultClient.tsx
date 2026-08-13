@@ -21,15 +21,19 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
-import { contractTabs, depositRatioMarkers, depositSafetyActions, missingItems } from '../../../data/contract-analysis';
+import { contractTabs, depositSafetyActions } from '../../../data/contract-analysis';
+import { apiStatusToneClassMap, getJeonseRatioTone, riskSignalTypeMeta } from '../../../data/risk-analysis';
 import { getContractAnalysisErrorMessage } from '../../../lib/contractAnalysisErrors';
 import { analyzeContract, sendContractClauseQuestion } from '../../../services/contract-analysis';
+import { getDepositSafety, getRiskSignals } from '../../../services/risk-analysis';
 import { type ContractOcrUncertainField } from '../../../types/api';
 import {
   type ContractAnalysisResult,
   type ContractAnalysisTab,
   type ContractClause,
   type ContractSummaryCard,
+  type DepositSafetyCheck,
+  type RiskSignalList,
 } from '../../../types/domain';
 import { Badge } from '../../../ui/Badge';
 import { NoticeBox } from '../../../ui/NoticeBox';
@@ -111,6 +115,28 @@ function isMeaningfulUncertainField(text: string): boolean {
   return trimmed.length > 1 && /[\p{L}\p{N}]/u.test(trimmed);
 }
 
+// "보증금 안전성"/"누락 항목" 탭은 risk-analysis 도메인 API를 쓰는데, 이 API들이 매물 단위라
+// propertyId 없이는(=매물 상세를 거치지 않고 직접 접속) 호출할 수 없다. 두 탭에서 동일하게 쓰는
+// 안내 카드라 별도 컴포넌트로 뺀다.
+function PropertyLinkRequiredNotice() {
+  return (
+    <div className="ansim-card p-10 text-center">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
+        <Info className="h-7 w-7 text-slate-400" />
+      </div>
+      <p className="text-sm text-slate-500">매물과 연결하면 확인할 수 있어요.</p>
+    </div>
+  );
+}
+
+function RiskDataLoading() {
+  return (
+    <div className="ansim-card flex items-center justify-center gap-2 p-10 text-sm text-slate-500">
+      <Loader2 className="h-4 w-4 animate-spin" /> 매물 위험 정보를 불러오고 있어요...
+    </div>
+  );
+}
+
 type ContractResultClientProps = {
   maskedText: string;
   maskedCount: number;
@@ -118,8 +144,9 @@ type ContractResultClientProps = {
   // 거치지 않으므로 항상 빈 배열이고, 그 경우 이 안내 자체가 보이지 않는다.
   uncertainFields: ContractOcrUncertainField[];
   loadError?: string;
-  // 계약 체크리스트로 이동하는 버튼은 특약사항이 어느 매물에 대한 것인지 알아야 하는데, 지금
-  // 파이프라인엔 매물 연결 UI 자체가 없어 항상 undefined다 - propertyId가 없으면 버튼을 숨긴다.
+  // 매물 상세/체크리스트 화면에서 "계약분석하기"로 넘어온 경우에만 있고(업로드 페이지 ->
+  // ContractMaskingReviewPayload -> 이 컴포넌트로 이어짐), 그 외(직접 접속 등)엔 undefined다.
+  // analyzeContract 요청에 실어 보내고, "계약 체크리스트로 이동" 버튼은 없으면 숨긴다.
   propertyId?: number;
 };
 
@@ -157,6 +184,50 @@ export function ContractResultClient({
   // 내려가지 않게 하기 위함이다.
   const lastUpdatedChatIndexRef = useRef<number | null>(null);
 
+  // "보증금 안전성"/"누락 항목" 탭용 매물 위험 정보. AI 분석(analyzeContract)과는 독립적인 데이터라
+  // propertyId만 있으면 분석 완료 여부와 상관없이 미리 불러온다.
+  const [riskSignals, setRiskSignals] = useState<RiskSignalList | null>(null);
+  const [depositSafety, setDepositSafety] = useState<DepositSafetyCheck | null>(null);
+  const [isLoadingRiskData, setIsLoadingRiskData] = useState(false);
+  const [riskDataError, setRiskDataError] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (propertyId == null) {
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingRiskData(true);
+    setRiskDataError(undefined);
+
+    Promise.all([getRiskSignals(propertyId), getDepositSafety(propertyId)])
+      .then(([signals, safety]) => {
+        if (!cancelled) {
+          setRiskSignals(signals);
+          setDepositSafety(safety);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRiskDataError('매물 위험 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingRiskData(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [propertyId]);
+
+  const undeterminableSignals = useMemo(
+    () => riskSignals?.signals.filter((signal) => signal.status === 'undeterminable') ?? [],
+    [riskSignals],
+  );
+
   const isAnalyzing = processingStep === 'analyzing';
   // 표시용으로만 정리한 텍스트 - analyzeContract에는 항상 maskedTextValue가 그대로 쓰인다.
   const displayMaskedText = useMemo(() => formatMaskedTextForDisplay(maskedTextValue), [maskedTextValue]);
@@ -193,7 +264,7 @@ export function ContractResultClient({
     setProcessingStep('analyzing');
 
     try {
-      const result = await analyzeContract(maskedTextValue, true);
+      const result = await analyzeContract(maskedTextValue, true, propertyId);
       setAnalysisResult(result);
       // riskFlag=true인 첫 조항을 기본으로 펼쳐둔다. (재분석이 막혀있어 이 handleAnalyze는 이제
       // 세션당 최대 한 번만 성공하므로, 아래 chatStates 초기화는 항상 빈 상태 위에서 실행된다.)
@@ -649,61 +720,101 @@ export function ContractResultClient({
               </div>
             )}
 
-            {activeTab === 'deposit' && (
-              <div className="ansim-card p-8">
-                <div className="mb-10 text-center">
-                  <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-orange-100">
-                    <AlertTriangle className="h-10 w-10 text-orange-600" />
-                  </div>
-                  <h3 className="mb-2 text-xl font-bold text-slate-950">보증금 반환 위험 신호가 있어요</h3>
-                  <p className="text-slate-600">전세가율이 80%를 초과해 주의가 필요합니다.</p>
-                </div>
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between rounded-xl bg-slate-50 p-4">
-                    <span className="text-slate-600">전세가율 (보증금 / 추정 매매가)</span>
-                    <span className="text-lg font-bold text-orange-600">82%</span>
-                  </div>
-                  <div className="h-3 w-full overflow-hidden rounded-full bg-slate-200">
-                    <div className="h-full w-[82%] bg-orange-500" />
-                  </div>
-                  <div className="flex justify-between text-xs text-slate-400">
-                    {depositRatioMarkers.map((marker) => (
-                      <span key={marker}>{marker}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="mt-10 rounded-2xl border border-blue-100 bg-blue-50 p-6">
-                  <h4 className="mb-4 flex items-center gap-2 font-bold text-blue-950">
-                    <ShieldCheck className="h-5 w-5" /> 보증금을 지키기 위한 조치
-                  </h4>
-                  <ul className="space-y-3">
-                    {depositSafetyActions.map((item) => (
-                      <li key={item} className="flex items-start gap-2 text-sm text-blue-800">
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-                        {item}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
+            {activeTab === 'deposit' &&
+              (propertyId == null ? (
+                <PropertyLinkRequiredNotice />
+              ) : isLoadingRiskData ? (
+                <RiskDataLoading />
+              ) : riskDataError ? (
+                <div className="ansim-card p-8 text-center text-sm text-red-600">{riskDataError}</div>
+              ) : (
+                depositSafety && (
+                  <div className="ansim-card p-8">
+                    <div className="mb-6 flex items-center justify-between">
+                      <h3 className="text-lg font-bold text-slate-950">보증금 안전성</h3>
+                      {depositSafety.status === 'calculated' && depositSafety.jeonseRatio !== null ? (
+                        <Badge className={apiStatusToneClassMap[getJeonseRatioTone(depositSafety.jeonseRatio)]}>
+                          전세가율 {depositSafety.jeonseRatio}%
+                        </Badge>
+                      ) : (
+                        <Badge className={apiStatusToneClassMap.slate}>판정 불가</Badge>
+                      )}
+                    </div>
 
-            {activeTab === 'missing' && (
-              <div className="space-y-4">
-                {missingItems.map(({ title, description }) => (
-                  <div key={title} className="ansim-card flex items-start gap-4 p-6">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
-                      <AlertCircle className="h-5 w-5 text-slate-400" />
+                    {depositSafety.status === 'calculated' ? (
+                      <>
+                        <p className="mb-4 text-sm leading-relaxed text-slate-600">{depositSafety.explanation}</p>
+                        {depositSafety.referenceDate && (
+                          <p className="mb-4 text-xs text-slate-400">기준일: {depositSafety.referenceDate}</p>
+                        )}
+                        {depositSafety.recentOwnershipChangeWarning && (
+                          <NoticeBox icon={AlertTriangle} iconClassName="text-orange-500" className="mb-6">
+                            최근 소유권이 바뀐 매물이에요 — 더 꼼꼼히 확인하세요.
+                          </NoticeBox>
+                        )}
+                      </>
+                    ) : (
+                      <p className="mb-6 text-sm text-slate-500">{depositSafety.reasonText ?? '확인할 수 없어요.'}</p>
+                    )}
+
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50 p-6">
+                      <h4 className="mb-4 flex items-center gap-2 font-bold text-blue-950">
+                        <ShieldCheck className="h-5 w-5" /> 보증금을 지키기 위한 조치
+                      </h4>
+                      <ul className="space-y-3">
+                        {depositSafetyActions.map((item) => (
+                          <li key={item} className="flex items-start gap-2 text-sm text-blue-800">
+                            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <div className="flex-1">
-                      <h4 className="mb-1 font-bold text-slate-950">{title}</h4>
-                      <p className="mb-4 text-sm text-slate-500">{description}</p>
-                      <button className="text-xs font-bold text-teal-700 hover:underline">확인 요청하기</button>
-                    </div>
+
+                    {depositSafety.disclaimer && (
+                      <p className="mt-6 text-center text-[10px] leading-relaxed text-slate-400">
+                        {depositSafety.disclaimer}
+                      </p>
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+                )
+              ))}
+
+            {activeTab === 'missing' &&
+              (propertyId == null ? (
+                <PropertyLinkRequiredNotice />
+              ) : isLoadingRiskData ? (
+                <RiskDataLoading />
+              ) : riskDataError ? (
+                <div className="ansim-card p-8 text-center text-sm text-red-600">{riskDataError}</div>
+              ) : (
+                <div className="space-y-4">
+                  {undeterminableSignals.length === 0 ? (
+                    <div className="ansim-card p-8 text-center text-sm text-slate-500">
+                      판정하지 못한 항목이 없어요.
+                    </div>
+                  ) : (
+                    undeterminableSignals.map((signal) => {
+                      const meta = riskSignalTypeMeta[signal.signalType];
+                      const SignalIcon = meta.icon;
+                      return (
+                        <div key={signal.signalType} className="ansim-card flex items-start gap-4 p-6">
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                            <SignalIcon className="h-5 w-5 text-slate-400" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="mb-1 font-bold text-slate-950">{meta.title}</h4>
+                            <p className="text-sm text-slate-500">{signal.reasonText ?? '확인할 수 없어요.'}</p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                  {riskSignals?.disclaimer && (
+                    <p className="text-center text-[10px] leading-relaxed text-slate-400">{riskSignals.disclaimer}</p>
+                  )}
+                </div>
+              ))}
 
             <div className="flex flex-col gap-4 pt-6 md:flex-row">
               {propertyId != null && (

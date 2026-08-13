@@ -342,7 +342,7 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
                 <Link href={`/properties/${property.id}/checklist`} className="ansim-button-primary w-full">
                   {property.checklistCreated ? '현장 체크리스트 이어보기' : '현장 체크리스트 시작'}
                 </Link>
-                <Link href="/contract/upload" className="ansim-button-secondary w-full">
+                <Link href={`/contract/upload?propertyId=${property.id}`} className="ansim-button-secondary w-full">
                   특약사항 분석하기
                 </Link>
               </div>
