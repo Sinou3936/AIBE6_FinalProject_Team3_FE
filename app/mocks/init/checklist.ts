@@ -13,6 +13,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 2,
@@ -26,6 +28,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 3,
@@ -39,6 +43,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 4,
@@ -52,6 +58,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 5,
@@ -65,6 +73,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 6,
@@ -78,6 +88,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 7,
@@ -91,6 +103,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 8,
@@ -104,6 +118,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     // Backend v2 템플릿부터 매물유형별로 "공동현관과 현관문" / "현관문"만 두 문항으로 갈리는데,
@@ -119,6 +135,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: ['https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&q=80&w=500'],
   },
   {
     id: 10,
@@ -132,6 +150,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 11,
@@ -145,6 +165,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 12,
@@ -158,6 +180,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 13,
@@ -172,6 +196,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1000'],
   },
   {
     id: 14,
@@ -186,6 +212,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 15,
@@ -200,6 +228,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 16,
@@ -214,6 +244,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 17,
@@ -227,6 +259,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 18,
@@ -241,6 +275,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 19,
@@ -255,6 +291,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 20,
@@ -269,6 +307,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 21,
@@ -282,6 +322,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 22,
@@ -295,6 +337,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 23,
@@ -308,6 +352,8 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
   },
   {
     id: 24,
@@ -321,5 +367,38 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    options: [],
+    images: [],
+  },
+  {
+    id: 25,
+    category: 'INDOOR',
+    content: '보일러 종류가 무엇인가요?',
+    guideText: null,
+    helperText: null,
+    importance: 'GENERAL',
+    itemType: 'MULTIPLE_CHOICE',
+    checked: false,
+    issueFound: false,
+    value: null,
+    userNote: null,
+    options: ['가스보일러', '기름보일러', '전기보일러', '지역난방'],
+    images: [],
+  },
+  {
+    id: 26,
+    category: 'INDOOR',
+    content: '냉난방 방식이 무엇인가요?',
+    guideText:
+      '중앙난방은 건물 전체가 같이 켜지고 꺼지는 방식이라 개별 조절이 안 되고 운영 시간이 정해져 있을 수 있어요. 개별난방은 세대별로 자유롭게 조절할 수 있어요.',
+    helperText: null,
+    importance: 'GENERAL',
+    itemType: 'MULTIPLE_CHOICE',
+    checked: false,
+    issueFound: false,
+    value: null,
+    userNote: null,
+    options: ['중앙난방', '개별난방', '지역난방'],
+    images: [],
   },
 ];

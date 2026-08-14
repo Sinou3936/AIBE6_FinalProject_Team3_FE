@@ -51,6 +51,7 @@ const ITEM_TYPE_LABEL: Record<ChecklistItemTypeDto, string> = {
   YES_NO: 'Y/N 응답',
   DATE: '날짜 입력',
   DOCUMENT_REQUEST: '서류 요청',
+  MULTIPLE_CHOICE: '선택지 응답',
 };
 
 // 백엔드 ChecklistItemCode 자바독 기준 설명 - 이 값이 있는 문항은 특정 응답값에서 자동으로

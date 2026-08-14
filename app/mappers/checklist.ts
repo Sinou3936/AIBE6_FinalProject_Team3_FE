@@ -33,6 +33,7 @@ const itemTypeMap: Record<ChecklistItemTypeDto, ChecklistItemType> = {
   YES_NO: 'yesNo',
   DATE: 'date',
   DOCUMENT_REQUEST: 'documentRequest',
+  MULTIPLE_CHOICE: 'multipleChoice',
 };
 
 const importanceMap: Record<ChecklistImportanceDto, ChecklistImportance> = {
@@ -53,6 +54,8 @@ export function mapChecklistItemDto(dto: ChecklistItemDto): ChecklistItem {
     issueFound: dto.issueFound,
     value: dto.value,
     userNote: dto.userNote,
+    images: dto.images,
+    options: dto.options,
   };
 }
 

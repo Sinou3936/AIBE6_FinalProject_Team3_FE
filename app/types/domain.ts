@@ -129,7 +129,7 @@ export type ChecklistCategory = {
   icon: LucideIcon;
 };
 
-export type ChecklistItemType = 'check' | 'yesNo' | 'date' | 'documentRequest';
+export type ChecklistItemType = 'check' | 'yesNo' | 'date' | 'documentRequest' | 'multipleChoice';
 export type ChecklistImportance = 'required' | 'general';
 
 export type ChecklistItem = {
@@ -146,6 +146,10 @@ export type ChecklistItem = {
   issueFound: boolean;
   value: string | null;
   userNote: string | null;
+  // 문항 템플릿에 딸린 참고 이미지 URL 목록(관리자 등록, AI 생성 예시). 대부분 빈 배열.
+  images: string[];
+  // multipleChoice 타입 문항의 선택지 목록(예: ["가스보일러", "기름보일러", ...]). 그 외 타입은 빈 배열.
+  options: string[];
 };
 
 // Backend의 status(NOT_STARTED/IN_PROGRESS/COMPLETED)는 FE가 items로부터 직접 계산하는
