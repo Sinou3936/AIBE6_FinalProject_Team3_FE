@@ -301,6 +301,9 @@ export type PriorityAction = {
   description: string;
   ctaLabel: string;
   ctaHref: string;
+  // 조회 실패 후 "새로고침" 안내처럼 현재 페이지 자신으로 이동해봐야 아무 효과가 없는 경우를 위한
+  // 재시도 콜백 - 있으면 ctaHref로의 이동 대신 이 콜백을 호출한다(PriorityActionCard 참고).
+  onCtaClick?: () => void;
 };
 
 // --- risk-analysis 도메인 ---

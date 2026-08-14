@@ -3,7 +3,7 @@
 import { AlertTriangle, ArrowRight, FileSearch, Link2, Loader2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { quickActions, quickActionToneMap } from '../../data/dashboard';
 import { computeHomeSummaryCounts } from '../../lib/homeSummary';
 import { getPriorityAction } from '../../lib/priorityAction';
@@ -57,102 +57,104 @@ function HomePageContent() {
   const notice = searchParams.get('notice') ?? undefined;
   const [data, setData] = useState<PageData | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  // setData는 이 함수 안에서 직접 호출하지 않고 항상 .then(setData)로 호출부에서 건다 - 이펙트
+  // 본문에서 곧장 setState를 호출하는 모양이 되지 않도록 하기 위함(mypage/profile/page.tsx 참고).
+  // "새로고침" CTA(getPriorityAction의 onRetry)가 마운트 이펙트 밖에서도 재조회를 트리거할 수
+  // 있도록 useCallback으로 뽑아둔다.
+  const fetchHomeData = useCallback(async (): Promise<PageData> => {
+    let loadError: string | undefined;
+    let profileNotFound = false;
 
-    async function load() {
-      let loadError: string | undefined;
-      let profileNotFound = false;
-
-      let profile = emptyProfile;
-      try {
-        profile = await getMyProfile();
-      } catch (error) {
-        if (classifyProfileLoadError(error) === 'not-found') {
-          profileNotFound = true;
-        } else {
-          // 실패 시 개인화 우선순위 카드는 미등록 상태 기준으로 표시하고, 아래 배너로 실패 사실을 알린다.
-          loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
-        }
-      }
-
-      let properties: PropertySummary[] = [];
-      let propertiesTotalCount = 0;
-      let propertiesLoadFailed = false;
-      try {
-        // 백엔드가 허용하는 최대 페이지 크기(100, PropertyController@PageableDefault 검증 로직 참고)만큼
-        // 한 번에 가져온다. interestedPropertyCount/hasProperty는 아래에서 totalElements를 쓰므로
-        // 매물이 100개를 넘어도 정확하지만, "중요 확인사항" 위젯(signalProperties)과 신호/체크리스트
-        // 기반 카운트는 이 items 배열(최대 100개, createdAt DESC)만 보므로 101번째 이후 오래된 매물의
-        // 신호는 반영되지 않는다. 실사용 규모상 무시 가능하다고 판단해 별도 페이지 순회는 하지 않는다.
-        const propertiesPage = await getProperties(undefined, { size: 100 });
-        properties = propertiesPage.items;
-        propertiesTotalCount = propertiesPage.totalElements;
-      } catch {
-        // 실패 시 "매물이 없다"고 단정하지 않도록 propertiesLoadFailed로 별도 표시하고,
-        // 아래 배너로도 실패 사실을 알린다.
-        propertiesLoadFailed = true;
+    let profile = emptyProfile;
+    try {
+      profile = await getMyProfile();
+    } catch (error) {
+      if (classifyProfileLoadError(error) === 'not-found') {
+        profileNotFound = true;
+      } else {
+        // 실패 시 개인화 우선순위 카드는 미등록 상태 기준으로 표시하고, 아래 배너로 실패 사실을 알린다.
         loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
-      }
-
-      let activityHistory: ActivityHistoryItem[] = [];
-      try {
-        activityHistory = await getActivityHistory();
-      } catch {
-        // 백엔드에 이 엔드포인트가 아직 없어 항상 실패한다(app/services/activityHistory.ts 참고) -
-        // 일시적 오류가 아니라 상시 상태라 배너로 알리지 않고, 분석한 특약사항 카운트/알림만 조용히
-        // 빈 상태로 둔다. 엔드포인트가 실제로 생기면 이 catch에서도 loadError를 다시 세팅할 것.
-      }
-
-      let checklistOverviews: ChecklistOverview[] = [];
-      try {
-        checklistOverviews = (await getMyChecklistOverviews()).items;
-      } catch {
-        // 실패 시 개인화 우선순위 카드는 "불러오지 못함" 상태로 표시하고, 아래 배너로도 실패 사실을 알린다.
-        loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
-      }
-
-      let checklistProgressEntries: ChecklistProgressEntry[] = [];
-      try {
-        const inProgressChecklists = checklistOverviews.filter(
-          (overview): overview is ChecklistOverview & { checklistId: number } =>
-            overview.status === 'IN_PROGRESS' && overview.checklistId !== null,
-        );
-        checklistProgressEntries = await Promise.all(
-          inProgressChecklists.map(async (overview) => {
-            const summary = await getChecklistResult(overview.checklistId);
-            return {
-              propertyId: overview.propertyId,
-              propertyTitle: overview.propertyTitle,
-              progressPercent: summary.progressPercent,
-              cautionCount: summary.cautionCount,
-            };
-          }),
-        );
-      } catch {
-        // 진행 중 체크리스트 요약 조회 실패는 위젯을 빈 채로 둔다(다른 위젯에는 영향 없음).
-      }
-
-      if (!cancelled) {
-        setData({
-          loadError,
-          profileNotFound,
-          profile,
-          properties,
-          propertiesTotalCount,
-          propertiesLoadFailed,
-          activityHistory,
-          checklistOverviews,
-          checklistProgressEntries,
-        });
       }
     }
 
-    load();
-    return () => {
-      cancelled = true;
+    let properties: PropertySummary[] = [];
+    let propertiesTotalCount = 0;
+    let propertiesLoadFailed = false;
+    try {
+      // 백엔드가 허용하는 최대 페이지 크기(100, PropertyController@PageableDefault 검증 로직 참고)만큼
+      // 한 번에 가져온다. interestedPropertyCount/hasProperty는 아래에서 totalElements를 쓰므로
+      // 매물이 100개를 넘어도 정확하지만, "중요 확인사항" 위젯(signalProperties)과 신호/체크리스트
+      // 기반 카운트는 이 items 배열(최대 100개, createdAt DESC)만 보므로 101번째 이후 오래된 매물의
+      // 신호는 반영되지 않는다. 실사용 규모상 무시 가능하다고 판단해 별도 페이지 순회는 하지 않는다.
+      const propertiesPage = await getProperties(undefined, { size: 100 });
+      properties = propertiesPage.items;
+      propertiesTotalCount = propertiesPage.totalElements;
+    } catch {
+      // 실패 시 "매물이 없다"고 단정하지 않도록 propertiesLoadFailed로 별도 표시하고,
+      // 아래 배너로도 실패 사실을 알린다.
+      propertiesLoadFailed = true;
+      loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+    }
+
+    let activityHistory: ActivityHistoryItem[] = [];
+    try {
+      activityHistory = await getActivityHistory();
+    } catch {
+      // 백엔드에 이 엔드포인트가 아직 없어 항상 실패한다(app/services/activityHistory.ts 참고) -
+      // 일시적 오류가 아니라 상시 상태라 배너로 알리지 않고, 분석한 특약사항 카운트/알림만 조용히
+      // 빈 상태로 둔다. 엔드포인트가 실제로 생기면 이 catch에서도 loadError를 다시 세팅할 것.
+    }
+
+    let checklistOverviews: ChecklistOverview[] = [];
+    try {
+      checklistOverviews = (await getMyChecklistOverviews()).items;
+    } catch {
+      // 실패 시 개인화 우선순위 카드는 "불러오지 못함" 상태로 표시하고, 아래 배너로도 실패 사실을 알린다.
+      loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+    }
+
+    const inProgressChecklists = checklistOverviews.filter(
+      (overview): overview is ChecklistOverview & { checklistId: number } =>
+        overview.status === 'IN_PROGRESS' && overview.checklistId !== null,
+    );
+    // Promise.all은 하나만 실패해도 전체가 reject되어, 성공한 다른 매물의 위젯까지 빈 배열로
+    // 밀려나 사라진다(mypage/page.tsx는 status를 먼저 채워두고 보강하는 구조라 이 문제가 없다) -
+    // allSettled로 항목별 실패를 개별적으로만 빼도록 한다.
+    const checklistProgressResults = await Promise.allSettled(
+      inProgressChecklists.map(async (overview) => {
+        const summary = await getChecklistResult(overview.checklistId);
+        return {
+          propertyId: overview.propertyId,
+          propertyTitle: overview.propertyTitle,
+          progressPercent: summary.progressPercent,
+          cautionCount: summary.cautionCount,
+        };
+      }),
+    );
+    const checklistProgressEntries = checklistProgressResults
+      .filter((result): result is PromiseFulfilledResult<ChecklistProgressEntry> => result.status === 'fulfilled')
+      .map((result) => result.value);
+
+    return {
+      loadError,
+      profileNotFound,
+      profile,
+      properties,
+      propertiesTotalCount,
+      propertiesLoadFailed,
+      activityHistory,
+      checklistOverviews,
+      checklistProgressEntries,
     };
   }, []);
+
+  const retry = useCallback(() => {
+    fetchHomeData().then(setData);
+  }, [fetchHomeData]);
+
+  useEffect(() => {
+    fetchHomeData().then(setData);
+  }, [fetchHomeData]);
 
   if (!data) {
     return (
@@ -169,6 +171,7 @@ function HomePageContent() {
     hasProperty,
     propertiesLoadFailed: data.propertiesLoadFailed,
     checklistOverviews: data.checklistOverviews,
+    onRetry: retry,
   });
 
   const summaryCounts = {
