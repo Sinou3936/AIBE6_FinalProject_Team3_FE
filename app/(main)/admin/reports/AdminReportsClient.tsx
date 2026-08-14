@@ -34,6 +34,7 @@ type AdminReportsClientProps = {
   data?: PageResponseDto<AdminPropertyReportListItemDto>;
   loadError?: string;
   filters: Filters;
+  currentUserId: number;
   onMutated?: () => void;
 };
 
@@ -62,12 +63,13 @@ type ReportBulkAction = { status: 'RESOLVED' | 'REJECTED' };
 
 // 이미 조치완료/반려된 신고는 backend가 RECEIVED만 재검토 대상으로 허용한다(transitionTo 참고) -
 // 상세 모달의 처리 버튼도 RECEIVED일 때만 보여주는 것과 같은 이유로, 일괄처리 체크박스 대상도
-// RECEIVED로만 제한한다.
-function isReportBulkSelectable(row: AdminPropertyReportListItemDto): boolean {
-  return row.status === 'RECEIVED';
+// RECEIVED로만 제한한다. 본인이 신고한 건도 backend가 셀프 검토로 거부하므로(AdminUsersClient의
+// 본인 계정 제외와 동일한 이유) 같이 제외한다.
+function isReportBulkSelectable(row: AdminPropertyReportListItemDto, currentUserId: number): boolean {
+  return row.status === 'RECEIVED' && row.reporterId !== currentUserId;
 }
 
-export function AdminReportsClient({ data, loadError, filters, onMutated }: AdminReportsClientProps) {
+export function AdminReportsClient({ data, loadError, filters, currentUserId, onMutated }: AdminReportsClientProps) {
   const router = useRouter();
   const [status, setStatus] = useState(filters.status);
   const [reason, setReason] = useState(filters.reason);
@@ -300,7 +302,7 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
               selectedKeys: selectedIds,
               onToggle: toggleSelect,
               onToggleAll: toggleSelectAll,
-              isRowSelectable: isReportBulkSelectable,
+              isRowSelectable: (row) => isReportBulkSelectable(row, currentUserId),
             }}
             columns={[
               { key: 'id', header: 'ID', render: (row) => row.id },
@@ -392,7 +394,21 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
 
             {detailError && <p className="mb-3 text-sm text-red-600">{detailError}</p>}
 
-            {detail.status === 'RECEIVED' && pendingStatus ? (
+            {detail.status === 'RECEIVED' && detail.reporterId === currentUserId ? (
+              // 본인이 신고한 건은 backend가 셀프 검토로 거부한다(AdminUsersClient의 본인 계정
+              // 처리와 동일한 이유) - 실패할 액션을 보여주지 않고 여기서 숨긴다.
+              <div>
+                <p className="mb-4 text-sm text-slate-500">본인이 신고한 건은 직접 처리할 수 없습니다.</p>
+                <div className="flex justify-end">
+                  <button
+                    onClick={closeModal}
+                    className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
+                  >
+                    닫기
+                  </button>
+                </div>
+              </div>
+            ) : detail.status === 'RECEIVED' && pendingStatus ? (
               // 반려/조치완료는 한 번 확정되면 이 화면에서 되돌릴 방법이 없는 결정이라, 실제
               // 처리 전에 한 번 더 확인받는다(AdminUsersClient의 권한/정지 변경과 동일한 패턴).
               <div>
