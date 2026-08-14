@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { regions } from '../../../data/regions_nested';
 import { userCurrentStageOptions, userTransactionTypeOptions } from '../../../data/user';
-import { ApiError } from '../../../lib/api/http';
+import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import {
   checkNicknameAvailability,
   registerProfile,
@@ -243,13 +243,19 @@ export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: Prof
     setIsSaving(true);
     setSaveError(undefined);
 
+    // 이미지 처리와 필드 저장은 별도 API 호출이라(백엔드가 하나의 트랜잭션으로 묶어주지 않음),
+    // 이미지가 이미 반영된 뒤 필드 저장만 실패하면 사용자에게 "저장이 통째로 실패했다"고 오해를
+    // 주지 않도록 그 사실을 에러 메시지에 덧붙인다.
+    let imageAlreadyApplied = false;
     try {
       // 프로필 사진은 presign/confirm(또는 삭제) 전용 엔드포인트로 별도 처리한다 -
       // registerProfile/updateMyProfile 둘 다 profileImageUrl을 받지 않는다.
       if (selectedImageFile) {
         await uploadProfileImage(selectedImageFile);
+        imageAlreadyApplied = true;
       } else if (imageResetRequested) {
         await resetProfileImage();
+        imageAlreadyApplied = true;
       }
 
       if (mode === 'register') {
@@ -261,9 +267,8 @@ export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: Prof
       router.push(mode === 'register' ? '/home' : '/mypage');
       router.refresh();
     } catch (error) {
-      setSaveError(
-        error instanceof ApiError ? error.message : '프로필 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
-      );
+      const message = resolveErrorMessage(error, '프로필 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
+      setSaveError(imageAlreadyApplied ? `사진은 이미 반영되었습니다. ${message}` : message);
     } finally {
       setIsSaving(false);
     }
