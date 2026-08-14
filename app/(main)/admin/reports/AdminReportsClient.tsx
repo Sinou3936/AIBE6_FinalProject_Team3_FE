@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import {
@@ -88,6 +88,12 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
   const [bulkError, setBulkError] = useState<string | undefined>();
   const [bulkResult, setBulkResult] = useState<AdminBulkActionResponseDto | null>(null);
 
+  // A를 열고(응답 느림) 닫은 뒤 B를 열면(응답 빠름), B가 먼저 반영된 뒤 뒤늦게 도착한 A의 응답이
+  // detail을 도로 덮어써 B를 보고 있어야 할 화면에 A의 내용이 보일 수 있다 - 응답이 도착했을 때
+  // 그게 여전히 가장 최근 요청인지 확인한 뒤에만 반영한다(reports/page.tsx의 requestIdRef와
+  // 동일한 패턴).
+  const detailRequestIdRef = useRef(0);
+
   // 필터 select의 로컬 state는 useState(filters.x)로 최초 1회만 seed되므로, 브라우저 뒤로/앞으로
   // 가기로 filters props만 바뀌는 경우엔 반영되지 않아 테이블은 새 필터 결과를 보여주는데 select는
   // 이전 값을 계속 보여주는 것처럼 어긋난다. filters가 바뀔 때마다 로컬 state를 다시 맞춰준다.
@@ -118,23 +124,31 @@ export function AdminReportsClient({ data, loadError, filters, onMutated }: Admi
   }
 
   function closeModal() {
+    // 아직 응답이 안 온 openDetail()이 있다면, 닫은 뒤 뒤늦게 도착해 모달을 다시 열어버리거나
+    // (detail/detailError) 로딩 스피너를 다시 띄우지(finally) 않도록 그 요청도 여기서 무효화하고,
+    // 로딩 상태도 즉시 강제로 꺼서 닫기 자체는 진행 중인 요청과 무관하게 항상 바로 반영되게 한다.
+    detailRequestIdRef.current += 1;
     setDetail(null);
+    setDetailLoading(false);
     setDetailError(undefined);
     setPendingStatus(null);
   }
 
   async function openDetail(row: AdminPropertyReportListItemDto) {
+    const requestId = ++detailRequestIdRef.current;
     setDetailLoading(true);
     setDetailError(undefined);
     setMemo('');
     setPendingStatus(null);
     try {
       const result = await getAdminPropertyReportDetail(row.id);
+      if (requestId !== detailRequestIdRef.current) return;
       setDetail(result);
     } catch (error) {
+      if (requestId !== detailRequestIdRef.current) return;
       setDetailError(resolveErrorMessage(error, '상세 정보를 불러오지 못했습니다.'));
     } finally {
-      setDetailLoading(false);
+      if (requestId === detailRequestIdRef.current) setDetailLoading(false);
     }
   }
 

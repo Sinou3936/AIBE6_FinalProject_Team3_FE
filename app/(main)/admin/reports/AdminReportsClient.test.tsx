@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {
   type AdminPropertyReportDetailDto,
@@ -144,5 +144,33 @@ describe('AdminReportsClient', () => {
     );
     expect(await screen.findByText('일괄 처리 결과')).toBeInTheDocument();
     expect(onMutated).toHaveBeenCalledTimes(1);
+  });
+
+  // 회귀 테스트 - A(응답 느림)를 열고 바로 B(응답 빠름)를 열면, B가 먼저 반영된 뒤 뒤늦게 도착한
+  // A의 응답이 detail을 도로 덮어써 B를 보고 있어야 할 화면에 A의 내용이 보일 수 있었다.
+  it('느린 상세 조회가 나중에 도착해도 그 사이 새로 연 신고의 상세를 덮어쓰지 않는다', async () => {
+    let resolveFirst: (value: AdminPropertyReportDetailDto) => void = () => {};
+    const firstRequest = new Promise<AdminPropertyReportDetailDto>((resolve) => {
+      resolveFirst = resolve;
+    });
+    getAdminPropertyReportDetail.mockImplementation((id: number) =>
+      id === 1 ? firstRequest : Promise.resolve(reportDetail({ id: 2, reporterNickname: '신고자2' })),
+    );
+
+    render(<AdminReportsClient data={page([reportRow(), reportRow2()])} filters={filters} />);
+
+    const detailButtons = screen.getAllByRole('button', { name: '상세보기' });
+    fireEvent.click(detailButtons[0]); // report #1 (느림, 아직 응답 없음)
+    fireEvent.click(detailButtons[1]); // report #2 (빠름, 먼저 도착)
+
+    expect(await screen.findByText('신고 #2')).toBeInTheDocument();
+
+    await act(async () => {
+      resolveFirst(reportDetail({ id: 1 }));
+      await firstRequest;
+    });
+
+    expect(screen.getByText('신고 #2')).toBeInTheDocument();
+    expect(screen.queryByText('신고 #1')).not.toBeInTheDocument();
   });
 });
