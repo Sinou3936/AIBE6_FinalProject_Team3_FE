@@ -513,7 +513,7 @@ export type AdminUserBulkStatusUpdateRequestDto = {
 // AdminBulkActionResponse와 대응.
 export type AdminBulkActionResponseDto = {
   succeededIds: number[];
-  failures: { id: number; errorCode: string; message: string }[];
+  failures: { id: number; message: string }[];
 };
 
 // --- 관리자 페이지: 매물 신고 검토 (GET/PATCH /admin/property-reports) ---
@@ -534,19 +534,15 @@ export type AdminPropertyReportListItemDto = {
 
 export type AdminPropertyReportDetailDto = {
   id: number;
-  propertyId: number;
   propertyType: PropertyTypeDto | null;
   transactionType: PropertyTransactionTypeDto | null;
   propertyAddress: string | null;
-  deposit: number | null;
-  monthlyRent: number | null;
   reporterId: number;
   reporterNickname: string | null;
   reporterEmail: string | null;
   reason: PropertyReportReasonDto;
   detail: string | null;
   status: AdminPropertyReportStatusDto;
-  reviewerId: number | null;
   reviewedAt: string | null;
   reviewMemo: string | null;
   createdAt: string;
