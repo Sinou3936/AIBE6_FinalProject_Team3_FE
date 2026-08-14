@@ -24,7 +24,7 @@ property/checklist/market-data/risk-analysis/contract-analysis/admin) + 공용 �
 | 도메인 | 확실한 죽은 코드 | 특이사항 |
 |---|---|---|
 | auth | 1건 | |
-| user | 0건 | **실제 버그 1건 발견**(WOLSE/MONTHLY_RENT 매핑 불일치 — 수정 필요) |
+| user | 0건 | ~~**실제 버그 1건 발견**(WOLSE/MONTHLY_RENT 매핑 불일치 — 수정 필요)~~ — ✅ **(2026-08-14 해결)** |
 | property | 1건 | |
 | checklist | 0건 | 가장 깨끗한 도메인 |
 | market-data/risk-analysis | 4건+ | 백엔드가 내려주는 값을 매퍼가 버리는 패턴 다수 |
@@ -57,6 +57,8 @@ user.ts:10-18`의 매핑 테이블도 `WOLSE` 키만 갖고 있다. 코드 주�
 - 프로필 등록/수정 폼에서 "월세"를 선택해 저장하면 `"WOLSE"`를 백엔드로 보내는데, 이 값은 `TransactionType` enum에 없는 상수라 Jackson 역직렬화 실패로 **저장 자체가 깨질 가능성이 높음**.
 
 **수정 방향**: `UserTransactionTypeDto`와 매핑 테이블의 월세 키를 `'WOLSE'`에서 `'MONTHLY_RENT'`로 맞추면 됨(백엔드는 수정 불필요).
+
+✅ **(2026-08-14 해결)** 위 수정 방향대로 `UserTransactionTypeDto`(`app/types/api.ts`)와 `app/mappers/user.ts`의 매핑 테이블, `app/mocks/init/user.ts`의 mock 데이터까지 `'WOLSE'` → `'MONTHLY_RENT'`로 맞춤. 두 타입이 표기가 다르다던 기존 주석도 "현재 값은 동일하다"로 정정함(`user-design.md`/`cross-domain-summary.md`에도 반영).
 
 부수 발견: `UserProfileResponse.status`(backend가 계산해 내려줌)를 `mapUserProfileDto()`가 안 읽음(backend 문서 참고 — 값 자체가 항상 `"ACTIVE"`라 애초에 분기할 필요가 없음).
 
@@ -144,6 +146,6 @@ backend 문서에도 동일 항목이 있으니 참고.
 ## 다음 단계 제안
 
 - **`app/data/property-detail.ts`의 `riskSummaries`**(완전한 dead code)와 **`app/lib/base64Url.ts`의 `decodeBase64Url()`**, **`Table.onRowClick`**은 바로 제거해도 안전해 보임.
-- **User 도메인의 WOLSE/MONTHLY_RENT 매핑 불일치는 실제 저장 실패로 이어질 수 있는 버그라 우선순위 있게 수정 권장**(`app/types/api.ts:235`, `app/mappers/user.ts:10-18`).
+- ~~**User 도메인의 WOLSE/MONTHLY_RENT 매핑 불일치는 실제 저장 실패로 이어질 수 있는 버그라 우선순위 있게 수정 권장**(`app/types/api.ts:235`, `app/mappers/user.ts:10-18`).~~ — ✅ **(2026-08-14 해결)**
 - **`GET /users/me/activity-history` 미구현**은 backend와 함께 실사용 여부부터 확인(backend에 구현할지, 이 frontend 호출을 뺄지 결정).
 - admin 관련 미렌더링 필드들(`deposit`/`monthlyRent`/`reviewerId`/`errorCode`/`version` 등)은 심각하지 않은 정리 항목이라 여유 있을 때 처리해도 무방.
