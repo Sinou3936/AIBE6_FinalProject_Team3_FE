@@ -1,10 +1,12 @@
 import { useMockData } from '../config/dataSource';
 import { requestJson } from '../lib/api/http';
 import {
+  addMockAdminChecklistTemplateImage,
   bulkReviewMockAdminPropertyReports,
   bulkUpdateMockAdminUserStatus,
   createMockAdminChecklistItemTemplate,
   deleteMockAdminChecklistItemTemplate,
+  deleteMockAdminChecklistTemplateImage,
   getMockAdminPropertyReportDetail,
   reviewMockAdminPropertyReport,
   updateMockAdminChecklistItemTemplate,
@@ -15,6 +17,8 @@ import {
   type AdminBulkActionResponseDto,
   type AdminChecklistItemTemplateCreateRequestDto,
   type AdminChecklistItemTemplateDto,
+  type AdminChecklistItemTemplateImageCreateRequestDto,
+  type AdminChecklistItemTemplateImageDto,
   type AdminChecklistItemTemplateUpdateRequestDto,
   type AdminPropertyReportBulkReviewRequestDto,
   type AdminPropertyReportDetailDto,
@@ -143,4 +147,27 @@ export async function deleteAdminChecklistItemTemplate(templateId: number): Prom
     return;
   }
   await requestJson<void>(`/admin/checklist-templates/${templateId}`, { method: 'DELETE' });
+}
+
+export async function addAdminChecklistTemplateImage(
+  templateId: number,
+  request: AdminChecklistItemTemplateImageCreateRequestDto,
+): Promise<AdminChecklistItemTemplateImageDto> {
+  if (useMockData) {
+    return addMockAdminChecklistTemplateImage(templateId, request);
+  }
+  return requestJson<AdminChecklistItemTemplateImageDto>(`/admin/checklist-templates/${templateId}/images`, {
+    method: 'POST',
+    body: JSON.stringify(request),
+  });
+}
+
+export async function deleteAdminChecklistTemplateImage(templateId: number, imageId: number): Promise<void> {
+  if (useMockData) {
+    if (!deleteMockAdminChecklistTemplateImage(templateId, imageId)) {
+      throw new Error('이미지를 찾을 수 없습니다.');
+    }
+    return;
+  }
+  await requestJson<void>(`/admin/checklist-templates/${templateId}/images/${imageId}`, { method: 'DELETE' });
 }

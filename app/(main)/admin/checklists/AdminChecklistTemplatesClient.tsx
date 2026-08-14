@@ -1,16 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import { propertyTypeLabelMap } from '../../../mappers/property';
+import { getAdminChecklistTemplateImages } from '../../../services/admin';
 import {
+  addAdminChecklistTemplateImage,
   createAdminChecklistItemTemplate,
   deleteAdminChecklistItemTemplate,
+  deleteAdminChecklistTemplateImage,
   updateAdminChecklistItemTemplate,
 } from '../../../services/adminActions';
 import {
   type AdminChecklistItemTemplateCreateRequestDto,
   type AdminChecklistItemTemplateDto,
+  type AdminChecklistItemTemplateImageDto,
   type ChecklistCategoryDto,
   type ChecklistImportanceDto,
   type ChecklistItemCodeDto,
@@ -23,6 +27,7 @@ import {
 // 컬럼이라 실질적인 길이 제약이 없어 여기 포함하지 않는다.
 const CONTENT_MAX_LENGTH = 200;
 const GUIDE_TEXT_MAX_LENGTH = 255;
+const OPTIONS_MAX_LENGTH = 255;
 import { Badge } from '../../../ui/Badge';
 import { Modal } from '../../../ui/Modal';
 import { Table } from '../../../ui/Table';
@@ -74,6 +79,9 @@ type FormState = {
   helperText: string;
   importance: ChecklistImportanceDto;
   itemType: ChecklistItemTypeDto;
+  // MULTIPLE_CHOICE일 때만 쓰는 콤마 구분 자유 텍스트("가스보일러,기름보일러,전기보일러,지역난방") -
+  // Backend도 enum이 아니라 자유 텍스트 컬럼이라 그대로 통과시킨다.
+  options: string;
   code: ChecklistItemCodeDto | typeof NONE_CODE;
   displayOrder: string;
   // 백엔드는 콤마로 구분된 문자열(예: "OFFICETEL,MULTI_FAMILY")로 받지만, 폼에서는 실제
@@ -95,6 +103,7 @@ const EMPTY_FORM: FormState = {
   helperText: '',
   importance: 'GENERAL',
   itemType: 'CHECK',
+  options: '',
   code: NONE_CODE,
   displayOrder: '1',
   applicablePropertyTypes: [],
@@ -123,6 +132,7 @@ function toFormState(template: AdminChecklistItemTemplateDto): FormState {
     helperText: template.helperText ?? '',
     importance: template.importance,
     itemType: template.itemType,
+    options: template.options ?? '',
     code: template.code ?? NONE_CODE,
     displayOrder: String(template.displayOrder),
     applicablePropertyTypes: known,
@@ -140,6 +150,8 @@ function toCreateRequest(form: FormState): AdminChecklistItemTemplateCreateReque
     helperText: form.helperText.trim() || undefined,
     importance: form.importance,
     itemType: form.itemType,
+    options:
+      form.itemType === 'MULTIPLE_CHOICE' ? form.options.trim().slice(0, OPTIONS_MAX_LENGTH) || undefined : undefined,
     code: form.code || undefined,
     displayOrder: Number(form.displayOrder),
     applicablePropertyTypes: allPropertyTypes.length > 0 ? allPropertyTypes.join(',') : undefined,
@@ -213,6 +225,71 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
       setFormError(resolveErrorMessage(error, '삭제 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  // 이미지는 문항 생성 직후(templateId 없음)엔 관리할 수 없어 수정 모달에서만 다룬다.
+  const editingTemplateId = modal?.type === 'edit' ? modal.template.id : null;
+  const [images, setImages] = useState<AdminChecklistItemTemplateImageDto[]>([]);
+  const [imagesLoading, setImagesLoading] = useState(false);
+  const [imagesError, setImagesError] = useState<string | undefined>();
+  const [newImageUrl, setNewImageUrl] = useState('');
+  const [imageActionPending, setImageActionPending] = useState(false);
+
+  useEffect(() => {
+    if (editingTemplateId === null) {
+      // 모달이 닫히거나 생성/삭제 모달로 바뀌어 editingTemplateId가 null이 될 때만 의미 있는
+      // 재설정이다(최초 렌더 시 초기값과 동일) - 다른 문항의 수정 모달을 다시 열었을 때 이전
+      // 문항의 이미지 목록/입력값이 잠깐이라도 보이지 않도록 의도적으로 동기 호출한다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setImages([]);
+      setImagesError(undefined);
+      setNewImageUrl('');
+      return;
+    }
+    let cancelled = false;
+    setImagesLoading(true);
+    getAdminChecklistTemplateImages(editingTemplateId)
+      .then((result) => {
+        if (!cancelled) setImages(result);
+      })
+      .catch((error) => {
+        if (!cancelled) setImagesError(resolveErrorMessage(error, '예시 이미지를 불러오지 못했습니다.'));
+      })
+      .finally(() => {
+        if (!cancelled) setImagesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editingTemplateId]);
+
+  async function handleAddImage() {
+    if (editingTemplateId === null || !newImageUrl.trim()) return;
+    setImageActionPending(true);
+    setImagesError(undefined);
+    try {
+      const created = await addAdminChecklistTemplateImage(editingTemplateId, { imageUrl: newImageUrl.trim() });
+      setImages((current) => [...current, created]);
+      setNewImageUrl('');
+    } catch (error) {
+      setImagesError(resolveErrorMessage(error, '이미지 추가에 실패했습니다.'));
+    } finally {
+      setImageActionPending(false);
+    }
+  }
+
+  async function handleDeleteImage(imageId: number) {
+    if (editingTemplateId === null) return;
+    setImageActionPending(true);
+    setImagesError(undefined);
+    try {
+      await deleteAdminChecklistTemplateImage(editingTemplateId, imageId);
+      setImages((current) => current.filter((image) => image.id !== imageId));
+    } catch (error) {
+      setImagesError(resolveErrorMessage(error, '이미지 삭제에 실패했습니다.'));
+    } finally {
+      setImageActionPending(false);
     }
   }
 
@@ -413,6 +490,19 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                 </label>
               </div>
 
+              {modal.form.itemType === 'MULTIPLE_CHOICE' && (
+                <label className="block text-xs font-bold text-slate-600">
+                  선택지 (콤마로 구분, 예: 가스보일러,기름보일러,전기보일러,지역난방)
+                  <input
+                    type="text"
+                    value={modal.form.options}
+                    onChange={(event) => updateForm({ options: event.target.value })}
+                    maxLength={OPTIONS_MAX_LENGTH}
+                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                  />
+                </label>
+              )}
+
               <label className="block text-xs font-bold text-slate-600">
                 자동 판정 코드 (선택 - 특수 문항이 아니면 비워두세요)
                 <select
@@ -469,6 +559,61 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                   />
                   새 체크리스트 생성 시 이 문항 노출
                 </label>
+              )}
+
+              {modal.type === 'edit' && (
+                <div className="border-t border-slate-200 pt-3">
+                  <p className="mb-2 text-xs font-bold text-slate-600">
+                    예시 이미지 (선택 - 이미 S3 등에 업로드된 이미지의 URL만 등록, 파일 업로드는 지원 안 함)
+                  </p>
+                  {imagesLoading && <p className="text-xs text-slate-400">불러오는 중...</p>}
+                  {!imagesLoading && images.length === 0 && (
+                    <p className="text-xs text-slate-400">등록된 예시 이미지가 없습니다.</p>
+                  )}
+                  {images.length > 0 && (
+                    <ul className="mb-2 space-y-2">
+                      {images.map((image) => (
+                        <li key={image.id} className="flex items-center gap-2">
+                          {/* eslint-disable-next-line @next/next/no-img-element -- 관리자가 임의 URL을
+                          입력해 next.config.js 허용 호스트 목록에 없을 수 있어 next/image로 최적화 불가 */}
+                          <img
+                            src={image.imageUrl}
+                            alt=""
+                            className="h-10 w-10 shrink-0 rounded-lg border border-slate-200 object-cover"
+                          />
+                          <span className="flex-1 truncate text-xs text-slate-500">{image.imageUrl}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteImage(image.id)}
+                            disabled={imageActionPending}
+                            className="shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            삭제
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newImageUrl}
+                      onChange={(event) => setNewImageUrl(event.target.value)}
+                      placeholder="이미지 URL 붙여넣기"
+                      disabled={imageActionPending}
+                      className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddImage}
+                      disabled={imageActionPending || !newImageUrl.trim()}
+                      className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      추가
+                    </button>
+                  </div>
+                  {imagesError && <p className="mt-1.5 text-xs text-red-600">{imagesError}</p>}
+                </div>
               )}
             </div>
 
