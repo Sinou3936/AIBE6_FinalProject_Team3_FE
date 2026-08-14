@@ -62,4 +62,18 @@ describe('SessionRecoverRetryButton', () => {
     expect(await screen.findByRole('button', { name: '다시 시도' })).not.toBeDisabled();
     expect(window.location.href).toBe('');
   });
+
+  // 회귀 테스트 - isUnreachableError도 아니고 requestJson이 리다이렉트를 시작하지도 않는 실패
+  // (예: 세션 무효로 확정되지 않은 401/403/404, 백엔드 재배포 중 502 등 sessionRefreshOutcome이
+  // 없는 일반 ApiError)는 실제로 이 catch에 도달해 settle되는데, 예전엔 isUnreachableError일
+  // 때만 retrying을 풀어줘서 이 경우 버튼이 "재시도 중..."에 영구히 멈춰 있었다.
+  it('세션 무효 확정도 네트워크 오류도 아닌 실패도 다시 시도할 수 있는 상태로 되돌아온다', async () => {
+    getCurrentUser.mockRejectedValueOnce(new ApiError('not found', 404, { code: 'USER_NOT_FOUND', message: 'not found' }));
+
+    render(<SessionRecoverRetryButton next="/mypage" />);
+    fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+
+    expect(await screen.findByRole('button', { name: '다시 시도' })).not.toBeDisabled();
+    expect(window.location.href).toBe('');
+  });
 });

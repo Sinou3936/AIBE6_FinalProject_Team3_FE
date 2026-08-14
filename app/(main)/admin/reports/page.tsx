@@ -7,6 +7,7 @@ import { parsePageParam } from '../../../lib/pageParam';
 import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import { getAdminPropertyReports } from '../../../services/admin';
 import { type AdminPropertyReportListItemDto, type PageResponseDto } from '../../../types/api';
+import { useAdminCurrentUser } from '../AdminCurrentUserContext';
 import { AdminReportsClient } from './AdminReportsClient';
 
 // status 쿼리파라미터가 아예 없는 최초 진입(북마크/새로고침 포함)은 대기중(RECEIVED) 신고를
@@ -15,6 +16,9 @@ import { AdminReportsClient } from './AdminReportsClient';
 function AdminReportsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  // AdminLayout이 role 게이트 과정에서 이미 확인해둔 본인 정보를 재사용한다(users/page.tsx와 동일한
+  // 이유) - AdminReportsClient가 본인이 신고한 건을 처리 대상에서 제외하는 데 필요하다.
+  const { userId: currentUserId } = useAdminCurrentUser();
   const page = parsePageParam(searchParams.get('page') ?? undefined);
   const selectedStatus = searchParams.get('status') ?? 'RECEIVED';
   const apiStatus = selectedStatus === 'ALL' ? undefined : selectedStatus;
@@ -100,6 +104,7 @@ function AdminReportsPageContent() {
       data={data}
       loadError={loadError}
       filters={{ status: selectedStatus, reason: reason ?? '' }}
+      currentUserId={currentUserId}
       onMutated={reloadReports}
     />
   );
