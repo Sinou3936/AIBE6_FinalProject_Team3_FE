@@ -6,8 +6,7 @@ export type ApiErrorBody = {
 };
 
 export type ApiResponse<T> =
-  | { success: true; data: T; error?: null }
-  | { success: false; data?: undefined; error: ApiErrorBody };
+  { success: true; data: T; error?: null } | { success: false; data?: undefined; error: ApiErrorBody };
 
 // BE PageResponse<T> 그대로 - Spring Data Pageable 기반 목록 조회 응답의 공용 래퍼.
 export type PageResponseDto<T> = {
@@ -56,6 +55,8 @@ export type ChecklistItemDto = {
   issueFound: boolean;
   value: string | null;
   userNote: string | null;
+  // 문항 템플릿에 딸린 참고 이미지 URL 목록(관리자 등록, AI 생성 예시). 대부분 빈 배열.
+  images: string[];
 };
 
 export type ChecklistDto = {
