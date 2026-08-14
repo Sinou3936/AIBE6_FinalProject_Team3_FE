@@ -53,6 +53,7 @@ export function mapChecklistItemDto(dto: ChecklistItemDto): ChecklistItem {
     issueFound: dto.issueFound,
     value: dto.value,
     userNote: dto.userNote,
+    images: dto.images,
   };
 }
 
