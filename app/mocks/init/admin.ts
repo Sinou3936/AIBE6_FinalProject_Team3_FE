@@ -172,6 +172,7 @@ export const initAdminChecklistItemTemplates: AdminChecklistItemTemplateDto[] = 
     itemType: 'CHECK',
     displayOrder: 1,
     active: true,
+    options: null,
     applicablePropertyTypes: null,
   },
   {
@@ -186,6 +187,7 @@ export const initAdminChecklistItemTemplates: AdminChecklistItemTemplateDto[] = 
     itemType: 'CHECK',
     displayOrder: 6,
     active: true,
+    options: null,
     applicablePropertyTypes: null,
   },
   {
@@ -200,6 +202,7 @@ export const initAdminChecklistItemTemplates: AdminChecklistItemTemplateDto[] = 
     itemType: 'CHECK',
     displayOrder: 11,
     active: true,
+    options: null,
     applicablePropertyTypes: null,
   },
   {
@@ -214,6 +217,7 @@ export const initAdminChecklistItemTemplates: AdminChecklistItemTemplateDto[] = 
     itemType: 'YES_NO',
     displayOrder: 15,
     active: true,
+    options: null,
     applicablePropertyTypes: null,
   },
   {
@@ -228,6 +232,7 @@ export const initAdminChecklistItemTemplates: AdminChecklistItemTemplateDto[] = 
     itemType: 'CHECK',
     displayOrder: 22,
     active: true,
+    options: null,
     applicablePropertyTypes: null,
   },
   {
@@ -242,6 +247,7 @@ export const initAdminChecklistItemTemplates: AdminChecklistItemTemplateDto[] = 
     itemType: 'CHECK',
     displayOrder: 10,
     active: false,
+    options: null,
     applicablePropertyTypes: 'DETACHED_HOUSE',
   },
 ];

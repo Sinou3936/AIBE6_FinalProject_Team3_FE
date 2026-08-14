@@ -2,12 +2,14 @@ import { useMockData } from '../config/dataSource';
 import { requestJson } from '../lib/api/http';
 import {
   getMockAdminChecklistItemTemplates,
+  getMockAdminChecklistTemplateImages,
   getMockAdminDashboardStats,
   getMockAdminPropertyReports,
   getMockAdminUsers,
 } from '../repositories/adminRepository';
 import {
   type AdminChecklistItemTemplateDto,
+  type AdminChecklistItemTemplateImageDto,
   type AdminDashboardStatsDto,
   type AdminPropertyReportListItemDto,
   type AdminUserListItemDto,
@@ -97,4 +99,13 @@ export async function getAdminChecklistItemTemplates(cookieHeader?: string): Pro
     '/admin/checklist-templates',
     cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined,
   );
+}
+
+export async function getAdminChecklistTemplateImages(
+  templateId: number,
+): Promise<AdminChecklistItemTemplateImageDto[]> {
+  if (useMockData) {
+    return getMockAdminChecklistTemplateImages(templateId);
+  }
+  return requestJson<AdminChecklistItemTemplateImageDto[]>(`/admin/checklist-templates/${templateId}/images`);
 }
