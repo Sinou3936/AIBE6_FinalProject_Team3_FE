@@ -14,6 +14,7 @@ import { type Checklist, type ChecklistItem, type PropertyDetail } from '../../.
 import { Badge } from '../../../../ui/Badge';
 import { Modal } from '../../../../ui/Modal';
 import { NoticeBox } from '../../../../ui/NoticeBox';
+import { ChecklistItemImages } from './ChecklistItemImages';
 
 const EMPTY_SUMMARY: ChecklistSummary = {
   progressPercent: 0,
@@ -257,6 +258,8 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
                 </p>
               </div>
               {item.guideText && <p className="mb-3 text-xs text-slate-500">{item.guideText}</p>}
+
+              <ChecklistItemImages images={item.images} />
 
               {item.itemType === 'check' && (
                 <div className="space-y-2">
