@@ -36,8 +36,19 @@ export function RiskAnalysisClient({
 }: RiskAnalysisClientProps) {
   // 재계산 결과로 화면을 갱신해야 해서 prop을 그대로 안 쓰고 로컬 state로 옮겨 담는다.
   const [depositSafety, setDepositSafety] = useState(initialDepositSafety);
-  const [seniorDeposit, setSeniorDeposit] = useState('');
-  const [maxClaimAmount, setMaxClaimAmount] = useState('');
+  // 이전에 재계산이 적용된 결과라면(seniorDepositApplied), 새로고침 후에도 입력창이 빈 값으로
+  // 보이지 않도록 이미 반영된 값으로 초기화한다 - 안 그러면 사용자가 "반영이 안 됐나?" 하고
+  // 같은 값을 또 입력하거나, 이미 반영된 근저당 채권최고액을 빼먹고 재계산해버릴 수 있다.
+  const [seniorDeposit, setSeniorDeposit] = useState(() =>
+    initialDepositSafety?.seniorDepositApplied && initialDepositSafety.seniorDeposit !== null
+      ? formatIntegerInput(String(initialDepositSafety.seniorDeposit))
+      : '',
+  );
+  const [maxClaimAmount, setMaxClaimAmount] = useState(() =>
+    initialDepositSafety?.seniorDepositApplied && initialDepositSafety.maxClaimAmount !== null
+      ? formatIntegerInput(String(initialDepositSafety.maxClaimAmount))
+      : '',
+  );
   const [isRecalculating, setIsRecalculating] = useState(false);
   const [recalculateError, setRecalculateError] = useState<string | null>(null);
   const [isSeniorDepositHelpOpen, setIsSeniorDepositHelpOpen] = useState(false);
@@ -155,7 +166,13 @@ export function RiskAnalysisClient({
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-950">보증금 안전성</h2>
               {depositSafety.status === 'calculated' && depositSafety.jeonseRatio !== null ? (
-                <Badge className={apiStatusToneClassMap[getJeonseRatioTone(depositSafety.jeonseRatio)]}>
+                <Badge
+                  className={
+                    apiStatusToneClassMap[
+                      getJeonseRatioTone(depositSafety.jeonseRatio, depositSafety.cautionFrom, depositSafety.warnTo)
+                    ]
+                  }
+                >
                   전세가율 {depositSafety.jeonseRatio}%
                 </Badge>
               ) : (
@@ -204,6 +221,11 @@ export function RiskAnalysisClient({
                       <HelpCircle className="h-4 w-4" />
                     </button>
                   </div>
+                  {depositSafety.seniorDepositApplied && (
+                    <p className="mb-2 text-[10px] text-teal-600">
+                      이미 반영된 값이에요 — 값을 바꾸고 다시 계산하면 갱신돼요.
+                    </p>
+                  )}
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label className="block">
                       <span className="mb-1 block text-xs text-slate-500">선순위보증금 (원)</span>
@@ -255,13 +277,13 @@ export function RiskAnalysisClient({
       <Modal open={isSeniorDepositHelpOpen} onClose={() => setIsSeniorDepositHelpOpen(false)}>
         <h3 className="mb-3 text-base font-bold text-slate-950">선순위보증금·근저당 채권최고액이 뭔가요?</h3>
         <p className="mb-3 text-sm leading-relaxed text-slate-600">
-          <span className="font-bold">선순위보증금</span>은 나보다 먼저 전입신고와 확정일자를 받은 다른 세입자가
-          있다면, 그 사람의 보증금이에요. 집이 경매나 매매로 넘어가면 이 돈이 내 보증금보다 먼저 변제돼요.
+          <span className="font-bold">선순위보증금</span>은 나보다 먼저 전입신고와 확정일자를 받은 다른 세입자가 있다면,
+          그 사람의 보증금이에요. 집이 경매나 매매로 넘어가면 이 돈이 내 보증금보다 먼저 변제돼요.
         </p>
         <p className="mb-3 text-sm leading-relaxed text-slate-600">
-          <span className="font-bold">근저당 채권최고액</span>은 등기부등본(을구)에서 확인할 수 있는, 은행 등이 이
-          집에 설정해둔 담보의 최대 금액이에요. 보통 실제 대출금보다 110~130% 크게 잡혀 있고, 이 금액도 내
-          보증금보다 먼저 변제될 수 있어요.
+          <span className="font-bold">근저당 채권최고액</span>은 등기부등본(을구)에서 확인할 수 있는, 은행 등이 이 집에
+          설정해둔 담보의 최대 금액이에요. 보통 실제 대출금보다 110~130% 크게 잡혀 있고, 이 금액도 내 보증금보다 먼저
+          변제될 수 있어요.
         </p>
         <p className="mb-4 text-xs text-slate-500">
           두 값 모두 등기부등본에서 확인하거나 임대인에게 직접 요청해서 알 수 있어요.

@@ -52,13 +52,22 @@ export const depositSafetyReasonCopy: Record<DepositSafetyCheckReasonDto, string
   INTERNAL_ERROR: '일시적인 오류로 계산하지 못했어요',
 };
 
-// Backend RiskPolicyConfig 기준선(80/100/150)을 참고하되, FE 톤 타입이 4색뿐이고 slate는 "판정
-// 불가"로 이미 예약돼 있어서 주의(80~100%)·경고(100~150%) 2단계를 orange 하나로 의도적으로 합친다.
-export function getJeonseRatioTone(jeonseRatio: number): ApiStatusTone {
-  if (jeonseRatio >= 150) {
+// Backend가 응답마다 실어 보내는 RiskPolicyConfig 기준선(cautionFrom/warnTo)을 그대로 쓴다 - 예전엔
+// 80/150을 하드코딩했는데, 이제 Backend가 이 값을 항상 내려주면서 화면 어딘가(판정 기준 안내 문구
+// 등)에는 이미 그 동적 값을 쓰고 있어 정책이 바뀌면 문구와 배지 색이 서로 어긋나는 문제가 있었다.
+// 값이 없을 때만(옛 캐시 등) 기존 기본값으로 대체한다. FE 톤 타입이 4색뿐이고 slate는 "판정 불가"로
+// 이미 예약돼 있어서 주의·경고 2단계는 여전히 orange 하나로 의도적으로 합친다.
+export function getJeonseRatioTone(
+  jeonseRatio: number,
+  cautionFrom: number | null,
+  warnTo: number | null,
+): ApiStatusTone {
+  const effectiveCautionFrom = cautionFrom ?? 80;
+  const effectiveWarnTo = warnTo ?? 150;
+  if (jeonseRatio >= effectiveWarnTo) {
     return 'red';
   }
-  if (jeonseRatio >= 80) {
+  if (jeonseRatio >= effectiveCautionFrom) {
     return 'orange';
   }
   return 'emerald';
