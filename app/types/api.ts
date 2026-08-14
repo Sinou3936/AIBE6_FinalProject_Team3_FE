@@ -232,10 +232,11 @@ export type PasswordPolicyDto = {
   message: string;
 };
 
-// 관심 거래유형(User 도메인) 표기 - property 도메인의 PropertyTransactionTypeDto와 같은
-// 전세/월세 개념이지만 표기가 다르다('WOLSE' vs 'MONTHLY_RENT'). 두 값을 한 화면에서 비교해야
-// 하면 매핑이 필요하니 그대로 비교하지 말 것.
-export type UserTransactionTypeDto = 'JEONSE' | 'WOLSE';
+// 관심 거래유형(User 도메인) 표기 - property 도메인의 PropertyTransactionTypeDto와 같은 전세/월세
+// 개념이고 현재는 값도 동일하다('MONTHLY_RENT', 2026-08-14 확인 - 이전엔 'WOLSE'로 잘못 알고 있었음,
+// backend `com.algogyeyak.user.enums.TransactionType` 참고). 다만 User/Property 도메인 각자의
+// 백엔드 enum이라 독립적으로 바뀔 수 있으니 같은 타입으로 합치지 말고 따로 둔다.
+export type UserTransactionTypeDto = 'JEONSE' | 'MONTHLY_RENT';
 
 export type UserProfileDto = {
   id: number;
@@ -299,8 +300,9 @@ export type NicknamePolicyDto = {
 // 체크리스트 등)까지 포함한 목업 전용 타입이라 분리해서 둔다) ---
 
 export type PropertyTypeDto = 'OFFICETEL' | 'MULTI_FAMILY' | 'DETACHED_HOUSE';
-// User 도메인의 UserTransactionTypeDto와 같은 전세/월세 개념이지만 표기가 다르다
-// ('MONTHLY_RENT' vs 'WOLSE'). 두 값을 한 화면에서 비교해야 하면 매핑이 필요하니 그대로 비교하지 말 것.
+// User 도메인의 UserTransactionTypeDto와 같은 전세/월세 개념이고 현재 값도 동일하다
+// ('MONTHLY_RENT') - 서로 다른 백엔드 enum(Property/User 도메인 각자의 TransactionType)이라
+// 독립적으로 바뀔 수 있으니 같은 타입으로 합치지 말고 따로 둔다.
 export type PropertyTransactionTypeDto = 'JEONSE' | 'MONTHLY_RENT';
 export type PropertyStatusDto = 'ACTIVE' | 'DELETED';
 
