@@ -5,11 +5,14 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  CheckCircle2,
+  FileSearch,
   FileText,
   Home,
   HelpCircle,
   MessageSquare,
   Repeat,
+  Search,
   Shield,
   TrendingUp,
   Volume2,
@@ -35,6 +38,17 @@ const DESCRIPTIONS: Record<LandingDemoKey, string> = {
   contract: '계약서를 업로드하면 특약사항을 조항별로 분석해 이렇게 정리해 드려요.',
   deposit: '매물의 허위매물 의심 신호와 보증금 안전성을 함께 확인할 수 있는 화면이에요.',
   checklist: '방문 전후로 확인해야 할 항목을 매물 유형과 계약 단계에 맞춰 정리해 드려요.',
+};
+
+// 랜딩페이지 카드 순서(app/data/landing.ts)와 동일하게 맞춘다 - 미리보기 사이를 오갈 때도
+// 같은 순서로 보여야 랜딩에서 본 순서와 어긋나지 않는다.
+const NAV_ORDER: LandingDemoKey[] = ['market', 'contract', 'deposit', 'checklist'];
+
+const NAV_ICONS: Record<LandingDemoKey, typeof Search> = {
+  market: Search,
+  contract: FileSearch,
+  deposit: Shield,
+  checklist: CheckCircle2,
 };
 
 // 실제 매물/계약서/체크리스트 데이터가 아니라 서비스 화면을 미리 보여주기 위한 고정 예시다 -
@@ -339,6 +353,27 @@ export function PreviewClient({ demoKey }: PreviewClientProps) {
           </Link>
         </div>
       </header>
+
+      <nav className="border-b border-slate-200 bg-white">
+        <div className="container mx-auto flex max-w-3xl gap-2 overflow-x-auto px-4 py-3">
+          {NAV_ORDER.map((key) => {
+            const Icon = NAV_ICONS[key];
+            const active = key === demoKey;
+            return (
+              <Link
+                key={key}
+                href={`/preview/${key}`}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold transition-colors ${
+                  active ? 'bg-teal-600 text-white' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {TITLES[key]}
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
 
       <main className="container mx-auto max-w-3xl px-4 py-10">
         <div className="mb-6">

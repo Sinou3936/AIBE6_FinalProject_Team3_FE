@@ -14,6 +14,7 @@ import { type Checklist, type ChecklistItem, type PropertyDetail } from '../../.
 import { Badge } from '../../../../ui/Badge';
 import { Modal } from '../../../../ui/Modal';
 import { NoticeBox } from '../../../../ui/NoticeBox';
+import { ChecklistItemImages } from './ChecklistItemImages';
 
 const EMPTY_SUMMARY: ChecklistSummary = {
   progressPercent: 0,
@@ -258,6 +259,8 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
               </div>
               {item.guideText && <p className="mb-3 text-xs text-slate-500">{item.guideText}</p>}
 
+              <ChecklistItemImages images={item.images} />
+
               {item.itemType === 'check' && (
                 <div className="space-y-2">
                   <div className="grid grid-cols-2 gap-2">
@@ -345,6 +348,25 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
                       )}
                     >
                       {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {item.itemType === 'multipleChoice' && (
+                <div className="flex gap-2">
+                  {item.options.map((option) => (
+                    <button
+                      key={option}
+                      onClick={() => handleAnswer(item, option)}
+                      className={cn(
+                        'flex-1 whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-bold transition',
+                        item.value === option
+                          ? 'border-teal-200 bg-teal-50 text-teal-700'
+                          : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50',
+                      )}
+                    >
+                      {option}
                     </button>
                   ))}
                 </div>
