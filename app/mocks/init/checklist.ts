@@ -13,6 +13,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 2,
@@ -26,6 +27,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 3,
@@ -39,6 +41,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 4,
@@ -52,6 +55,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 5,
@@ -65,6 +69,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 6,
@@ -78,6 +83,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 7,
@@ -91,6 +97,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 8,
@@ -104,6 +111,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     // Backend v2 템플릿부터 매물유형별로 "공동현관과 현관문" / "현관문"만 두 문항으로 갈리는데,
@@ -119,6 +127,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: ['https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&q=80&w=500'],
   },
   {
     id: 10,
@@ -132,6 +141,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 11,
@@ -145,6 +155,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 12,
@@ -158,6 +169,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 13,
@@ -172,6 +184,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&q=80&w=1000'],
   },
   {
     id: 14,
@@ -186,6 +199,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 15,
@@ -200,6 +214,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 16,
@@ -214,6 +229,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 17,
@@ -227,6 +243,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 18,
@@ -241,6 +258,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 19,
@@ -255,6 +273,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 20,
@@ -269,6 +288,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 21,
@@ -282,6 +302,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 22,
@@ -295,6 +316,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 23,
@@ -308,6 +330,7 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
   {
     id: 24,
@@ -321,5 +344,6 @@ export const initChecklistItemDtos: ChecklistItemDto[] = [
     issueFound: false,
     value: null,
     userNote: null,
+    images: [],
   },
 ];
