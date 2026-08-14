@@ -2,6 +2,8 @@ import {
   type AdminBulkActionResponseDto,
   type AdminChecklistItemTemplateCreateRequestDto,
   type AdminChecklistItemTemplateDto,
+  type AdminChecklistItemTemplateImageCreateRequestDto,
+  type AdminChecklistItemTemplateImageDto,
   type AdminChecklistItemTemplateUpdateRequestDto,
   type AdminDashboardStatsDto,
   type AdminPropertyReportDetailDto,
@@ -38,6 +40,9 @@ type AdminMockState = {
   reports: AdminPropertyReportListItemDto[];
   reportDetails: Record<number, AdminPropertyReportDetailDto>;
   checklistTemplates: AdminChecklistItemTemplateDto[];
+  // 문항 템플릿 id -> 예시 이미지 목록. Backend와 동일하게 이미지는 템플릿 본체(AdminChecklistItemTemplateDto)에
+  // 안 담기고 별도 조회/추가/삭제 엔드포인트로 관리된다.
+  checklistTemplateImages: Record<number, AdminChecklistItemTemplateImageDto[]>;
 };
 
 const globalForAdminMock = globalThis as typeof globalThis & { __adminMockState?: AdminMockState };
@@ -49,12 +54,14 @@ const mockState: AdminMockState = (globalForAdminMock.__adminMockState ??= {
     Object.entries(initAdminPropertyReportDetails).map(([id, detail]) => [id, { ...detail }]),
   ),
   checklistTemplates: initAdminChecklistItemTemplates.map((template) => ({ ...template })),
+  checklistTemplateImages: {},
 });
 
 const mockUsers = mockState.users;
 const mockReports = mockState.reports;
 const mockReportDetails = mockState.reportDetails;
 const mockChecklistTemplates = mockState.checklistTemplates;
+const mockChecklistTemplateImages = mockState.checklistTemplateImages;
 // 매물 등록 이력은 admin 화면에서 수정할 일이 없어 복제하지 않고 init 데이터를 그대로 참조한다.
 const mockPropertyRegistrations = initAdminPropertyRegistrations;
 
@@ -161,7 +168,11 @@ export function bulkReviewMockAdminPropertyReports(
     const detail = mockReportDetails[reportId];
     const listItem = mockReports.find((report) => report.id === reportId);
     if (!detail || !listItem) {
-      failures.push({ id: reportId, errorCode: 'ADMIN_PROPERTY_REPORT_NOT_FOUND', message: '존재하지 않는 신고입니다.' });
+      failures.push({
+        id: reportId,
+        errorCode: 'ADMIN_PROPERTY_REPORT_NOT_FOUND',
+        message: '존재하지 않는 신고입니다.',
+      });
       continue;
     }
     detail.status = request.status;
@@ -287,6 +298,7 @@ export function createMockAdminChecklistItemTemplate(
     helperText: request.helperText ?? null,
     importance: request.importance,
     itemType: request.itemType,
+    options: request.options ?? null,
     displayOrder: request.displayOrder,
     active: true,
     applicablePropertyTypes: request.applicablePropertyTypes ?? null,
@@ -308,6 +320,7 @@ export function updateMockAdminChecklistItemTemplate(
   template.helperText = request.helperText ?? null;
   template.importance = request.importance;
   template.itemType = request.itemType;
+  template.options = request.options ?? null;
   template.code = request.code ?? null;
   template.displayOrder = request.displayOrder;
   template.applicablePropertyTypes = request.applicablePropertyTypes ?? null;
@@ -319,5 +332,40 @@ export function deleteMockAdminChecklistItemTemplate(templateId: number): boolea
   const index = mockChecklistTemplates.findIndex((candidate) => candidate.id === templateId);
   if (index === -1) return false;
   mockChecklistTemplates.splice(index, 1);
+  return true;
+}
+
+export function getMockAdminChecklistTemplateImages(templateId: number): AdminChecklistItemTemplateImageDto[] {
+  return [...(mockChecklistTemplateImages[templateId] ?? [])].sort((a, b) => a.displayOrder - b.displayOrder);
+}
+
+function nextMockImageId(): number {
+  const allImages = Object.values(mockChecklistTemplateImages).flat();
+  return allImages.reduce((max, image) => Math.max(max, image.id), 0) + 1;
+}
+
+// 실제 백엔드(AdminChecklistTemplateService.addImage)와 동일하게, 새 이미지는 항상 해당 문항의
+// 기존 이미지 중 가장 큰 표시순서 다음 값으로 자동 배정되어 맨 뒤에 추가된다.
+export function addMockAdminChecklistTemplateImage(
+  templateId: number,
+  request: AdminChecklistItemTemplateImageCreateRequestDto,
+): AdminChecklistItemTemplateImageDto {
+  const existing = mockChecklistTemplateImages[templateId] ?? [];
+  const displayOrder = existing.reduce((max, image) => Math.max(max, image.displayOrder), 0) + 1;
+  const created: AdminChecklistItemTemplateImageDto = {
+    id: nextMockImageId(),
+    imageUrl: request.imageUrl,
+    displayOrder,
+  };
+  mockChecklistTemplateImages[templateId] = [...existing, created];
+  return created;
+}
+
+export function deleteMockAdminChecklistTemplateImage(templateId: number, imageId: number): boolean {
+  const existing = mockChecklistTemplateImages[templateId];
+  if (!existing) return false;
+  const next = existing.filter((image) => image.id !== imageId);
+  if (next.length === existing.length) return false;
+  mockChecklistTemplateImages[templateId] = next;
   return true;
 }

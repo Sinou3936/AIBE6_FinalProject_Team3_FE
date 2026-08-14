@@ -619,6 +619,8 @@ export type AdminChecklistItemTemplateDto = {
   helperText: string | null;
   importance: ChecklistImportanceDto;
   itemType: ChecklistItemTypeDto;
+  // MULTIPLE_CHOICE 타입 문항의 선택지("가스보일러,기름보일러,전기보일러,지역난방" 형식). 그 외 타입은 null.
+  options: string | null;
   displayOrder: number;
   active: boolean;
   applicablePropertyTypes: string | null;
@@ -632,6 +634,8 @@ export type AdminChecklistItemTemplateCreateRequestDto = {
   helperText?: string | null;
   importance: ChecklistImportanceDto;
   itemType: ChecklistItemTypeDto;
+  // MULTIPLE_CHOICE 타입 문항의 선택지("가스보일러,기름보일러,전기보일러,지역난방" 형식). 그 외 타입은 사용하지 않는다.
+  options?: string | null;
   code?: ChecklistItemCodeDto | null;
   displayOrder: number;
   applicablePropertyTypes?: string | null;
@@ -639,6 +643,19 @@ export type AdminChecklistItemTemplateCreateRequestDto = {
 
 export type AdminChecklistItemTemplateUpdateRequestDto = AdminChecklistItemTemplateCreateRequestDto & {
   active: boolean;
+};
+
+// 문항 템플릿에 딸린 예시 이미지(관리자 관리용). 파일 업로드는 지원하지 않고, 이미 S3에 올라간
+// 이미지의 URL만 입력받는다 - Backend AdminChecklistTemplateController 주석 참고.
+export type AdminChecklistItemTemplateImageDto = {
+  id: number;
+  imageUrl: string;
+  displayOrder: number;
+};
+
+// displayOrder는 서버가 자동 배정한다(항상 맨 뒤에 추가).
+export type AdminChecklistItemTemplateImageCreateRequestDto = {
+  imageUrl: string;
 };
 
 // --- risk-analysis 도메인 (Backend: com.algogyeyak.riskanalysis.**) ---
