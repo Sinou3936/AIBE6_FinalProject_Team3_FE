@@ -353,6 +353,25 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
                 </div>
               )}
 
+              {item.itemType === 'multipleChoice' && (
+                <div className="flex gap-2">
+                  {item.options.map((option) => (
+                    <button
+                      key={option}
+                      onClick={() => handleAnswer(item, option)}
+                      className={cn(
+                        'flex-1 whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-bold transition',
+                        item.value === option
+                          ? 'border-teal-200 bg-teal-50 text-teal-700'
+                          : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50',
+                      )}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {itemErrors[item.id] && <p className="mt-2 text-xs text-red-600">{itemErrors[item.id]}</p>}
             </div>
           ))}

@@ -37,7 +37,7 @@ export type PropertySummaryDto = {
   longitude: number;
 };
 
-export type ChecklistItemTypeDto = 'CHECK' | 'YES_NO' | 'DATE' | 'DOCUMENT_REQUEST';
+export type ChecklistItemTypeDto = 'CHECK' | 'YES_NO' | 'DATE' | 'DOCUMENT_REQUEST' | 'MULTIPLE_CHOICE';
 export type ChecklistImportanceDto = 'REQUIRED' | 'GENERAL';
 export type ChecklistCategoryDto = 'INDOOR' | 'NOISE' | 'SAFETY' | 'DOCUMENTS' | 'AREA';
 export type ChecklistStatusDto = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -57,6 +57,8 @@ export type ChecklistItemDto = {
   userNote: string | null;
   // 문항 템플릿에 딸린 참고 이미지 URL 목록(관리자 등록, AI 생성 예시). 대부분 빈 배열.
   images: string[];
+  // MULTIPLE_CHOICE 타입 문항의 선택지 목록(예: ["가스보일러", "기름보일러", ...]). 그 외 타입은 빈 배열.
+  options: string[];
 };
 
 export type ChecklistDto = {
