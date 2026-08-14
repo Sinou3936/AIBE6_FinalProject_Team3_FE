@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { sanitizeNextPath } from '../lib/nextPath';
@@ -83,6 +84,12 @@ export function LoginFormClient({ next }: LoginFormClientProps) {
           required
         />
       </label>
+
+      <div className="text-right">
+        <Link href="/forgot-password" className="text-sm font-bold text-teal-700 hover:text-teal-800">
+          비밀번호를 잊으셨나요?
+        </Link>
+      </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
