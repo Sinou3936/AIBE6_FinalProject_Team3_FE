@@ -23,7 +23,6 @@ type TableProps<T> = {
   rows: T[];
   rowKey: (row: T) => string | number;
   emptyMessage?: string;
-  onRowClick?: (row: T) => void;
   selection?: TableSelection<T>;
 };
 
@@ -32,7 +31,6 @@ export function Table<T>({
   rows,
   rowKey,
   emptyMessage = '표시할 데이터가 없습니다.',
-  onRowClick,
   selection,
 }: TableProps<T>) {
   const selectableRows = selection ? rows.filter((row) => selection.isRowSelectable?.(row) ?? true) : [];
@@ -86,17 +84,9 @@ export function Table<T>({
             const key = rowKey(row);
             const selectable = selection ? (selection.isRowSelectable?.(row) ?? true) : false;
             return (
-              <tr
-                key={key}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-                className={cn(
-                  'border-b border-slate-100 last:border-0',
-                  onRowClick && 'cursor-pointer transition hover:bg-slate-50',
-                )}
-              >
+              <tr key={key} className="border-b border-slate-100 last:border-0">
                 {selection && (
-                  // 체크박스 클릭이 행 클릭(onRowClick, 예: 상세보기 열기)까지 같이 발동하지 않도록 막는다.
-                  <td className="px-4 py-3" onClick={(event) => event.stopPropagation()}>
+                  <td className="px-4 py-3">
                     <input
                       type="checkbox"
                       checked={selection.selectedKeys.has(key)}
