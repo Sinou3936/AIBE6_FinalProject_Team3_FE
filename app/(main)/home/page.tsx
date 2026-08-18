@@ -7,6 +7,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import { quickActions, quickActionToneMap } from '../../data/dashboard';
 import { computeHomeSummaryCounts } from '../../lib/homeSummary';
 import { getPriorityAction } from '../../lib/priorityAction';
+import { getRiskCheckHref } from '../../lib/riskCheckAction';
 import { classifyProfileLoadError } from '../../lib/sessionErrors';
 import { getActivityHistory } from '../../services/activityHistory';
 import { getChecklistResult, getMyChecklistOverviews } from '../../services/checklist';
@@ -181,6 +182,10 @@ function HomePageContent() {
   };
   const signalProperties = data.properties.filter((property) => (property.checkSignalCount ?? 0) > 0);
   const specialTermsAlerts = data.activityHistory.filter((item) => item.type === '특약사항 분석');
+  const riskCheckHref = getRiskCheckHref({ properties: data.properties, signalProperties });
+  const resolvedQuickActions = quickActions.map((action) =>
+    action.title === '위험 신호 확인' ? { ...action, to: riskCheckHref } : action,
+  );
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-6 md:py-10">
@@ -207,7 +212,7 @@ function HomePageContent() {
       <PriorityActionCard action={priorityAction} />
 
       <div className="mb-10 grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
-        {quickActions.map((action) => (
+        {resolvedQuickActions.map((action) => (
           <Link
             key={action.title}
             href={action.to}

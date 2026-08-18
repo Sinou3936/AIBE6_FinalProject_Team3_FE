@@ -17,7 +17,9 @@ export const quickActions: QuickAction[] = [
     tone: 'teal',
   },
   {
-    to: '/properties/1',
+    // 실제 이동 경로는 app/(main)/home/page.tsx가 getRiskCheckHref()로 매물/신호 상태에 맞춰
+    // 덮어쓴다(제목으로 매칭) - 여기 값은 그 매칭이 실패했을 때만 쓰이는 안전한 기본값이다.
+    to: '/properties',
     icon: ShieldAlert,
     title: '위험 신호 확인',
     description: '허위매물 의심 신호와 보증금 안전성 수치를 한 번에 확인합니다.',
