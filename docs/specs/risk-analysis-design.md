@@ -50,6 +50,8 @@
 
 - **전용 페이지 `/properties/[id]/risk-analysis`** — 요구사항엔 없는 화면. 매물 상세 카드는 미리보기(신호 2개, 보증금 안전성 요약)만 보여주기로 설계해서, 전체 내용(신호 4종 전체, 보증금 설명/기준일 등)을 볼 별도 진입점이 필요해 추가함
 - **전세가율 4단계(안전/주의/경고) → FE 3색 톤으로 축소** — Backend `RiskPolicyConfig`는 80/100/150 기준선(4단계)을 두지만, FE의 기존 `ApiStatusTone`이 4색뿐이고 그중 slate는 "판정 불가"로 이미 쓰고 있어서 주의·경고 2단계를 orange 하나로 합침(`app/data/risk-analysis.ts` 참고)
+- **(#121 완료)** BE #173에서 추가된 판정 근거(`sampleCount`/`radiusMeters`/`cautionFrom`/`warnFrom`/`warnTo`)를 `RiskAnalysisClient.tsx`에 렌더링 — "인근 매매 실거래가 N건(반경 Xm) 기준으로 계산했어요" 문장과 "판정 기준: 80% 미만 안전 · 80~100% 주의 · 100~150% 위험 · 150% 초과 재확인 필요" 구간 문장을 추가해, 결론(퍼센트+톤)만 보여주던 것에서 근거까지 보여주도록 확장함. 같은 작업에서 "전세가율이 뭔가요?"(매물 상세), "선순위보증금·근저당 채권최고액이 뭔가요?"(위험분석 페이지) (?) 툴팁도 `Modal` 컴포넌트로 추가 — 멘토 피드백("판정 결과는 보이는데 왜 그런지 설명이 없다")을 해소하기 위함
+- **(#130 완료)** `RiskAnalysisClient.tsx` 상단에 매물 대표 이미지 배너 추가(`property.images[0]`, 없으면 `ImageOff` 플레이스홀더) — "매물검증 페이지에 대표 이미지가 안 보인다"는 멘토 피드백 반영. 이후 "목록에서부터 보이는 게 더 중요하다"는 판단으로 우선순위가 매물 목록 쪽(`PropertiesClient.tsx`/`PropertyListItem.tsx`, `representativeImageUrl`)으로 옮겨감 — 자세한 내용은 `property-design.md` 참고
 
 ## 남은 이슈 / 확인 필요 총정리
 
