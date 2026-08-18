@@ -39,6 +39,7 @@ export const riskCheckReasonCopy: Record<RiskCheckReasonDto, string> = {
   NO_COMPARABLE_TRANSACTION: '비교할 수 있는 실거래 데이터가 없어요',
   ADDRESS_INFO_MISSING: '주소 정보가 부족해 확인할 수 없어요',
   PROPERTY_TYPE_UNSUPPORTED: '이 매물 유형은 아직 지원하지 않아요',
+  TRANSACTION_TYPE_UNSUPPORTED: '월세 매물은 이 신호를 확인하지 않아요',
   POLICY_CALCULATION_ERROR: '일시적인 오류로 확인하지 못했어요',
   DATA_FETCH_FAILURE: '일시적인 오류로 확인하지 못했어요',
   INTERNAL_ERROR: '일시적인 오류로 확인하지 못했어요',
