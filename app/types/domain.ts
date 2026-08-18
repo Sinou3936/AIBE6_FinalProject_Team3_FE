@@ -176,6 +176,9 @@ export type ChecklistOverview = {
   // 표시용으로 이미 포맷된 문자열("2026.07.30"). 체크리스트가 있으면 마지막 항목 수정 시각,
   // 시작 전이면 매물 등록/수정 시각으로 Backend가 대체해서 내려준다(항상 값이 있음).
   lastCheckedAt: string;
+  // 시작 전이면 undefined(0%와 구분) - ChecklistProgress와 동일한 패턴.
+  progressPercent?: number;
+  cautionCount?: number;
 };
 
 // GET /checklists 페이지네이션 응답. Backend PageResponse를 그대로 옮기되 content만

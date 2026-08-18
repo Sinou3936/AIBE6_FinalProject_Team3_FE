@@ -60,7 +60,14 @@ export function ChecklistOverviewClient({ checklistPage, loadError }: ChecklistO
                   <Badge className="bg-teal-50 text-teal-700">{overview.tradeType}</Badge>
                   <Badge className={statusColorMap[overview.status]}>{statusLabelMap[overview.status]}</Badge>
                 </div>
-                <span className="shrink-0 text-xs text-slate-400">최종 점검일: {overview.lastCheckedAt}</span>
+                <div className="flex shrink-0 flex-col items-end gap-0.5 text-xs text-slate-400">
+                  <span>최종 점검일: {overview.lastCheckedAt}</span>
+                  {overview.status === 'IN_PROGRESS' && overview.progressPercent !== undefined && (
+                    <span className="text-teal-600">
+                      {overview.progressPercent}% 확인, 주의 {overview.cautionCount ?? 0}개
+                    </span>
+                  )}
+                </div>
               </div>
               <h2 className="mb-1 text-lg font-bold text-slate-950 group-hover:text-teal-700">
                 {overview.propertyTitle}

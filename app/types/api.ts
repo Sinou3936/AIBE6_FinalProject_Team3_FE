@@ -99,6 +99,9 @@ export type ChecklistOverviewDto = {
   status: ChecklistStatusDto;
   // 체크리스트가 있으면 checklist.updatedAt, 없으면 property.updatedAt으로 Backend가 대체해서 내려준다.
   lastCheckedAt: string;
+  // 체크리스트를 아직 시작 안 했으면 null(0%와 구분) - GROUP BY 집계 쿼리로 N+1 없이 계산된다.
+  progressPercent: number | null;
+  cautionCount: number | null;
 };
 
 // 계약 문구 분석 4단계 파이프라인: 입력 제출 -> OCR -> 마스킹 -> AI 분석.
