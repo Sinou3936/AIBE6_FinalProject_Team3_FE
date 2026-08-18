@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { type AdminDashboardStatsDto } from '../../types/api';
-import { AdminDashboardClient } from './AdminDashboardClient';
+import { AdminDashboardClient, buildTrendData } from './AdminDashboardClient';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -32,6 +32,34 @@ function stats(overrides: Partial<AdminDashboardStatsDto['distributions']> = {})
     },
   };
 }
+
+describe('buildTrendData', () => {
+  // 회귀 테스트 - 두 시계열을 배열 인덱스로 짝지으면, propertyRegistrations가 signups와 길이/순서가
+  // 다를 때(예: 특정 날짜에 매물등록 데이터가 아예 없어 배열에서 빠진 경우) 엉뚱한 날짜의 값이
+  // 매칭돼버린다. 실제 date 값으로 맞춰야 이런 경우에도 값이 밀리지 않는다.
+  it('두 시계열의 길이/순서가 달라도 날짜 기준으로 값을 맞춘다', () => {
+    const trends = {
+      signups: [
+        { date: '2026-01-01', count: 3 },
+        { date: '2026-01-02', count: 5 },
+        { date: '2026-01-03', count: 2 },
+      ],
+      // 1/2 데이터가 통째로 빠져 있다 - 인덱스로 매칭하면 1/3의 값(4)이 1/2 자리에 잘못 들어간다.
+      propertyRegistrations: [
+        { date: '2026-01-01', count: 1 },
+        { date: '2026-01-03', count: 4 },
+      ],
+    };
+
+    const result = buildTrendData(trends);
+
+    expect(result).toEqual([
+      { date: '01/01', 가입자: 3, 매물등록: 1 },
+      { date: '01/02', 가입자: 5, 매물등록: 0 },
+      { date: '01/03', 가입자: 2, 매물등록: 4 },
+    ]);
+  });
+});
 
 describe('AdminDashboardClient', () => {
   // 회귀 테스트 - 신고 사유별 분포(막대그래프)는 전부 0일 때 빈 상태 안내를 보여주는데,
