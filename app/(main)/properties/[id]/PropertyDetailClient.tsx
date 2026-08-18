@@ -350,7 +350,17 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
                       </button>
                     </div>
                     {depositSafety.status === 'calculated' && depositSafety.jeonseRatio !== null ? (
-                      <Badge className={apiStatusToneClassMap[getJeonseRatioTone(depositSafety.jeonseRatio)]}>
+                      <Badge
+                        className={
+                          apiStatusToneClassMap[
+                            getJeonseRatioTone(
+                              depositSafety.jeonseRatio,
+                              depositSafety.cautionFrom,
+                              depositSafety.warnTo,
+                            )
+                          ]
+                        }
+                      >
                         전세가율 {depositSafety.jeonseRatio}%
                       </Badge>
                     ) : (
@@ -454,8 +464,8 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
       <Modal open={isJeonseRatioHelpOpen} onClose={() => setIsJeonseRatioHelpOpen(false)}>
         <h3 className="mb-3 text-base font-bold text-slate-950">전세가율이 뭔가요?</h3>
         <p className="mb-3 text-sm leading-relaxed text-slate-600">
-          전세가율은 이 집을 팔았을 때 받을 수 있는 금액(매매 시세) 대비, 내가 내는 전세보증금의 비율이에요. 이
-          비율이 낮을수록 집값이 떨어지더라도 집을 팔아 보증금을 돌려받을 여지가 커요.
+          전세가율은 이 집을 팔았을 때 받을 수 있는 금액(매매 시세) 대비, 내가 내는 전세보증금의 비율이에요. 이 비율이
+          낮을수록 집값이 떨어지더라도 집을 팔아 보증금을 돌려받을 여지가 커요.
         </p>
         {depositSafety?.cautionFrom !== null &&
         depositSafety?.cautionFrom !== undefined &&

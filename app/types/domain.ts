@@ -342,6 +342,11 @@ export type DepositSafetyCheck = {
   propertyId: number;
   status: DepositSafetyStatusId;
   jeonseRatio: number | null;
+  // 선순위보증금 반영 정밀 재계산이 적용된 결과인지, 적용됐다면 실제로 반영된 값이 얼마인지.
+  // 재계산 폼을 새로고침 후에도 "이미 반영된 값"으로 다시 채워주기 위해 필요하다.
+  seniorDepositApplied: boolean;
+  seniorDeposit: number | null;
+  maxClaimAmount: number | null;
   explanation: string | null;
   referenceDate: string | null;
   sampleCount: number | null;
