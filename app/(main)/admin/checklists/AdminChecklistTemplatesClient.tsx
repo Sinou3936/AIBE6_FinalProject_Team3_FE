@@ -72,6 +72,20 @@ const CODE_LABEL: Record<ChecklistItemCodeDto, string> = {
   RESIDENT_REGISTRATION_REQUEST: '전입세대열람원 요청 (미제공 시 자동 주의)',
 };
 
+// ChecklistItem.answer()(백엔드)의 자동 주의(issueFound) 판정은 itemType별로 분기가 갈린다 -
+// TRUST_REGISTRATION/OWNERSHIP_MATCH는 answerYesNo()에서만, DATE_OF_CONFIRMATION_REQUEST/
+// RESIDENT_REGISTRATION_REQUEST는 answerDocumentRequest()에서만 확인한다. 여기 없는
+// itemType으로 저장하면 code는 그대로 남지만 answer()가 그 분기를 절대 타지 않아 자동 주의
+// 판정이 조용히 죽는다 - 폼에서 이 조합을 막아 저장 시점에 바로 알 수 있게 한다.
+// OWNERSHIP_ACQUISITION_DATE/TAX_DELINQUENCY_NOTICE는 answer()가 code 자체를 확인하지 않는
+// 순수 안내용 코드라 여기 없어도(제약 없음) 무방하다.
+const CODE_REQUIRED_ITEM_TYPES: Partial<Record<ChecklistItemCodeDto, ChecklistItemTypeDto[]>> = {
+  TRUST_REGISTRATION: ['YES_NO'],
+  OWNERSHIP_MATCH: ['YES_NO'],
+  DATE_OF_CONFIRMATION_REQUEST: ['DOCUMENT_REQUEST'],
+  RESIDENT_REGISTRATION_REQUEST: ['DOCUMENT_REQUEST'],
+};
+
 type FormState = {
   category: ChecklistCategoryDto;
   content: string;
@@ -194,6 +208,15 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
     if (!Number.isInteger(displayOrder) || displayOrder < 1) {
       setFormError('노출 순서는 1 이상의 숫자여야 합니다.');
       return;
+    }
+    if (form.code) {
+      const requiredItemTypes = CODE_REQUIRED_ITEM_TYPES[form.code];
+      if (requiredItemTypes && !requiredItemTypes.includes(form.itemType)) {
+        setFormError(
+          `"${CODE_LABEL[form.code]}" 코드는 응답 방식이 ${requiredItemTypes.map((type) => ITEM_TYPE_LABEL[type]).join('/')}일 때만 자동 판정이 동작합니다. 응답 방식을 바꾸거나 코드를 "없음"으로 선택해주세요.`,
+        );
+        return;
+      }
     }
 
     setSubmitting(true);
