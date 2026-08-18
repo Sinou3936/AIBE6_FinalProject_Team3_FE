@@ -374,6 +374,10 @@ export type MarketComparisonDto = {
   referenceDate: string | null;
   // 실제 적용된 반경 단계(300 또는 600). status가 UNAVAILABLE이면 null.
   radiusMeters: number | null;
+  // 표본 필터링에 쓰인 면적오차 허용율(0.2 = ±20%). status가 UNAVAILABLE이면 null.
+  areaErrorRate: number | null;
+  // 실거래를 조회한 개월 수. status가 UNAVAILABLE이면 null.
+  lookbackMonths: number | null;
   // UNAVAILABLE 사유를 사람이 읽을 수 있는 문장으로 내려준다(월세/단독다가구/좌표없음/표본부족 등).
   // AVAILABLE이면 null.
   message: string | null;

@@ -109,6 +109,10 @@ export type PropertyMarketComparison = {
   referenceDate?: string;
   // 실제 적용된 반경 단계(300 또는 600) - 반경이 확장됐는지 사용자에게 알려주기 위함.
   radiusMeters?: number;
+  // 표본 필터링에 쓰인 면적오차 허용율(0.2 = ±20%).
+  areaErrorRate?: number;
+  // 실거래를 조회한 개월 수.
+  lookbackMonths?: number;
   // UNAVAILABLE일 때 사유(월세/단독다가구/좌표없음/표본부족 등)를 그대로 보여준다.
   message?: string;
 };

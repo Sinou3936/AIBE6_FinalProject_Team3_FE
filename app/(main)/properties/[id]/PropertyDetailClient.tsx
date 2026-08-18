@@ -255,6 +255,13 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
                       인근 실거래 {property.marketComparison.sampleCount}건 기준 (반경{' '}
                       {property.marketComparison.radiusMeters}m)
                     </p>
+                    {typeof property.marketComparison.areaErrorRate === 'number' &&
+                      typeof property.marketComparison.lookbackMonths === 'number' && (
+                        <p className="mb-1 text-xs text-slate-400">
+                          면적오차 ±{Math.round(property.marketComparison.areaErrorRate * 100)}% · 최근{' '}
+                          {property.marketComparison.lookbackMonths}개월 실거래 기준으로 비교했어요.
+                        </p>
+                      )}
                     <p className="text-xl font-bold text-slate-950">
                       {formatDifferenceMessage(property.marketComparison.differenceRateText)}
                     </p>
