@@ -1,6 +1,6 @@
 import { type ApiErrorBody, type ApiResponse } from '../../types/api';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '');
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, '');
 
 const REFRESH_TOKEN_COOKIE = 'refresh_token';
 const REFRESH_PATH = '/auth/refresh';

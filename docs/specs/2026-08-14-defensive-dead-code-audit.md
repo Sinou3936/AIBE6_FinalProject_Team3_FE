@@ -38,6 +38,8 @@ property/checklist/market-data/risk-analysis/contract-analysis/admin) + 공용 �
 
 1. **`API_BASE_URL` export**(`app/lib/api/http.ts:3`) — 다른 모든 파일이 `getApiBaseUrl()`을 통해서만 접근, export 자체가 불필요.
 
+**정리 결과 (2026-08-14, `fix/auth-token-admin-dead-code-cleanup`)**: 1번 삭제 완료 — `export const` → 파일 내부 `const`로 변경.
+
 **애매함(팀이 이미 의도적으로 남긴 것)**:
 - `account_blocked` 에러 매핑(`app/login/page.tsx:24`) — "혹시 과거 배포본이 이 코드를 여전히 보내는 경우를 대비해 매핑 자체는 남겨둔다"고 명시적으로 남겨둔 케이스. 현재 backend(`CustomOAuth2UserService`)는 이 코드를 절대 안 보냄(계정 존재 여부 비노출 원칙으로 `oauth_login_failed`에 통일). 100% 죽은 분기이지만 팀이 이미 검토·정당화한 것.
 - **`MeResponseDto.email`** — `/auth/me` 등 응답에 backend가 항상 포함시키지만(backend 문서 참고), `getCurrentUser()`를 쓰는 모든 곳(`(main)/layout.tsx`, `MainLayoutGate.tsx`, `mypage/page.tsx`, `oauth/callback/page.tsx`)이 `nickname`/`profileImageUrl`/`role`/`userId`만 읽고 `.email`은 안 읽음.
@@ -125,6 +127,8 @@ backend 문서에도 동일 항목이 있으니 참고.
 - **`AdminBulkActionResponse.Failure.errorCode`** — `AdminUsersClient.tsx`/`AdminReportsClient.tsx` 둘 다 실패 목록에서 `message`만 보여주고 `errorCode`는 테스트 픽스처에만 존재.
 - **`AdminChecklistItemTemplateResponse.version`** — 테이블 컬럼/폼(`AdminChecklistTemplatesClient.tsx`)에 참조 0건. 다만 backend 내부 버전 정합성 로직에는 실사용되므로 완전한 dead code는 아님(backend 문서 참고).
 - **`AdminPropertyReportListItemResponse.detail`** — 목록 응답에 포함되지만 목록 테이블 컬럼엔 없음(상세는 별도 API로 다시 받아옴) — 불필요한 페이로드 전송이지만 심각하지 않음.
+
+**정리 결과 (2026-08-14, `fix/auth-token-admin-dead-code-cleanup`)**: 위 목록 중 GET 미호출/deposit·monthlyRent·reviewerId/errorCode 3건 삭제 완료 — `AdminPropertyReportDetailDto`에서 `propertyId`/`deposit`/`monthlyRent`/`reviewerId` 제거, `AdminBulkActionResponseDto.failures[].errorCode` 제거(mock 레포지토리·mock 초기 데이터·테스트 픽스처 전부 갱신). `version`/`AdminPropertyReportListItemResponse.detail`은 "애매함"으로 분류돼 있어 이번 범위에서 건드리지 않음.
 
 ---
 

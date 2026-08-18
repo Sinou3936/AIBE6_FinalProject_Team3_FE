@@ -207,7 +207,7 @@ describe('AdminUsersClient', () => {
   it('일괄처리가 부분 실패하면 결과 모달에 실패 항목을 보여준다', async () => {
     bulkUpdateAdminUserStatus.mockResolvedValueOnce({
       succeededIds: [2],
-      failures: [{ id: 3, errorCode: 'ADMIN_LAST_ADMIN_ACCOUNT', message: '마지막 남은 관리자 계정은 강등하거나 정지할 수 없습니다.' }],
+      failures: [{ id: 3, message: '마지막 남은 관리자 계정은 강등하거나 정지할 수 없습니다.' }],
     });
 
     render(
