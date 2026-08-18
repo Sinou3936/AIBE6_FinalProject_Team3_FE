@@ -56,25 +56,38 @@ function AdminUsersPageContent() {
   // 뒤에만 state를 쓴다. useEffect의 cancelled 플래그는 loading만 지켜줄 뿐 이 함수 내부 쓰기는
   // 못 막는다(onMutated로 effect 밖에서도 호출되므로 더더욱 그렇다).
   const requestIdRef = useRef(0);
-  const reloadUsers = useCallback(() => {
-    const requestId = ++requestIdRef.current;
-    return getAdminUsers({ page, email, nickname, role, status })
-      .then((usersPage) => {
-        if (requestId !== requestIdRef.current) return;
-        // 지금 페이지가 이 결과 기준으로 더 이상 유효하지 않으면, 빈 목록을 잠깐 보여주는 대신
-        // 유효한 페이지로 리다이렉트한다(그 리다이렉트가 URL을 바꿔 이 effect를 다시 실행시킨다).
-        if (clampToValidPage(usersPage.totalPages)) return;
-        setData(usersPage);
-        setLoadError(undefined);
-      })
-      .catch((error) => {
-        if (requestId !== requestIdRef.current) return;
-        // data를 그대로 두면 에러 배너 아래 이전(어쩌면 다른 필터의) 목록이 최신인 것처럼 계속
-        // 보인다 - 실패했으면 화면에는 에러만 남긴다.
-        setData(undefined);
-        setLoadError(resolveErrorMessage(error, '유저 목록을 불러오지 못했습니다.'));
-      });
-  }, [page, email, nickname, role, status, clampToValidPage]);
+  const reloadUsers = useCallback(
+    (options?: { keepDataOnError?: boolean }) => {
+      const requestId = ++requestIdRef.current;
+      return getAdminUsers({ page, email, nickname, role, status })
+        .then((usersPage) => {
+          if (requestId !== requestIdRef.current) return;
+          // 지금 페이지가 이 결과 기준으로 더 이상 유효하지 않으면, 빈 목록을 잠깐 보여주는 대신
+          // 유효한 페이지로 리다이렉트한다(그 리다이렉트가 URL을 바꿔 이 effect를 다시 실행시킨다).
+          if (clampToValidPage(usersPage.totalPages)) return;
+          setData(usersPage);
+          setLoadError(undefined);
+        })
+        .catch((error) => {
+          if (requestId !== requestIdRef.current) return;
+          const message = resolveErrorMessage(error, '유저 목록을 불러오지 못했습니다.');
+          if (options?.keepDataOnError) {
+            // 역할/상태 변경이 서버에서는 이미 성공한 뒤, 그 후속 목록 재조회만 일시적으로
+            // 실패한 경우다 - 목록을 지우면 방금 확정한 변경 자체가 실패한 것처럼 보인다. 기존
+            // 목록은 그대로 두고 경고만 남긴다(AdminUsersClient가 data/loadError를 독립적으로
+            // 렌더링하므로 목록과 경고가 함께 보인다).
+            setLoadError(message);
+            return;
+          }
+          // 필터/페이지 변경으로 인한 재조회 실패다 - data를 그대로 두면 에러 배너 아래 이전
+          // (어쩌면 다른 필터의) 목록이 최신인 것처럼 계속 보인다. 실패했으면 화면에는 에러만
+          // 남긴다.
+          setData(undefined);
+          setLoadError(message);
+        });
+    },
+    [page, email, nickname, role, status, clampToValidPage],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +104,8 @@ function AdminUsersPageContent() {
       cancelled = true;
     };
   }, [reloadUsers]);
+
+  const reloadUsersAfterMutation = useCallback(() => reloadUsers({ keepDataOnError: true }), [reloadUsers]);
 
   if (loading) {
     return (
@@ -111,7 +126,7 @@ function AdminUsersPageContent() {
         status: status ?? '',
       }}
       currentUserId={currentUserId}
-      onMutated={reloadUsers}
+      onMutated={reloadUsersAfterMutation}
     />
   );
 }
