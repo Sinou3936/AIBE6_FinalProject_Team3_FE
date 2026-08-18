@@ -18,9 +18,13 @@ export type MarketComparisonDto = {
   sampleCount: number | null;
   referenceDate: string | null;
   radiusMeters: number | null;   // 실제 적용된 반경 단계(300/600). UNAVAILABLE이면 null
+  areaErrorRate: number | null;  // 표본 필터링에 쓰인 면적오차 허용율(0.2 = ±20%). UNAVAILABLE이면 null
+  lookbackMonths: number | null; // 실거래를 조회한 개월 수. UNAVAILABLE이면 null
   message: string | null;        // UNAVAILABLE 사유를 사람이 읽을 문장으로. AVAILABLE이면 null
 };
 ```
+
+**(#154 완료)** `areaErrorRate`/`lookbackMonths`는 BE #206에서 판정 근거 데이터로 추가된 필드다 — "왜 이 표본으로 비교됐는지" 계산 기준값을 보여달라는 멘토 피드백 반영. `PropertyDetailClient.tsx`의 시세 비교(AVAILABLE) 카드에 "면적오차 ±20% · 최근 6개월 실거래 기준으로 비교했어요" 문구로 렌더링된다.
 
 `status`가 `AVAILABLE`/`UNAVAILABLE` 두 값뿐이라 "판정불가(표본부족)"와 "판정불가(주소정보 부족)"·"실패(외부 API 장애)" 같은 세부 유형을 코드값으로는 구분하지 않지만, `message`가 사유별로 다른 문장을 내려주기 때문에 **사용자에게 보여지는 결과 기준으로는 사실상 구분이 됨**(코드로 분기하고 싶은 경우에만 여전히 한계).
 
