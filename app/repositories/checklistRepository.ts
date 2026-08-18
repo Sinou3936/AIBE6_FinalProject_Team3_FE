@@ -87,6 +87,13 @@ export function getMockChecklistOverviews(page = 0, size = 5): ChecklistOverview
   // 수정시각으로 대체" 규칙을 흉내내는 대신 조회 시점을 그대로 쓴다.
   const lastCheckedAt = formatDateText(new Date().toISOString());
 
+  // Backend findProgressByUserId 집계 쿼리와 동일한 규칙을 mock에서도 그대로 흉내낸다
+  // (getMockChecklistResult와 동일 계산) - mock은 전역 상태 하나뿐이라 모든 매물이 같은 값을 공유한다.
+  const totalCount = mockChecklistItemDtos.length;
+  const checkedCount = mockChecklistItemDtos.filter((item) => item.checked).length;
+  const issueCount = mockChecklistItemDtos.filter((item) => item.issueFound).length;
+  const progressPercent = totalCount === 0 ? 0 : Math.round((checkedCount / totalCount) * 100);
+
   const allItems = getMockProperties().map((property) => ({
     propertyId: property.id,
     checklistId: status === 'NOT_STARTED' ? null : MOCK_CHECKLIST_ID,
@@ -95,6 +102,8 @@ export function getMockChecklistOverviews(page = 0, size = 5): ChecklistOverview
     tradeType: property.type,
     status,
     lastCheckedAt,
+    progressPercent: status === 'NOT_STARTED' ? undefined : progressPercent,
+    cautionCount: status === 'NOT_STARTED' ? undefined : issueCount,
   }));
 
   const totalElements = allItems.length;

@@ -89,5 +89,7 @@ export function mapChecklistOverviewDto(dto: ChecklistOverviewDto): ChecklistOve
     tradeType: propertyTransactionTypeLabelMap[dto.transactionType],
     status: dto.status,
     lastCheckedAt: formatDateText(dto.lastCheckedAt),
+    progressPercent: dto.progressPercent ?? undefined,
+    cautionCount: dto.cautionCount ?? undefined,
   };
 }

@@ -159,9 +159,13 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
       <div className="sticky top-0 z-30 border-b border-slate-200 bg-white">
         <div className="container mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
           <div className="flex items-center gap-3">
-            <Link href={`/properties/${propertyId}`} className="-ml-2 p-2 text-slate-500 hover:text-slate-950">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="-ml-2 p-2 text-slate-500 hover:text-slate-950"
+            >
               <ArrowLeft className="h-6 w-6" />
-            </Link>
+            </button>
             <div>
               <h1 className="text-lg font-bold text-slate-950">현장 체크리스트</h1>
               {property && (
