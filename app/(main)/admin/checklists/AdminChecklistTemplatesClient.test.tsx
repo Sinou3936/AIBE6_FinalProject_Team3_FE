@@ -56,7 +56,27 @@ describe('AdminChecklistTemplatesClient', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '저장' }));
 
-    expect(await screen.findByText(/자동 판정이 동작합니다/)).toBeInTheDocument();
+    expect(await screen.findByText(/사용할 수 있습니다/)).toBeInTheDocument();
+    expect(createAdminChecklistItemTemplate).not.toHaveBeenCalled();
+  });
+
+  // 회귀 테스트 - OWNERSHIP_ACQUISITION_DATE/TAX_DELINQUENCY_NOTICE는 자동 주의 판정과는
+  // 무관하지만(ChecklistItemCode 자바독 참고), 백엔드 validateCode()는 이 둘도 다른 4개 코드와
+  // 동일하게 고정된 itemType을 요구해 어긋나면 무조건 거부한다. 프론트가 이 두 코드를
+  // CODE_REQUIRED_ITEM_TYPES에서 빠뜨렸을 때는 저장 버튼을 누른 뒤 서버 에러로만 드러났다.
+  it('OWNERSHIP_ACQUISITION_DATE 코드와 맞지 않는 응답 방식으로 저장하면 에러를 보여주고 저장하지 않는다', async () => {
+    getAdminChecklistTemplateImages.mockResolvedValue([]);
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '문항 추가' }));
+
+    fireEvent.change(screen.getByLabelText(/문항 내용/), { target: { value: '소유권 취득일이 언제인가요?' } });
+    // 응답 방식은 기본값 CHECK로 둔 채(요구되는 DATE가 아님) 코드만 OWNERSHIP_ACQUISITION_DATE로 선택한다.
+    fireEvent.change(screen.getByLabelText(/자동 판정 코드/), { target: { value: 'OWNERSHIP_ACQUISITION_DATE' } });
+
+    fireEvent.click(screen.getByRole('button', { name: '저장' }));
+
+    expect(await screen.findByText(/사용할 수 있습니다/)).toBeInTheDocument();
     expect(createAdminChecklistItemTemplate).not.toHaveBeenCalled();
   });
 
