@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../lib/api/http';
 import { SignupFormClient } from './SignupFormClient';
 
 vi.mock('next/navigation', () => ({
@@ -103,5 +104,44 @@ describe('SignupFormClient', () => {
 
     setIntervalSpy.mockRestore();
     vi.useRealTimers();
+  });
+
+  // 회귀 테스트 - 백엔드는 메일 발송 실패(EMAIL_SEND_FAILED) 시 쿨다운을 해제한다
+  // (EmailVerificationService.requestCode()의 releaseCooldownBestEffort 참고, 발송 실패는
+  // 사용자 잘못이 아니므로 즉시 재시도를 허용한다) - 프론트가 이 코드에도 여전히 60초 클라이언트
+  // 쿨다운을 걸면, 서버는 재시도를 허용하는데 버튼만 막는 모순이 생긴다. AUTH_EMAIL_VERIFICATION_
+  // TOO_MANY_REQUESTS(진짜 쿨다운)일 때만 클라이언트 쿨다운을 시작해야 한다.
+  it('메일 발송 실패(EMAIL_SEND_FAILED)에는 클라이언트 쿨다운을 걸지 않는다', async () => {
+    requestEmailVerification.mockRejectedValue(
+      new ApiError('메일 발송 실패', 502, { code: 'EMAIL_SEND_FAILED', message: '메일 발송 실패' }),
+    );
+
+    render(<SignupFormClient passwordPolicy={passwordPolicy} nicknamePolicy={nicknamePolicy} />);
+
+    fireEvent.change(screen.getByPlaceholderText('you@example.com'), { target: { value: 'a@x.com' } });
+    fireEvent.click(screen.getByRole('button', { name: '인증번호 발송' }));
+
+    // resolveErrorMessage는 Error 인스턴스면 그 message를 그대로 보여준다.
+    await screen.findByText('메일 발송 실패');
+    // 쿨다운이 걸리지 않았으므로 버튼은 초 카운트다운 없이 즉시 다시 누를 수 있어야 한다.
+    const retryButton = screen.getByRole('button', { name: '재발송' });
+    expect(retryButton).not.toBeDisabled();
+  });
+
+  it('쿨다운 초과(AUTH_EMAIL_VERIFICATION_TOO_MANY_REQUESTS)에는 클라이언트 쿨다운을 건다', async () => {
+    requestEmailVerification.mockRejectedValue(
+      new ApiError('너무 많은 요청', 429, {
+        code: 'AUTH_EMAIL_VERIFICATION_TOO_MANY_REQUESTS',
+        message: '너무 많은 요청',
+      }),
+    );
+
+    render(<SignupFormClient passwordPolicy={passwordPolicy} nicknamePolicy={nicknamePolicy} />);
+
+    fireEvent.change(screen.getByPlaceholderText('you@example.com'), { target: { value: 'a@x.com' } });
+    fireEvent.click(screen.getByRole('button', { name: '인증번호 발송' }));
+
+    await screen.findByText('너무 많은 요청');
+    expect(screen.getByRole('button', { name: /재발송 \(60초\)/ })).toBeDisabled();
   });
 });

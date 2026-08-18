@@ -111,13 +111,11 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
       // 쿨다운(429) 응답이면 백엔드가 이미 이 이메일에 대해 쿨다운을 걸어둔 것이므로, 버튼도
       // 즉시 다시 누를 수 있는 것처럼 보이지 않도록 클라이언트에서도 카운트다운을 시작한다 -
       // 안 그러면 재발송을 눌러도 매번 같은 429만 반복해서 받게 된다. 메일 발송 자체가 실패한
-      // 경우(EMAIL_SEND_FAILED)는 Redis 쿨다운이 먼저 걸린 뒤에 실패하므로 마찬가지로 쿨다운이
-      // 이미 소비된 상태다 - 두 경우 모두 카운트다운을 시작해 실제 서버 상태와 맞춘다.
-      if (
-        requestError instanceof ApiError &&
-        (requestError.body?.code === 'AUTH_EMAIL_VERIFICATION_TOO_MANY_REQUESTS' ||
-          requestError.body?.code === 'EMAIL_SEND_FAILED')
-      ) {
+      // 경우(EMAIL_SEND_FAILED)는 반대로 백엔드가 쿨다운을 이미 해제해뒀다
+      // (EmailVerificationService.requestCode()의 releaseCooldownBestEffort 참고 - 발송 실패는
+      // 사용자 잘못이 아니므로 즉시 재시도를 허용한다) - 여기서 클라이언트 쿨다운까지 걸면 서버는
+      // 재시도를 허용하는데 버튼만 60초 동안 막는 모순이 생긴다.
+      if (requestError instanceof ApiError && requestError.body?.code === 'AUTH_EMAIL_VERIFICATION_TOO_MANY_REQUESTS') {
         setResendCooldown(RESEND_COOLDOWN_SECONDS);
       }
     }
