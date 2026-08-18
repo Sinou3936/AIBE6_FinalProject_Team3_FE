@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { ENABLE_ANALYSIS_HISTORY } from '../../config/features';
 import { ApiError } from '../../lib/api/http';
-import { hasRegisteredProfile } from '../../lib/profile';
+import { canSetPassword, hasRegisteredProfile } from '../../lib/profile';
 import { useLogout } from '../../lib/useLogout';
 import { logout } from '../../services/auth';
 import { withdraw } from '../../services/user';
@@ -60,14 +60,15 @@ export function MyPageClient({
   // DELETE /users/me가 세션 무효화(쿠키 삭제)까지 best-effort로 처리하지만(UserController.withdraw
   // 참고) 실패해도 조용히 넘어가도록 되어 있어, 확실히 하기 위해 방어적으로 logout()을 한 번 더
   // 호출한다. 이미 쿠키/토큰이 없는 상태라 실질적으로는 아무 것도 안 하는 호출이라
-  // (SessionLogoutService.logout이 토큰이 없으면 즉시 스킵), 실패해도 탈퇴 자체는 이미 끝난
-  // 뒤이므로 에러를 삼키고 항상 랜딩 페이지로 이동한다.
+  // (SessionLogoutService.logout이 토큰이 없으면 즉시 스킵) await하지 않는다 - 탈퇴 자체는 이미
+  // withdraw()에서 끝난 뒤라, 실질적으로 아무 일도 안 하는 이 호출의 응답을 기다리느라 "탈퇴
+  // 처리 중..." 화면이 불필요하게 더 오래 떠 있을 이유가 없다. 실패해도 무시한다.
   async function confirmWithdraw() {
     setWithdrawError(null);
     setIsWithdrawing(true);
     try {
       await withdraw();
-      await logout().catch(() => {});
+      logout().catch(() => {});
       router.push('/');
       router.refresh();
     } catch (error) {
@@ -155,7 +156,7 @@ export function MyPageClient({
                 <Lock className="h-4 w-4 text-slate-300" />
                 비밀번호 설정 (정보를 불러오지 못함)
               </div>
-            ) : profile.hasPassword || profile.email !== null ? (
+            ) : canSetPassword(profile) ? (
               <Link
                 href="/mypage/password"
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50"
