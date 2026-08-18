@@ -665,6 +665,9 @@ export type RiskCheckReasonDto =
   | 'NO_COMPARABLE_TRANSACTION'
   | 'ADDRESS_INFO_MISSING'
   | 'PROPERTY_TYPE_UNSUPPORTED'
+  // (2026-08-14) 월세(거래유형 미지원)를 PROPERTY_TYPE_UNSUPPORTED와 구분하기 위해 신설됨 -
+  // risk-analysis-design.md 전수조사 결과 버그 2번 참고.
+  | 'TRANSACTION_TYPE_UNSUPPORTED'
   | 'POLICY_CALCULATION_ERROR'
   | 'DATA_FETCH_FAILURE'
   | 'INTERNAL_ERROR';

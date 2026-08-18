@@ -711,7 +711,17 @@ export function ContractResultClient({
                     <div className="mb-6 flex items-center justify-between">
                       <h3 className="text-lg font-bold text-slate-950">보증금 안전성</h3>
                       {depositSafety.status === 'calculated' && depositSafety.jeonseRatio !== null ? (
-                        <Badge className={apiStatusToneClassMap[getJeonseRatioTone(depositSafety.jeonseRatio)]}>
+                        <Badge
+                          className={
+                            apiStatusToneClassMap[
+                              getJeonseRatioTone(
+                                depositSafety.jeonseRatio,
+                                depositSafety.cautionFrom,
+                                depositSafety.warnTo,
+                              )
+                            ]
+                          }
+                        >
                           전세가율 {depositSafety.jeonseRatio}%
                         </Badge>
                       ) : (
