@@ -116,7 +116,7 @@ export function bulkUpdateMockAdminUserStatus(
   for (const userId of userIds) {
     const user = mockUsers.find((candidate) => candidate.id === userId);
     if (!user) {
-      failures.push({ id: userId, errorCode: 'ADMIN_USER_NOT_FOUND', message: '존재하지 않는 사용자입니다.' });
+      failures.push({ id: userId, message: '존재하지 않는 사용자입니다.' });
       continue;
     }
     user.status = status;
@@ -149,7 +149,6 @@ export function reviewMockAdminPropertyReport(
   if (!detail || !listItem) return undefined;
 
   detail.status = request.status;
-  detail.reviewerId = 1;
   detail.reviewedAt = new Date().toISOString().slice(0, 10);
   detail.reviewMemo = request.memo ?? null;
   listItem.status = request.status;
@@ -170,13 +169,11 @@ export function bulkReviewMockAdminPropertyReports(
     if (!detail || !listItem) {
       failures.push({
         id: reportId,
-        errorCode: 'ADMIN_PROPERTY_REPORT_NOT_FOUND',
         message: '존재하지 않는 신고입니다.',
       });
       continue;
     }
     detail.status = request.status;
-    detail.reviewerId = 1;
     detail.reviewedAt = new Date().toISOString().slice(0, 10);
     detail.reviewMemo = request.memo ?? null;
     listItem.status = request.status;
