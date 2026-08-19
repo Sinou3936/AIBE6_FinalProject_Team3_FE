@@ -403,7 +403,9 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
                       className={cn(
                         'flex-1 whitespace-nowrap rounded-lg border px-3 py-2 text-sm font-bold transition',
                         item.value === option
-                          ? 'border-teal-200 bg-teal-50 text-teal-700'
+                          ? option === '미흡'
+                            ? 'border-orange-200 bg-orange-50 text-orange-700'
+                            : 'border-teal-200 bg-teal-50 text-teal-700'
                           : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50',
                       )}
                     >
