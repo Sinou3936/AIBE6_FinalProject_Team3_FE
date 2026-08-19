@@ -32,7 +32,10 @@ export function updateMockChecklistItem(itemId: number, request: ChecklistItemUp
     if ('userNote' in request) {
       return { ...item, checked: true, userNote: request.userNote, issueFound: true };
     }
-    return { ...item, value: request.value, checked: true };
+    // Backend ChecklistItem.answerMultipleChoice()와 동일한 규칙 - "미흡"은 문항과 무관하게
+    // 항상 주의 항목으로 취급한다. YES_NO/DOCUMENT_REQUEST의 code 기반 자동판정 규칙은
+    // mock ChecklistItemDto에 code 필드 자체가 없어 여기서 재현하지 않는다.
+    return { ...item, value: request.value, checked: true, issueFound: request.value === '미흡' };
   });
 
   const updated = mockChecklistItemDtos.find((item) => item.id === itemId);
