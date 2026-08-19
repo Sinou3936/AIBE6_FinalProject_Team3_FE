@@ -8,6 +8,7 @@ import { navItems } from '../data/navigation';
 import { cn } from '../lib/cn';
 import { useLogout } from '../lib/useLogout';
 import { NoticeBox } from '../ui/NoticeBox';
+import { MainCurrentUserProvider } from './MainCurrentUserContext';
 
 type MainLayoutClientProps = {
   children: ReactNode;
@@ -171,7 +172,9 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl, 
         </div>
       )}
 
-      <main className="flex-1 pb-20 md:pb-0">{children}</main>
+      <main className="flex-1 pb-20 md:pb-0">
+        <MainCurrentUserProvider value={{ nickname, profileImageUrl }}>{children}</MainCurrentUserProvider>
+      </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-around border-t border-slate-200 bg-white px-2 md:hidden">
         {navItems.slice(0, 4).map((item) => (

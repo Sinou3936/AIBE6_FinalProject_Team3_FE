@@ -182,7 +182,11 @@ export function MyPageClient({
               <LogOut className="h-4 w-4 text-slate-400" />
               {isLoggingOut ? '로그아웃 중...' : '로그아웃'}
             </button>
-            {logoutError && <p className="px-3 text-xs text-red-600">{logoutError}</p>}
+            {logoutError && (
+              <p role="alert" className="px-3 text-xs text-red-600">
+                {logoutError}
+              </p>
+            )}
             <button
               type="button"
               onClick={handleWithdrawClick}

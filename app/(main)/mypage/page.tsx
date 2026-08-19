@@ -4,7 +4,6 @@ import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { classifyProfileLoadError } from '../../lib/sessionErrors';
 import { getActivityHistory } from '../../services/activityHistory';
-import { getCurrentUser } from '../../services/auth';
 import { getChecklistResult, getMyChecklistOverviews } from '../../services/checklist';
 import { getProperties } from '../../services/properties';
 import { getMyProfile } from '../../services/user';
@@ -16,6 +15,7 @@ import {
   type UserProfile,
 } from '../../types/domain';
 import { AccountUnavailableRedirect } from '../../ui/AccountUnavailableRedirect';
+import { useMainCurrentUser } from '../MainCurrentUserContext';
 import { MyPageClient } from './MyPageClient';
 
 const emptyProfile: UserProfile = {
@@ -29,7 +29,6 @@ const emptyProfile: UserProfile = {
 };
 
 type PageData = {
-  nickname: string;
   activityHistory: ActivityHistoryItem[];
   activityHistoryLoadError?: string;
   properties: PropertySummary[];
@@ -42,6 +41,11 @@ type PageData = {
 };
 
 export default function Page() {
+  // 상단 인사말에 쓰는 닉네임은 MainLayoutClient(부모 레이아웃)가 로그인 판단 과정에서 이미
+  // 확인해둔 값을 그대로 재사용한다 - 이 페이지가 직접 getCurrentUser()를 또 호출하면 /mypage에
+  // 진입할 때마다 /auth/me가 불필요하게 두 번 왕복한다(admin/AdminCurrentUserContext.tsx와
+  // 동일한 이유).
+  const { nickname } = useMainCurrentUser();
   const [data, setData] = useState<PageData | null>(null);
 
   useEffect(() => {
@@ -51,12 +55,16 @@ export default function Page() {
       // 인증 판단/리다이렉트는 MainLayoutGate.tsx 한 곳에서만 한다 - 이 페이지가 렌더링됐다는
       // 것 자체가 이미 세션이 유효하다는 뜻이므로, 아래 개별 데이터 조회가 실패해도(세션 무효
       // 포함) 여기서 다시 재로그인으로 판단하지 않고 각자 자리에 빈 값/에러 문구만 남긴다.
-      let nickname = '';
-      try {
-        nickname = (await getCurrentUser()).nickname;
-      } catch {
-        // 닉네임은 화면 상단 인사말에만 쓰이므로 실패해도 빈 채로 넘어간다.
-      }
+
+      // 아래 네 조회는 서로 의존 관계가 없으므로, await 없이 먼저 전부 호출해 네트워크 요청을
+      // 동시에 내보낸 뒤 순서대로 await한다 - 각 조회가 실패를 자신의 try/catch에서 잡아 빈
+      // 값/에러 문구로만 남기고 다시 throw하지 않으므로, 이렇게 순서대로 await해도 한 조회의
+      // 실패가 나머지 조회나 화면 렌더링을 막지 않는다(기존 동작 그대로 유지).
+      const activityHistoryPromise = getActivityHistory();
+      // 홈 화면과 동일한 이유(app/(main)/home/page.tsx 참고)로 최대 페이지 크기(100)만큼 가져온다.
+      const propertiesPromise = getProperties(undefined, { size: 100 });
+      const checklistOverviewsPromise = getMyChecklistOverviews();
+      const profilePromise = getMyProfile();
 
       // 최근 활동 내역(activityHistory, 특약사항 분석 포함)은 백엔드에 아직 이 엔드포인트가 없어
       // 항상 실패한다(app/services/activityHistory.ts 참고) - ENABLE_ANALYSIS_HISTORY가 꺼져 있어
@@ -64,7 +72,7 @@ export default function Page() {
       let activityHistory: ActivityHistoryItem[] = [];
       let activityHistoryLoadError: string | undefined;
       try {
-        activityHistory = await getActivityHistory();
+        activityHistory = await activityHistoryPromise;
       } catch {
         activityHistoryLoadError = '마이페이지 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
       }
@@ -73,8 +81,7 @@ export default function Page() {
       let propertiesTotalCount = 0;
       let propertiesLoadError: string | undefined;
       try {
-        // 홈 화면과 동일한 이유(app/(main)/home/page.tsx 참고)로 최대 페이지 크기(100)만큼 가져온다.
-        const propertiesPage = await getProperties(undefined, { size: 100 });
+        const propertiesPage = await propertiesPromise;
         properties = propertiesPage.items;
         propertiesTotalCount = propertiesPage.totalElements;
       } catch {
@@ -83,7 +90,7 @@ export default function Page() {
 
       const checklistProgressByPropertyId: Record<number, ChecklistProgress> = {};
       try {
-        const checklistOverviews = (await getMyChecklistOverviews()).items;
+        const checklistOverviews = (await checklistOverviewsPromise).items;
         checklistOverviews.forEach((overview) => {
           checklistProgressByPropertyId[overview.propertyId] = { status: overview.status };
         });
@@ -112,7 +119,7 @@ export default function Page() {
       let profileLoadError: string | undefined;
       let profileNotFound = false;
       try {
-        profile = await getMyProfile();
+        profile = await profilePromise;
       } catch (error) {
         if (classifyProfileLoadError(error) === 'not-found') {
           profileNotFound = true;
@@ -123,7 +130,6 @@ export default function Page() {
 
       if (!cancelled) {
         setData({
-          nickname,
           activityHistory,
           activityHistoryLoadError,
           properties,
@@ -161,7 +167,7 @@ export default function Page() {
         propertiesTotalCount={data.propertiesTotalCount}
         propertiesLoadError={data.propertiesLoadError}
         checklistProgressByPropertyId={data.checklistProgressByPropertyId}
-        nickname={data.nickname}
+        nickname={nickname}
         profile={data.profile}
         profileLoadError={data.profileLoadError}
       />

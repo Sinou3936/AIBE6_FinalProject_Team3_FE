@@ -23,9 +23,11 @@ export function WithdrawConfirmModal({ open, isWithdrawing, error, onClose, onCo
       </p>
 
       {error && (
-        <NoticeBox icon={AlertTriangle} iconClassName="text-red-500" className="mb-4 bg-red-50 text-red-600">
-          {error}
-        </NoticeBox>
+        <div role="alert">
+          <NoticeBox icon={AlertTriangle} iconClassName="text-red-500" className="mb-4 bg-red-50 text-red-600">
+            {error}
+          </NoticeBox>
+        </div>
       )}
 
       <div className="flex gap-2">

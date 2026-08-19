@@ -69,7 +69,7 @@ export default function PasswordUpdatePage() {
     <div className="min-h-screen bg-slate-50 pb-20">
       <div className="border-b border-slate-200 bg-white">
         <div className="container mx-auto flex h-16 max-w-3xl items-center gap-3 px-4">
-          <Link href="/mypage" className="-ml-2 p-2 text-slate-500 hover:text-slate-950">
+          <Link href="/mypage" aria-label="마이페이지로 돌아가기" className="-ml-2 p-2 text-slate-500 hover:text-slate-950">
             <ArrowLeft className="h-6 w-6" />
           </Link>
           <h1 className="text-lg font-bold text-slate-950">{title}</h1>
