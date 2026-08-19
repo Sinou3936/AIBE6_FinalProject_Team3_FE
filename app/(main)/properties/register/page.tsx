@@ -13,6 +13,7 @@ import { formatDecimalInput, formatIntegerInput } from '../../../lib/numberForma
 import { createProperty } from '../../../services/properties';
 import { type PropertyTransactionTypeDto, type PropertyTypeDto } from '../../../types/api';
 import { type PropertyImage } from '../../../types/domain';
+import { AddressSearchField } from '../../../ui/AddressSearchField';
 import { FeatureCard } from '../../../ui/FeatureCard';
 import { LoadingOverlay } from '../../../ui/LoadingOverlay';
 import { PropertyImageUploader } from '../../../ui/PropertyImageUploader';
@@ -134,16 +135,10 @@ export default function Page() {
               </p>
             </label>
 
-            <label className="block">
+            <div>
               <span className="mb-2 block text-sm font-bold text-slate-700">주소</span>
-              <input
-                value={address}
-                onChange={(event) => setAddress(event.target.value)}
-                disabled={isSubmitting}
-                className="ansim-input disabled:opacity-60"
-                placeholder="예: 서울시 강남구 테헤란로 123"
-              />
-            </label>
+              <AddressSearchField value={address} onChange={setAddress} disabled={isSubmitting} />
+            </div>
 
             <div>
               <span className="mb-2 block text-sm font-bold text-slate-700">매물 유형</span>
