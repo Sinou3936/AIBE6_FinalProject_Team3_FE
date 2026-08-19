@@ -91,7 +91,11 @@ export function LoginFormClient({ next }: LoginFormClientProps) {
         </Link>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      )}
 
       <button type="submit" disabled={isSubmitting} className="ansim-button-primary w-full py-3 disabled:opacity-60">
         {isSubmitting ? '로그인 중...' : '이메일로 로그인'}

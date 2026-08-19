@@ -400,7 +400,11 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
           <div>
             <h2 className="mb-2 text-lg font-bold text-slate-950">이 문항을 삭제할까요?</h2>
             <p className="mb-4 text-sm text-slate-500">{modal.template.content}</p>
-            {formError && <p className="mb-3 text-sm text-red-600">{formError}</p>}
+            {formError && (
+              <p className="mb-3 text-sm text-red-600" role="alert">
+                {formError}
+              </p>
+            )}
             <div className="flex justify-end gap-2">
               <button
                 onClick={closeModal}
@@ -546,8 +550,10 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                 </select>
               </label>
 
-              <div className="text-xs font-bold text-slate-600">
-                적용 매물유형 (선택 안 하면 전체 매물유형에 적용)
+              <fieldset className="m-0 border-0 p-0 text-xs font-bold text-slate-600">
+                <legend className="p-0 text-xs font-bold text-slate-600">
+                  적용 매물유형 (선택 안 하면 전체 매물유형에 적용)
+                </legend>
                 <div className="mt-1 flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   {Object.entries(propertyTypeLabelMap).map(([value, label]) => {
                     const propertyType = value as PropertyTypeDto;
@@ -571,11 +577,11 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                   })}
                 </div>
                 {modal.form.unknownPropertyTypeTokens.length > 0 && (
-                  <p className="mt-1.5 text-xs text-amber-600">
+                  <p className="mt-1.5 text-xs text-amber-700" role="alert">
                     알 수 없는 매물유형 값이 있어 그대로 유지됩니다: {modal.form.unknownPropertyTypeTokens.join(', ')}
                   </p>
                 )}
-              </div>
+              </fieldset>
 
               {modal.type === 'edit' && (
                 <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
@@ -639,12 +645,20 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                       추가
                     </button>
                   </div>
-                  {imagesError && <p className="mt-1.5 text-xs text-red-600">{imagesError}</p>}
+                  {imagesError && (
+                    <p className="mt-1.5 text-xs text-red-600" role="alert">
+                      {imagesError}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
 
-            {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
+            {formError && (
+              <p className="mt-3 text-sm text-red-600" role="alert">
+                {formError}
+              </p>
+            )}
 
             <div className="mt-4 flex justify-end gap-2">
               <button
