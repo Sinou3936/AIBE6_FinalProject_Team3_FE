@@ -189,4 +189,26 @@ describe('AdminReportsClient', () => {
     expect(screen.getByText('신고 #2')).toBeInTheDocument();
     expect(screen.queryByText('신고 #1')).not.toBeInTheDocument();
   });
+
+  // 뒤로가기/앞으로가기로 filters prop만 바뀌고 컴포넌트가 언마운트되지 않는 경우를 재현한다 -
+  // 상태/사유 드롭다운의 로컬 state가 새 prop으로 재동기화돼야 한다.
+  it('filters prop이 바뀌면(뒤로가기 등) 상태/사유 드롭다운 값도 갱신된다', () => {
+    const { rerender } = render(
+      <AdminReportsClient data={page([reportRow()])} filters={{ status: 'RECEIVED', reason: '' }} currentUserId={999} />,
+    );
+
+    expect((screen.getByDisplayValue('접수 (대기중)') as HTMLSelectElement).value).toBe('RECEIVED');
+
+    rerender(
+      <AdminReportsClient
+        data={page([reportRow()])}
+        filters={{ status: 'RESOLVED', reason: 'PRICE_MISMATCH' }}
+        currentUserId={999}
+      />,
+    );
+
+    const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
+    expect(selects[0].value).toBe('RESOLVED');
+    expect(selects[1].value).toBe('PRICE_MISMATCH');
+  });
 });

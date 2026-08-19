@@ -1,10 +1,11 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { type AdminUserListItemDto, type PageResponseDto } from '../../../types/api';
 import { AdminUsersClient } from './AdminUsersClient';
 
+const push = vi.fn();
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({ push, refresh: vi.fn() }),
 }));
 
 const updateAdminUserRole = vi.fn();
@@ -28,8 +29,11 @@ function user(overrides: Partial<AdminUserListItemDto>): AdminUserListItemDto {
   };
 }
 
-function page(content: AdminUserListItemDto[]): PageResponseDto<AdminUserListItemDto> {
-  return { content, page: 0, size: 20, totalPages: 1, totalElements: content.length, hasNext: false };
+function page(
+  content: AdminUserListItemDto[],
+  overrides: Partial<PageResponseDto<AdminUserListItemDto>> = {},
+): PageResponseDto<AdminUserListItemDto> {
+  return { content, page: 0, size: 20, totalPages: 1, totalElements: content.length, hasNext: false, ...overrides };
 }
 
 const filters = { email: '', nickname: '', role: '', status: '' };
@@ -226,5 +230,57 @@ describe('AdminUsersClient', () => {
 
     expect(await screen.findByText('성공 1명, 실패 1명')).toBeInTheDocument();
     expect(screen.getByText(/마지막 남은 관리자 계정은 강등하거나 정지할 수 없습니다/)).toBeInTheDocument();
+  });
+
+  // 회귀 테스트 - 뒤로가기/앞으로가기로 filters prop이 바뀌면, 검색창에 아직 제출하지 않은
+  // 입력값이 남아있으면 안 된다(제출 안 한 값이 조용히 함께 적용된 것처럼 보이는 것을 방지).
+  it('filters prop이 바뀌면(뒤로가기 등) 검색창의 미제출 입력값이 새 필터로 재동기화된다', () => {
+    const { rerender } = render(
+      <AdminUsersClient
+        data={page([])}
+        filters={{ email: 'old@example.com', nickname: '', role: '', status: '' }}
+        currentUserId={1}
+      />,
+    );
+
+    const emailInput = screen.getByPlaceholderText('이메일 검색') as HTMLInputElement;
+    expect(emailInput.value).toBe('old@example.com');
+
+    // "검색" 버튼은 누르지 않고 입력값만 바꿔둔다(미제출 상태).
+    fireEvent.change(emailInput, { target: { value: 'unsubmitted@example.com' } });
+    expect(emailInput.value).toBe('unsubmitted@example.com');
+
+    rerender(
+      <AdminUsersClient
+        data={page([])}
+        filters={{ email: 'new@example.com', nickname: '', role: '', status: '' }}
+        currentUserId={1}
+      />,
+    );
+
+    expect(emailInput.value).toBe('new@example.com');
+  });
+
+  // 회귀 테스트 - navigateToPage는 검색창의 로컬 state가 아니라 filters prop(마지막으로 실제
+  // 적용된 값)을 기준으로 이동해야 한다. 검색창에 새 값을 입력만 하고 "검색"을 누르지 않은 채
+  // 페이지 화살표를 클릭해도, 아직 제출 안 한 검색어가 함께 적용되면 안 된다.
+  it('페이지 이동은 검색창의 미제출 입력이 아니라 filters prop(적용된 값) 기준으로 이동한다', () => {
+    render(
+      <AdminUsersClient
+        data={page([user({ id: 2 })], { totalPages: 2 })}
+        filters={{ email: 'applied@example.com', nickname: '', role: '', status: '' }}
+        currentUserId={1}
+      />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText('이메일 검색'), { target: { value: 'unsubmitted@example.com' } });
+
+    const pageIndicator = screen.getByText('1 / 2');
+    const paginationContainer = pageIndicator.parentElement as HTMLElement;
+    const [, nextButton] = within(paginationContainer).getAllByRole('button');
+    fireEvent.click(nextButton);
+
+    expect(push).toHaveBeenCalledWith(expect.stringContaining('email=applied%40example.com'));
+    expect(push.mock.calls[0][0]).not.toContain('unsubmitted');
   });
 });
