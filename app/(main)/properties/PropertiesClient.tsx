@@ -38,6 +38,8 @@ export type PropertiesFilter = {
   // "field,direction" 형태의 Spring Pageable Sort 문법 그대로 사용한다. 생략하면 BE 기본값인
   // createdAt,desc(최신순)로 처리된다.
   sort?: string;
+  // true면 확인 필요 신호(checkSignalCount > 0)가 있는 매물만 보여준다(#233/#181).
+  hasSignal?: boolean;
 };
 
 type SortOption = { label: string; value?: string };
@@ -99,7 +101,8 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
     filter.maxDeposit !== undefined ||
     filter.minMonthlyRent !== undefined ||
     filter.maxMonthlyRent !== undefined ||
-    Boolean(filter.sort);
+    Boolean(filter.sort) ||
+    Boolean(filter.hasSignal);
 
   // 현재 폼 상태(+ overrides로 넘긴 값)를 쿼리파라미터로 직렬화한다. page는 여기서 다루지 않고
   // buildPageHref가 별도로 붙인다 - 필터가 바뀌면 항상 0페이지부터 다시 보는 게 맞기 때문.
@@ -116,6 +119,7 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
       minMonthlyRent: minMonthlyRent ? Number(minMonthlyRent) * 10_000 : undefined,
       maxMonthlyRent: maxMonthlyRent ? Number(maxMonthlyRent) * 10_000 : undefined,
       sort: filter.sort,
+      hasSignal: filter.hasSignal,
       ...overrides,
     };
 
@@ -140,6 +144,8 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
     if (next.maxMonthlyRent !== undefined && !Number.isNaN(next.maxMonthlyRent))
       params.set('maxMonthlyRent', String(next.maxMonthlyRent));
     if (next.sort) params.set('sort', next.sort);
+    // false/undefined는 필터 없음과 동일하게 취급해 URL을 깔끔하게 유지한다.
+    if (next.hasSignal) params.set('hasSignal', 'true');
     return params;
   }
 
@@ -321,6 +327,15 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
                 {pill.label}
               </button>
             ))}
+            <button
+              onClick={() => applyFilter({ hasSignal: filter.hasSignal ? undefined : true })}
+              className={cn(
+                'ansim-filter-pill flex items-center gap-1',
+                filter.hasSignal ? 'bg-orange-600 text-white' : 'ansim-filter-pill-muted',
+              )}
+            >
+              <AlertTriangle className="h-3.5 w-3.5" /> 확인 필요 신호만
+            </button>
           </div>
           <label className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-600">
             <ArrowUpDown className="h-4 w-4 text-slate-400" />
