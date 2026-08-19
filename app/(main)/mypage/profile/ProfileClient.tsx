@@ -264,7 +264,9 @@ export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: Prof
         await updateMyProfile(formValues);
       }
       // 최초 등록(온보딩)은 분기 결과가 반영된 홈 화면으로, 이후 수정은 원래 있던 마이페이지로 되돌아간다.
-      router.push(mode === 'register' ? '/home' : '/mypage');
+      // register 성공 시에만 notice를 붙여, 홈 화면이 이번이 등록 직후 첫 방문임을 알고 사용법
+      // 안내 모달(OnboardingIntroModal)을 한 번 띄우게 한다.
+      router.push(mode === 'register' ? '/home?notice=profile_registered' : '/mypage');
       router.refresh();
     } catch (error) {
       const message = resolveErrorMessage(error, '프로필 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.');
