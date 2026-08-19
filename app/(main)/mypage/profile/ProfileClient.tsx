@@ -4,7 +4,6 @@ import { ArrowLeft, Sparkles, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
-import { useMainCurrentUser } from '../../MainCurrentUserContext';
 import { regions } from '../../../data/regions_nested';
 import { userCurrentStageOptions, userTransactionTypeOptions } from '../../../data/user';
 import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
@@ -103,9 +102,6 @@ function buildInterestRegion(sido: string, sigungu: string, eupmyeondong: string
 
 export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: ProfileClientProps) {
   const router = useRouter();
-  // 저장 성공 직후 헤더(MainLayoutClient)의 닉네임/프로필 사진을 재조회 없이 즉시 반영하기 위한
-  // setter다 - MainCurrentUserContext.tsx 참고.
-  const { updateCurrentUser } = useMainCurrentUser();
   const [formValues, setFormValues] = useState<ProfileUpdateInput>(toFormValues(profile));
   const initialLocation = parseInterestRegion(profile.interestRegion);
   const [sido, setSido] = useState(initialLocation.sido);
@@ -262,10 +258,11 @@ export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: Prof
         imageAlreadyApplied = true;
       }
 
-      const savedProfile = mode === 'register' ? await registerProfile(formValues) : await updateMyProfile(formValues);
-      // 방금 서버가 확정한 최신 nickname/profileImageUrl을 헤더에 즉시 반영한다 - 이미 응답으로
-      // 받은 값이라 getCurrentUser()로 다시 조회할 필요가 없다(MainCurrentUserContext.tsx 참고).
-      updateCurrentUser({ nickname: savedProfile.nickname, profileImageUrl: savedProfile.profileImageUrl });
+      if (mode === 'register') {
+        await registerProfile(formValues);
+      } else {
+        await updateMyProfile(formValues);
+      }
       // 최초 등록(온보딩)은 분기 결과가 반영된 홈 화면으로, 이후 수정은 원래 있던 마이페이지로 되돌아간다.
       // register 성공 시에만 notice를 붙여, 홈 화면이 이번이 등록 직후 첫 방문임을 알고 사용법
       // 안내 모달(OnboardingIntroModal)을 한 번 띄우게 한다.
