@@ -54,13 +54,16 @@ export type ExtractOcrTextResult = {
   // OCR이 신뢰도가 낮았던 구간. 더 이상 422로 거부되지 않고 항상 이 필드로 같이 내려온다 -
   // 사용자가 확인 단계에서 직접 검토할 수 있게 안내하는 용도로만 쓰고, 자동으로 막지는 않는다.
   uncertainFields: ContractOcrUncertainField[];
+  // 인식된 텍스트 전체가 매우 짧을 때 true. uncertainFields(부분 구간)와 달리 결과 자체를
+  // 신뢰하기 어렵다는 신호라 마스킹 확인 화면에서 더 강하게 안내한다.
+  shortTextWarning: boolean;
 };
 
 // 이미지 입력 경로용(submitContractInput의 nextStep이 'OCR'일 때). 텍스트 직접 입력 화면에서는
 // 호출되지 않지만, 이미지 업로드가 실제로 붙을 때 재사용할 수 있도록 스펙대로 구현해 둔다.
 export async function extractOcrText(image: File): Promise<ExtractOcrTextResult> {
   if (useMockData) {
-    return { extractedText: '', uncertainFields: [] };
+    return { extractedText: '', uncertainFields: [], shortTextWarning: false };
   }
 
   const formData = new FormData();
@@ -71,7 +74,11 @@ export async function extractOcrText(image: File): Promise<ExtractOcrTextResult>
     body: formData,
   });
 
-  return { extractedText: dto.extractedText, uncertainFields: dto.uncertainFields };
+  return {
+    extractedText: dto.extractedText,
+    uncertainFields: dto.uncertainFields,
+    shortTextWarning: dto.shortTextWarning,
+  };
 }
 
 export type MaskContractTextResult = {

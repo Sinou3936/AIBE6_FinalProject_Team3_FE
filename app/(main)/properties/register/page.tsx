@@ -41,10 +41,6 @@ export default function Page() {
     const depositNumber = Number(deposit.replace(/,/g, ''));
     const areaNumber = Number(area.replace(/,/g, ''));
 
-    if (title.trim().length === 0) {
-      setError('매물 이름을 입력해주세요.');
-      return;
-    }
     if (address.trim().length === 0) {
       setError('주소를 입력해주세요.');
       return;
@@ -123,7 +119,7 @@ export default function Page() {
 
           <div className="space-y-5">
             <label className="block">
-              <span className="mb-2 block text-sm font-bold text-slate-700">매물 이름</span>
+              <span className="mb-2 block text-sm font-bold text-slate-700">매물 이름 (선택)</span>
               <input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
@@ -131,6 +127,11 @@ export default function Page() {
                 className="ansim-input disabled:opacity-60"
                 placeholder="예: 강남 오피스텔"
               />
+              <p className="mt-2 text-xs text-slate-500">
+                이름이 없는 건물이라면 비워두세요. &ldquo;
+                {propertyTypeOptions.find((option) => option.value === propertyType)?.label}
+                &rdquo;로 표시돼요.
+              </p>
             </label>
 
             <label className="block">

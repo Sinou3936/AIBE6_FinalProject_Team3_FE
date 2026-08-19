@@ -59,10 +59,6 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
     const depositNumber = Number(deposit.replace(/,/g, ''));
     const areaNumber = Number(area.replace(/,/g, ''));
 
-    if (title.trim().length === 0) {
-      setError('매물 이름을 입력해주세요.');
-      return;
-    }
     if (!deposit || Number.isNaN(depositNumber) || depositNumber <= 0) {
       setError('보증금을 올바르게 입력해주세요.');
       return;
@@ -144,7 +140,7 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
 
           <div className="space-y-5">
             <label className="block">
-              <span className="mb-2 block text-sm font-bold text-slate-700">매물 이름</span>
+              <span className="mb-2 block text-sm font-bold text-slate-700">매물 이름 (선택)</span>
               <input
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
@@ -152,6 +148,9 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
                 className="ansim-input disabled:opacity-60"
                 placeholder="예: 강남 오피스텔"
               />
+              <p className="mt-2 text-xs text-slate-500">
+                이름이 없는 건물이라면 비워두세요. &ldquo;{property.propertyType}&rdquo;로 표시돼요.
+              </p>
             </label>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
