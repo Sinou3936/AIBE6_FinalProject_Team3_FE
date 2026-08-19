@@ -290,7 +290,11 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
           autoComplete="new-password"
           required
         />
-        {passwordMismatch && <p className="mt-1 text-sm text-red-600">비밀번호가 일치하지 않습니다.</p>}
+        {passwordMismatch && (
+          <p role="alert" className="mt-1 text-sm text-red-600">
+            비밀번호가 일치하지 않습니다.
+          </p>
+        )}
       </label>
       <label className="block">
         <span className="mb-1.5 block text-sm font-bold text-slate-700">닉네임</span>
