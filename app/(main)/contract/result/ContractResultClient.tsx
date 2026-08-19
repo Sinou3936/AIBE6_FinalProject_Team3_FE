@@ -24,7 +24,7 @@ import { apiStatusToneClassMap, getJeonseRatioTone, riskSignalTypeMeta } from '.
 import { getContractAnalysisErrorMessage } from '../../../lib/contractAnalysisErrors';
 import { analyzeContract, sendContractClauseQuestion } from '../../../services/contract-analysis';
 import { getDepositSafety, getRiskSignals } from '../../../services/risk-analysis';
-import { type ContractOcrUncertainField } from '../../../types/api';
+import { type ContractChatMessage, type ContractOcrUncertainField } from '../../../types/api';
 import {
   type ContractAnalysisResult,
   type ContractAnalysisTab,
@@ -335,9 +335,14 @@ export function ContractResultClient({
       return;
     }
 
-    const historyForRequest = state.history
+    // Backend ContractAnalysisChatMessage는 role/content만 받아서, 완료된 턴 하나(질문+답변)를
+    // "user" 메시지와 "assistant" 메시지 2개로 나눠 시간순으로 펼친다.
+    const historyForRequest: ContractChatMessage[] = state.history
       .filter((entry): entry is ClauseChatEntry & { answer: string } => entry.answer !== null)
-      .map(({ question: q, answer }) => ({ question: q, answer }));
+      .flatMap(({ question: q, answer }): ContractChatMessage[] => [
+        { role: 'user', content: q },
+        { role: 'assistant', content: answer },
+      ]);
 
     // 응답을 기다리지 않고, 질문 말풍선부터 즉시 추가(answer: null = 로딩 표시 중)하고 입력창을 비운다.
     const pendingEntryIndex = state.history.length;

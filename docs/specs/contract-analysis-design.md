@@ -6,7 +6,9 @@
 
 **(2026-08-07 갱신)** 이전 버전은 이 화면이 정적 목업(static mockup) 단계일 때 쓴 스냅샷이었습니다. 그 사이 Backend 4단계 파이프라인(입력 제출 → OCR → 마스킹 → AI 분석)이 실제로 연결됐고, 조항별 추가 질문(미니 채팅) 기능도 새로 붙었습니다. 이번 갱신은 그 시점 기준입니다.
 
-**범위**: `app/(main)/contract/upload`, `app/(main)/contract/result`, `app/services/contract-analysis.ts`, `app/mappers/contract-analysis.ts`, `app/lib/base64Url.ts`만 다룹니다.
+**(2026-08-19 갱신)** `upload` → `result` 화면 간 마스킹 결과 전달 방식이 base64url query string에서 `sessionStorage`로 바뀌었습니다. `result/page.tsx`도 이제 서버 컴포넌트가 아니라 클라이언트 컴포넌트입니다(아래 참고).
+
+**범위**: `app/(main)/contract/upload`, `app/(main)/contract/result`, `app/services/contract-analysis.ts`, `app/mappers/contract-analysis.ts`, `app/lib/contractResultStorage.ts`만 다룹니다.
 
 ## 핵심 요약: 입력 → 분석 파이프라인이 실제로 연결됨
 
@@ -15,7 +17,7 @@
 - `app/(main)/contract/upload/page.tsx`의 "직접 입력" `<textarea>`는 이제 완전한 controlled component입니다(`value`/`onChange`로 `text` state 관리).
 - 이미지 드래그앤드롭/파일 선택(`<input type="file" accept="image/*">`)이 실제로 파일을 받아 `File` 객체로 저장하고, `URL.createObjectURL`로 썸네일 미리보기까지 보여줍니다. JPG/PNG 타입만 허용(`ACCEPTED_IMAGE_TYPES`), 아니면 에러 메시지.
 - "특약사항 분석하기" 버튼 클릭 시 실제로 `submitContractInput` → (이미지면) `extractOcrText` → `maskContractText`를 순차 호출합니다. 각 단계 진행 상태가 로딩 배너로 표시됩니다.
-- 마스킹된 결과(`maskedText`/`maskedCount`/`uncertainFields`)는 서버에 저장하지 않는 정책이라, base64url로 인코딩해 query string으로 `/contract/result`에 전달합니다(`app/lib/base64Url.ts`).
+- 마스킹된 결과(`maskedText`/`maskedCount`/`uncertainFields`/`shortTextWarning`/`propertyId`)는 서버에 저장하지 않는 정책이라, `sessionStorage`에 잠깐 담아둔 뒤 데이터 없이 순수하게 `/contract/result`로 이동합니다(`app/lib/contractResultStorage.ts`의 `saveContractMaskingReview`). `result` 페이지는 마운트되자마자 `readAndClearContractMaskingReview()`로 읽고 바로 지워서, 새로고침/뒤로가기로 재방문해도 이전 데이터가 남지 않습니다. `sessionStorage`는 브라우저 전용 API라 `result/page.tsx`도 서버 컴포넌트에서 클라이언트 컴포넌트로 바뀌었고, 읽기 전 짧은 로딩 스피너를 거칩니다.
 - `/contract/result`는 그 마스킹 결과를 화면 상단에 고정 표시하고, 사용자가 "이대로 분석 진행"을 눌러야 `analyzeContract`가 호출됩니다 — **페이지 이동 없이 같은 화면 아래로 결과가 이어서 렌더링**됩니다.
 
 즉 입력(텍스트/이미지) → OCR → 마스킹 → AI 분석까지 사용자가 실제로 입력한 값이 그대로 흘러갑니다. `demoSpecialTermsText` 같은 하드코딩된 데모 문자열은 더 이상 없습니다.
@@ -45,7 +47,7 @@
 | --- | --- |
 | 전화번호/주민등록번호/계좌번호 등을 시스템이 정규식·라벨 기반으로 마스킹 | ✅ `maskContractText()`가 `POST /contract-analysis/masking`을 호출해 실제 마스킹 처리(`maskedText`, `maskedCount` 응답) |
 | 사용자가 마스킹 결과를 확인 | ✅ `/contract/result` 진입 시 마스킹된 텍스트를 화면 상단에 고정 표시(스크롤 가능한 200px 박스 + "전체 보기" 토글). 표시 전 짧은 줄 병합/빈 괄호 제거 등 가독성 정리를 거치지만, 실제 분석에는 원본 그대로 전송 |
-| 마스킹 결과는 서버 저장 없이 프론트에서만 확인 시점까지 보관 | ✅ 서버는 아무 것도 저장하지 않는 정책이고, FE도 마스킹 결과를 base64url로 query string에만 담아 넘기지 별도 저장소(localStorage 등)에 두지 않음 |
+| 마스킹 결과는 서버 저장 없이 프론트에서만 확인 시점까지 보관 | ✅ 서버는 아무 것도 저장하지 않는 정책이고, FE도 마스킹 결과를 `sessionStorage`에 잠깐만 담아두고 `result` 화면이 읽는 즉시 지움(탭을 닫아도 자동 소멸, `localStorage` 같은 영구 저장소는 안 씀) |
 | 마스킹 확인 안 하면 AI 분석 요청 안 함 | ✅ "이대로 분석 진행" 버튼을 눌러야만 `analyzeContract`가 호출됨. 그 전엔 `maskedText`만 화면에 있을 뿐 분석 요청 자체가 안 나감 |
 
 기존에 있던 "특약사항만 올렸어요"/"개인정보 가렸어요"/"동의합니다" 자가 체크 3개는 그대로 남아있고, 여전히 입력 단계(업로드 화면)에서 제출 전 게이트로 쓰입니다 — 다만 이제는 그 뒤에 **실제 시스템 마스킹과 확인 화면이 이어지므로**, 이 체크박스는 "자가 신고"가 마스킹을 대체하던 예전과 달리 마스킹 이전 단계의 보조 확인 장치 역할로 성격이 바뀌었습니다.
@@ -121,7 +123,7 @@
 ### 보안
 
 1. `dangerouslySetInnerHTML` 사용 여부를 포함해 `app/(main)/contract/**` 전체를 확인했으며, AI 응답 텍스트(`explanation`/`question`/`suggestedText`/채팅 `answer`)는 모두 JSX 텍스트 노드로만 렌더링되어 React가 자동으로 이스케이프한다 — 별도의 XSS 벡터는 발견되지 않음.
-2. (경미) 마스킹된 텍스트 전체가 `/contract/result?data=...` URL 쿼리 파라미터에 base64url로 담겨 전달된다(`upload/page.tsx`의 `navigateToMaskingReview`, `result/page.tsx`의 `decodeMaskingReviewPayload`). PII는 이미 서버 마스킹을 거친 상태라 심각도는 낮지만, 계약 특약사항 원문 자체는 그대로 URL에 노출되므로 브라우저 히스토리나 서버/CDN 액세스 로그에 남을 수 있다. 서버가 아무 것도 저장하지 않는 정책상 의도된 트레이드오프로 보이나, 문서에 이 경로가 "저장"은 아니지만 "노출 지점"이라는 점은 언급돼 있지 않았음.
+2. ~~(경미) 마스킹된 텍스트 전체가 `/contract/result?data=...` URL 쿼리 파라미터에 base64url로 담겨 전달된다(`upload/page.tsx`의 `navigateToMaskingReview`, `result/page.tsx`의 `decodeMaskingReviewPayload`). PII는 이미 서버 마스킹을 거친 상태라 심각도는 낮지만, 계약 특약사항 원문 자체는 그대로 URL에 노출되므로 브라우저 히스토리나 서버/CDN 액세스 로그에 남을 수 있다.~~ — ✅ **(2026-08-19 정정)** 해소됨. 전달 방식을 URL 쿼리 파라미터에서 `sessionStorage`로 바꿔서(`app/lib/contractResultStorage.ts`) 더 이상 계약 특약사항 원문이 URL에 노출되지 않는다. `result` 페이지가 마운트 직후 읽고 바로 `removeItem`하므로 브라우저 히스토리/서버·CDN 액세스 로그에도 남지 않는다.
 
 ### 코드 품질 (중복/구조/일관성)
 
