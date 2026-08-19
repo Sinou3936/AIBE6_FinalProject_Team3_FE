@@ -5,16 +5,10 @@ import {
   AlertCircle,
   AlertTriangle,
   ArrowRight,
-  Check,
   CheckCircle2,
-  ChevronDown,
-  Copy,
-  FileText,
-  HelpCircle,
   Info,
   Loader2,
   MessageCircle,
-  MessageSquare,
   Send,
   ShieldCheck,
 } from 'lucide-react';
@@ -24,7 +18,7 @@ import { apiStatusToneClassMap, getJeonseRatioTone, riskSignalTypeMeta } from '.
 import { getContractAnalysisErrorMessage } from '../../../lib/contractAnalysisErrors';
 import { analyzeContract, sendContractClauseQuestion } from '../../../services/contract-analysis';
 import { getDepositSafety, getRiskSignals } from '../../../services/risk-analysis';
-import { type ContractChatMessage, type ContractOcrUncertainField } from '../../../types/api';
+import { type ContractChatMessage, type ContractInputType, type ContractOcrUncertainField } from '../../../types/api';
 import {
   type ContractAnalysisResult,
   type ContractAnalysisTab,
@@ -34,6 +28,7 @@ import {
   type RiskSignalList,
 } from '../../../types/domain';
 import { Badge } from '../../../ui/Badge';
+import { ContractClauseAccordionCard } from '../../../ui/ContractClauseAccordionCard';
 import { NoticeBox } from '../../../ui/NoticeBox';
 import { SummaryCard } from '../../../ui/SummaryCard';
 
@@ -145,6 +140,8 @@ type ContractResultClientProps = {
   // 구간만 애매하다는 신호라 차분한 톤으로 보여주는 반면, 이건 결과 자체를 신뢰하기 어렵다는
   // 더 강한 신호라 시각적으로 구분해서 강조한다. 텍스트 직접 입력 경로는 항상 false다.
   shortTextWarning: boolean;
+  // upload 화면에서 실제로 선택한 입력 경로("TEXT"/"IMAGE") - analyzeContract 요청에 그대로 실어 보낸다.
+  inputType: ContractInputType;
   loadError?: string;
   // 매물 상세/체크리스트 화면에서 "계약분석하기"로 넘어온 경우에만 있고(업로드 페이지 ->
   // ContractMaskingReviewPayload -> 이 컴포넌트로 이어짐), 그 외(직접 접속 등)엔 undefined다.
@@ -157,6 +154,7 @@ export function ContractResultClient({
   maskedCount,
   uncertainFields,
   shortTextWarning,
+  inputType,
   loadError,
   propertyId,
 }: ContractResultClientProps) {
@@ -267,7 +265,7 @@ export function ContractResultClient({
     setProcessingStep('analyzing');
 
     try {
-      const result = await analyzeContract(maskedTextValue, true, propertyId);
+      const result = await analyzeContract(maskedTextValue, true, inputType, propertyId);
       setAnalysisResult(result);
       // riskFlag=true인 첫 조항을 기본으로 펼쳐둔다. (재분석이 막혀있어 이 handleAnalyze는 이제
       // 세션당 최대 한 번만 성공하므로, 아래 chatStates 초기화는 항상 빈 상태 위에서 실행된다.)
@@ -355,7 +353,10 @@ export function ContractResultClient({
 
     try {
       const response = await sendContractClauseQuestion(
-        { originalText: clause.originalText, riskFlag: clause.riskFlag, explanation: clause.explanation },
+        // 이 화면(result)의 clauses는 항상 analyzeContract 응답에서 온 것이라 originalText가 실제로는
+        // 항상 있다 - ContractClause.originalText가 이력 상세(원문 없음) 경로와 타입을 공유하느라
+        // optional이라 폴백만 둔다.
+        { originalText: clause.originalText ?? '', riskFlag: clause.riskFlag, explanation: clause.explanation },
         question,
         historyForRequest.length > 0 ? historyForRequest : undefined,
       );
@@ -551,169 +552,96 @@ export function ContractResultClient({
                 {clauses.map((item, index) => {
                   const isExpanded = expandedIndices.has(index);
                   return (
-                    <div
+                    <ContractClauseAccordionCard
                       key={index}
-                      className="ansim-card overflow-hidden border-l-4 border-l-slate-200 transition-all hover:border-l-teal-500"
+                      clause={item}
+                      isExpanded={isExpanded}
+                      onToggle={() => toggleExpanded(index)}
+                      copiedKey={copiedKey}
+                      onCopy={handleCopy}
+                      questionCopyKey={`question-${index}`}
+                      suggestionCopyKey={`suggestion-${index}`}
                     >
-                      <button
-                        type="button"
-                        onClick={() => toggleExpanded(index)}
-                        aria-expanded={isExpanded}
-                        className="flex w-full items-center gap-4 p-6 text-left"
-                      >
-                        <Badge className={`shrink-0 rounded border ${item.levelColor}`}>{item.levelLabel}</Badge>
-                        <p className="flex-1 text-sm italic text-slate-700">
-                          <span aria-hidden="true">&quot;</span>
-                          {item.originalText}
-                          <span aria-hidden="true">&quot;</span>
-                        </p>
-                        <ChevronDown
-                          className={`h-5 w-5 shrink-0 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                        />
-                      </button>
+                      {isExpanded &&
+                        (() => {
+                          const chatState = getChatState(index);
+                          const sending = isChatSending(index);
+                          return (
+                            <div className="mt-4 rounded-xl border border-slate-100 bg-white p-4">
+                              <h4 className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-950">
+                                <MessageCircle className="h-4 w-4 text-teal-600" /> 더 궁금한 점이 있으신가요?
+                              </h4>
+                              <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
+                                답변은 AI가 생성한 참고용 정보입니다.
+                              </p>
 
-                      {isExpanded && (
-                        <div className="border-t border-slate-100 p-6">
-                          <div>
-                            <h4 className="mb-2 flex items-center gap-2 text-sm font-bold text-slate-950">
-                              <MessageSquare className="h-4 w-4 text-teal-600" /> 설명
-                            </h4>
-                            <p className="text-sm leading-relaxed text-slate-600">{item.explanation}</p>
-                          </div>
-                          <div className="mt-8 rounded-xl border border-teal-100 bg-teal-50 p-4">
-                            <div className="mb-3 flex items-center gap-2">
-                              <HelpCircle className="h-4 w-4 text-teal-600" />
-                              <span className="text-sm font-bold text-teal-950">중개사에게 이렇게 확인해 보세요</span>
-                            </div>
-                            <p className="mb-4 text-sm text-teal-800">
-                              <span aria-hidden="true">&quot;</span>
-                              {item.question}
-                              <span aria-hidden="true">&quot;</span>
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => handleCopy(`question-${index}`, item.question)}
-                              className="flex items-center gap-2 text-xs font-bold text-teal-700"
-                            >
-                              {copiedKey === `question-${index}` ? (
-                                <>
-                                  <Check className="h-3 w-3" /> 복사됨
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="h-3 w-3" /> 질문 문구 복사하기
-                                </>
-                              )}
-                            </button>
-                          </div>
-                          <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50 p-4">
-                            <div className="mb-3 flex items-center gap-2">
-                              <FileText className="h-4 w-4 text-slate-600" />
-                              <span className="text-sm font-bold text-slate-950">수정 요청 문구 예시</span>
-                            </div>
-                            <p className="mb-4 text-sm text-slate-700">
-                              <span aria-hidden="true">&quot;</span>
-                              {item.suggestedText}
-                              <span aria-hidden="true">&quot;</span>
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => handleCopy(`suggestion-${index}`, item.suggestedText)}
-                              className="flex items-center gap-2 text-xs font-bold text-slate-600"
-                            >
-                              {copiedKey === `suggestion-${index}` ? (
-                                <>
-                                  <Check className="h-3 w-3" /> 복사됨
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="h-3 w-3" /> 문구 복사하기
-                                </>
-                              )}
-                            </button>
-                          </div>
-
-                          {(() => {
-                            const chatState = getChatState(index);
-                            const sending = isChatSending(index);
-                            return (
-                              <div className="mt-4 rounded-xl border border-slate-100 bg-white p-4">
-                                <h4 className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-950">
-                                  <MessageCircle className="h-4 w-4 text-teal-600" /> 더 궁금한 점이 있으신가요?
-                                </h4>
-                                <p className="mb-3 text-[10px] leading-relaxed text-slate-400">
-                                  답변은 AI가 생성한 참고용 정보입니다.
-                                </p>
-
-                                {chatState.history.length > 0 && (
-                                  <div
-                                    ref={(el) => {
-                                      if (el) {
-                                        chatContainerRefs.current.set(index, el);
-                                      } else {
-                                        chatContainerRefs.current.delete(index);
-                                      }
-                                    }}
-                                    className="mb-4 max-h-72 space-y-4 overflow-y-auto"
-                                  >
-                                    {chatState.history.map((entry, entryIndex) => (
-                                      <div key={entryIndex} className="space-y-2">
-                                        <p className="ml-auto max-w-[85%] rounded-lg bg-teal-600 px-3 py-2 text-sm text-white">
-                                          {entry.question}
+                              {chatState.history.length > 0 && (
+                                <div
+                                  ref={(el) => {
+                                    if (el) {
+                                      chatContainerRefs.current.set(index, el);
+                                    } else {
+                                      chatContainerRefs.current.delete(index);
+                                    }
+                                  }}
+                                  className="mb-4 max-h-72 space-y-4 overflow-y-auto"
+                                >
+                                  {chatState.history.map((entry, entryIndex) => (
+                                    <div key={entryIndex} className="space-y-2">
+                                      <p className="ml-auto max-w-[85%] rounded-lg bg-teal-600 px-3 py-2 text-sm text-white">
+                                        {entry.question}
+                                      </p>
+                                      {entry.answer === null ? (
+                                        <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-500">
+                                          <Loader2 className="h-3 w-3 animate-spin" /> 답변을 준비하고 있어요...
+                                        </div>
+                                      ) : (
+                                        <p className="max-w-[85%] rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                                          {entry.answer}
                                         </p>
-                                        {entry.answer === null ? (
-                                          <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-500">
-                                            <Loader2 className="h-3 w-3 animate-spin" /> 답변을 준비하고 있어요...
-                                          </div>
-                                        ) : (
-                                          <p className="max-w-[85%] rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">
-                                            {entry.answer}
-                                          </p>
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-
-                                {chatState.error && <p className="mb-2 text-xs text-red-600">{chatState.error}</p>}
-
-                                <div className="flex gap-2">
-                                  <input
-                                    type="text"
-                                    value={chatState.input}
-                                    disabled={sending}
-                                    onChange={(event) => {
-                                      const value = event.target.value;
-                                      updateChatState(index, (current) => ({ ...current, input: value }));
-                                    }}
-                                    onKeyDown={(event) => {
-                                      if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-                                        event.preventDefault();
-                                        void handleSendChatMessage(index, item);
-                                      }
-                                    }}
-                                    placeholder="이 조항에 대해 더 물어보세요"
-                                    className="ansim-input flex-1 py-2 text-sm"
-                                  />
-                                  <button
-                                    type="button"
-                                    disabled={sending || chatState.input.trim().length === 0}
-                                    onClick={() => handleSendChatMessage(index, item)}
-                                    className="ansim-button-primary shrink-0 px-4 py-2 text-sm disabled:pointer-events-none disabled:opacity-50"
-                                  >
-                                    {sending ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <Send className="h-4 w-4" />
-                                    )}
-                                  </button>
+                                      )}
+                                    </div>
+                                  ))}
                                 </div>
+                              )}
+
+                              {chatState.error && <p className="mb-2 text-xs text-red-600">{chatState.error}</p>}
+
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={chatState.input}
+                                  disabled={sending}
+                                  onChange={(event) => {
+                                    const value = event.target.value;
+                                    updateChatState(index, (current) => ({ ...current, input: value }));
+                                  }}
+                                  onKeyDown={(event) => {
+                                    if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                                      event.preventDefault();
+                                      void handleSendChatMessage(index, item);
+                                    }
+                                  }}
+                                  placeholder="이 조항에 대해 더 물어보세요"
+                                  className="ansim-input flex-1 py-2 text-sm"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={sending || chatState.input.trim().length === 0}
+                                  onClick={() => handleSendChatMessage(index, item)}
+                                  className="ansim-button-primary shrink-0 px-4 py-2 text-sm disabled:pointer-events-none disabled:opacity-50"
+                                >
+                                  {sending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Send className="h-4 w-4" />
+                                  )}
+                                </button>
                               </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
+                            </div>
+                          );
+                        })()}
+                    </ContractClauseAccordionCard>
                   );
                 })}
               </div>

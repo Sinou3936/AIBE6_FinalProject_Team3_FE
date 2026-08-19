@@ -55,6 +55,7 @@ export default function Page() {
       maskedCount={payload?.maskedCount ?? 0}
       uncertainFields={payload?.uncertainFields ?? []}
       shortTextWarning={payload?.shortTextWarning ?? false}
+      inputType={payload?.inputType ?? 'TEXT'}
       loadError={loadState.status === 'error' ? loadState.message : undefined}
       propertyId={payload?.propertyId}
     />

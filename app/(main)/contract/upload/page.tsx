@@ -114,6 +114,7 @@ export default function Page() {
           ...maskResult,
           uncertainFields: ocrResult.uncertainFields,
           shortTextWarning: ocrResult.shortTextWarning,
+          inputType: 'IMAGE',
           propertyId,
         });
         return;
@@ -129,7 +130,13 @@ export default function Page() {
 
       setProcessingStep('masking');
       const maskResult = await maskContractText(text);
-      navigateToMaskingReview({ ...maskResult, uncertainFields: [], shortTextWarning: false, propertyId });
+      navigateToMaskingReview({
+        ...maskResult,
+        uncertainFields: [],
+        shortTextWarning: false,
+        inputType: 'TEXT',
+        propertyId,
+      });
     } catch (error) {
       setSubmitError(
         getContractAnalysisErrorMessage(error, '특약사항 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.'),
