@@ -110,12 +110,17 @@ export default function Page() {
 
         setProcessingStep('masking');
         const maskResult = await maskContractText(ocrResult.extractedText);
-        navigateToMaskingReview({ ...maskResult, uncertainFields: ocrResult.uncertainFields, propertyId });
+        navigateToMaskingReview({
+          ...maskResult,
+          uncertainFields: ocrResult.uncertainFields,
+          shortTextWarning: ocrResult.shortTextWarning,
+          propertyId,
+        });
         return;
       }
 
       // 텍스트 직접 입력: 항상 nextStep이 'MASKING'이어야 정상이다. OCR을 거치지 않으므로
-      // uncertainFields는 항상 빈 배열이다.
+      // uncertainFields는 항상 빈 배열이고 shortTextWarning도 항상 false다.
       setProcessingStep('submitting-input');
       const inputResult = await submitContractInput({ inputType: 'TEXT', text, propertyId });
       if (inputResult.nextStep === 'OCR') {
@@ -124,7 +129,7 @@ export default function Page() {
 
       setProcessingStep('masking');
       const maskResult = await maskContractText(text);
-      navigateToMaskingReview({ ...maskResult, uncertainFields: [], propertyId });
+      navigateToMaskingReview({ ...maskResult, uncertainFields: [], shortTextWarning: false, propertyId });
     } catch (error) {
       setSubmitError(
         getContractAnalysisErrorMessage(error, '특약사항 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.'),

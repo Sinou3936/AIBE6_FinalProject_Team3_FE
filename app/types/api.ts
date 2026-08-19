@@ -137,6 +137,9 @@ export type OcrExtractResponseDto = {
   confidence: number;
   editable: boolean;
   uncertainFields: ContractOcrUncertainField[];
+  // 인식된 텍스트 자체가 매우 짧을 때(흐린 사진, 잘못된 촬영 등) true - uncertainFields(특정 구간의
+  // 낮은 신뢰도)와 달리 결과 전체의 신뢰도가 낮다는 신호라 더 강하게 안내해야 한다.
+  shortTextWarning: boolean;
 };
 
 // upload -> result 페이지 전달용 조합 페이로드. 백엔드가 내려주는 단일 응답이 아니라, OCR 단계의
@@ -148,6 +151,8 @@ export type ContractMaskingReviewPayload = {
   maskedText: string;
   maskedCount: number;
   uncertainFields: ContractOcrUncertainField[];
+  // OCR 응답의 shortTextWarning 그대로 - 텍스트 직접 입력 경로는 OCR을 안 거치므로 항상 false다.
+  shortTextWarning: boolean;
   propertyId?: number;
 };
 
