@@ -272,7 +272,9 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
       </div>
 
       {loadError && (
-        <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
+        <div role="alert" className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">
+          {loadError}
+        </div>
       )}
 
       {selectedIds.size > 0 && (

@@ -188,7 +188,10 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   const [formError, setFormError] = useState<string | undefined>();
 
   function closeModal() {
-    if (submitting) return;
+    // 이미지 추가/삭제 요청이 진행 중일 때도 submitting과 동일하게 닫기를 막는다 - 안 막으면 그
+    // 요청의 응답이 도착했을 때 이미 사라진(보이지 않는) images/imagesError state를 조용히
+    // 갱신하게 된다.
+    if (submitting || imageActionPending) return;
     setModal(null);
     setFormError(undefined);
   }
@@ -338,7 +341,9 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
       </p>
 
       {loadError && (
-        <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
+        <div role="alert" className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">
+          {loadError}
+        </div>
       )}
 
       {data && (

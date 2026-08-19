@@ -131,7 +131,9 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
       <div>
         <h1 className="ansim-page-title mb-6">대시보드</h1>
         {rangeForm}
-        <div className="ansim-card border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
+        <div role="alert" className="ansim-card border-red-100 bg-red-50 p-6 text-sm text-red-700">
+          {loadError}
+        </div>
       </div>
     );
   }

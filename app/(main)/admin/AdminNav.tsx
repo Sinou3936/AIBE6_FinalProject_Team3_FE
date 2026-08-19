@@ -15,7 +15,7 @@ export function AdminNav() {
   const pathname = usePathname();
 
   return (
-    <div className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-200">
+    <nav aria-label="관리자 메뉴" className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-200">
       {TABS.map((tab) => {
         const active = tab.href === '/admin' ? pathname === tab.href : pathname.startsWith(tab.href);
         return (
@@ -31,6 +31,6 @@ export function AdminNav() {
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }
