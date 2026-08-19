@@ -3,12 +3,11 @@
 import { AlertCircle, Home, LogOut, Menu, Shield, User, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { navItems } from '../data/navigation';
 import { cn } from '../lib/cn';
 import { useLogout } from '../lib/useLogout';
 import { NoticeBox } from '../ui/NoticeBox';
-import { MainCurrentUserProvider, type MainCurrentUser } from './MainCurrentUserContext';
 
 type MainLayoutClientProps = {
   children: ReactNode;
@@ -32,26 +31,6 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl, 
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isLoggingOut, logoutError, handleLogout } = useLogout();
-
-  // 헤더의 닉네임/프로필 사진은 이 컴포넌트가 소유하는 로컬 state로 관리한다 - nickname/
-  // profileImageUrl prop을 그대로 렌더링하면 ProfileClient가 프로필을 저장한 직후 그 결과를
-  // 반영할 방법이 없다(crossOriginAuth 배포에서는 MainLayoutGate가 마운트당 한 번만 /auth/me를
-  // 확인하므로 router.refresh()가 이 prop을 갱신해주지 않는다 - MainLayoutGate.tsx 참고). 대신
-  // Context로 내려주는 updateCurrentUser(setCurrentUser)를 ProfileClient가 저장 성공 직후 직접
-  // 호출해 재조회 없이 즉시 반영한다.
-  const [currentUser, setCurrentUser] = useState<MainCurrentUser>({ nickname, profileImageUrl });
-
-  // same-origin 경로((main)/layout.tsx, Server Component)는 router.refresh()로 nickname/
-  // profileImageUrl prop 자체를 다시 가져온다 - 그 기존 갱신 경로가 계속 동작하도록 prop이
-  // 바뀌면 로컬 state도 그대로 맞춰준다(AdminUsersClient의 filters 동기화와 동일한 패턴).
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCurrentUser({ nickname, profileImageUrl });
-  }, [nickname, profileImageUrl]);
-
-  const updateCurrentUser = useCallback((patch: Partial<MainCurrentUser>) => {
-    setCurrentUser((prev) => ({ ...prev, ...patch }));
-  }, []);
 
   const isActive = (path: string) => pathname === path;
 
@@ -164,12 +143,12 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl, 
               href="/mypage"
               className="flex items-center gap-2 rounded-full border border-slate-200 p-1 pl-3 transition-colors hover:bg-slate-50"
             >
-              <span className="text-sm font-medium text-slate-700">{currentUser.nickname}님</span>
+              <span className="text-sm font-medium text-slate-700">{nickname}님</span>
               <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-slate-200">
-                {currentUser.profileImageUrl ? (
+                {profileImageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={currentUser.profileImageUrl}
+                    src={profileImageUrl}
                     alt=""
                     referrerPolicy="no-referrer"
                     className="h-full w-full object-cover"
@@ -275,9 +254,7 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl, 
         </div>
       )}
 
-      <main className="flex-1 pb-20 md:pb-0">
-        <MainCurrentUserProvider value={{ ...currentUser, updateCurrentUser }}>{children}</MainCurrentUserProvider>
-      </main>
+      <main className="flex-1 pb-20 md:pb-0">{children}</main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-around border-t border-slate-200 bg-white px-2 md:hidden">
         {navItems.slice(0, 4).map((item) => (
