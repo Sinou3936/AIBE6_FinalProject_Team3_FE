@@ -159,7 +159,7 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
 
       {rangeForm}
 
-      <p className="mb-4 text-xs text-slate-400">
+      <p className="mb-4 text-xs text-slate-500">
         아래 통계는 {formatDate(startDate)}~{formatDate(endDate)} 기간 기준입니다.
       </p>
 

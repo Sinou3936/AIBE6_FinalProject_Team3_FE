@@ -16,6 +16,10 @@ type TableSelection<T> = {
   onToggle: (key: string | number) => void;
   onToggleAll: (selectableRows: T[]) => void;
   isRowSelectable?: (row: T) => boolean;
+  // 행 체크박스에 개별 접근성 이름을 붙이기 위한 선택적 콜백. 헤더의 "전체 선택"과 달리 각 행은
+  // 시각적으로 구분되는 텍스트가 없어(예: 닉네임/ID) 스크린 리더 사용자가 어느 행의 체크박스인지
+  // 구분할 수 없었다. 생략 시 aria-label 없이 렌더링돼 기존 Table 호출부와 호환된다.
+  getRowAriaLabel?: (row: T) => string;
 };
 
 type TableProps<T> = {
@@ -75,7 +79,7 @@ export function Table<T>({
         <tbody>
           {rows.length === 0 && (
             <tr>
-              <td colSpan={columns.length + (selection ? 1 : 0)} className="px-4 py-8 text-center text-slate-400">
+              <td colSpan={columns.length + (selection ? 1 : 0)} className="px-4 py-8 text-center text-slate-500">
                 {emptyMessage}
               </td>
             </tr>
@@ -92,6 +96,7 @@ export function Table<T>({
                       checked={selection.selectedKeys.has(key)}
                       disabled={!selectable}
                       onChange={() => selection.onToggle(key)}
+                      aria-label={selection.getRowAriaLabel?.(row)}
                       className="h-4 w-4 rounded border-slate-300 disabled:opacity-30"
                     />
                   </td>
