@@ -6,7 +6,7 @@ import {
   type ContractAnalysisResultDto,
   type ContractAnalyzeRequestDto,
   type ContractChatClauseContext,
-  type ContractChatHistoryEntry,
+  type ContractChatMessage,
   type ContractChatRequestDto,
   type ContractChatResponseDto,
   type ContractInputResponseDto,
@@ -122,7 +122,7 @@ export async function analyzeContract(
 export async function sendContractClauseQuestion(
   clause: ContractChatClauseContext,
   question: string,
-  history?: ContractChatHistoryEntry[],
+  history?: ContractChatMessage[],
 ): Promise<ContractChatResponseDto> {
   if (useMockData) {
     return {

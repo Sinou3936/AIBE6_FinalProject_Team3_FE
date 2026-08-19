@@ -196,15 +196,17 @@ export type ContractChatClauseContext = {
   explanation: string;
 };
 
-export type ContractChatHistoryEntry = {
-  question: string;
-  answer: string;
+// Backend ContractAnalysisChatMessage(role/content만 받음)와 동일한 형태 - 한 번의 질문/답변
+// 턴이 "user" 메시지 하나 + "assistant" 메시지 하나로 나뉘어 시간순으로 배열에 들어간다.
+export type ContractChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
 };
 
 export type ContractChatRequestDto = {
   clause: ContractChatClauseContext;
   question: string;
-  history?: ContractChatHistoryEntry[];
+  history?: ContractChatMessage[];
 };
 
 // 응답 형태는 명세받은 게 없어 analyzeContract 응답(ContractAnalysisResultDto)과 같은 패턴으로
