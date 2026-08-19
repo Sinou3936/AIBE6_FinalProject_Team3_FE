@@ -204,7 +204,10 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   }
 
   async function submitForm() {
-    if (!modal || modal.type === 'delete') return;
+    // disabled 속성은 submitting state가 커밋된 *이후*에야 버튼에 반영되므로, 더블클릭/터치
+    // 더블탭/Enter 키 반복입력처럼 커밋 전에 두 번째 호출이 들어오면 disabled만으로는 막지
+    // 못한다 - 여기서 진행 중이면 바로 반환해 같은 액션이 중복 요청되는 걸 막는다.
+    if (!modal || modal.type === 'delete' || submitting) return;
     const { form } = modal;
 
     if (!form.content.trim()) {
@@ -244,7 +247,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   }
 
   async function confirmDelete() {
-    if (!modal || modal.type !== 'delete') return;
+    if (!modal || modal.type !== 'delete' || submitting) return;
     setSubmitting(true);
     setFormError(undefined);
     try {
@@ -295,7 +298,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   }, [editingTemplateId]);
 
   async function handleAddImage() {
-    if (editingTemplateId === null || !newImageUrl.trim()) return;
+    if (editingTemplateId === null || !newImageUrl.trim() || imageActionPending) return;
     setImageActionPending(true);
     setImagesError(undefined);
     try {
@@ -310,7 +313,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   }
 
   async function handleDeleteImage(imageId: number) {
-    if (editingTemplateId === null) return;
+    if (editingTemplateId === null || imageActionPending) return;
     setImageActionPending(true);
     setImagesError(undefined);
     try {

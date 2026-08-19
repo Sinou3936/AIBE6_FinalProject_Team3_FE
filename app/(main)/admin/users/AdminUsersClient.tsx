@@ -113,7 +113,10 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
   }
 
   async function confirmAction() {
-    if (!action) return;
+    // disabled 속성은 submitting state가 커밋된 *이후*에야 버튼에 반영되므로, 더블클릭/터치
+    // 더블탭/Enter 키 반복입력처럼 커밋 전에 두 번째 호출이 들어오면 disabled만으로는 막지
+    // 못한다 - 여기서 진행 중이면 바로 반환해 같은 액션이 중복 요청되는 걸 막는다.
+    if (!action || submitting) return;
     setSubmitting(true);
     setActionError(undefined);
     try {
@@ -170,7 +173,7 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
   }
 
   async function confirmBulkAction() {
-    if (!bulkAction) return;
+    if (!bulkAction || bulkSubmitting) return;
     setBulkSubmitting(true);
     setBulkError(undefined);
     try {
@@ -249,7 +252,11 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
       )}
 
       {selectedIds.size > 0 && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-100 bg-teal-50 px-4 py-3">
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-100 bg-teal-50 px-4 py-3"
+        >
           <span className="text-sm font-bold text-teal-700">{selectedIds.size}명 선택됨</span>
           <div className="flex gap-2">
             <button
