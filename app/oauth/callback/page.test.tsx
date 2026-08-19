@@ -1,6 +1,7 @@
 import { render, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../../lib/api/http';
 import OAuthCallbackPage from './page';
 
 const replace = vi.fn();
@@ -89,5 +90,71 @@ describe('OAuthCallbackPage', () => {
     await waitFor(() => expect(replace).toHaveBeenCalled());
     const [calledUrl] = replace.mock.calls[replace.mock.calls.length - 1];
     expect(calledUrl).toBe('/mypage');
+  });
+
+  // getCurrentUser()가 unreachable로 판정되는 오류(status=0 등, isUnreachableError 참고)로
+  // 실패하면, 실제로 세션이 무효인 것과 구분해 session_unavailable로 보내야 한다 - 컴포넌트가
+  // 마운트된 채로 유지되어 이 분기가 끝까지 실행되는 경우를 확인한다(위 언마운트 테스트는
+  // cancellation guard만 검증할 뿐 이 분기 자체는 통과하지 않는다).
+  it('세션 확인이 unreachable 오류로 실패하면 session_unavailable로 리다이렉트한다', async () => {
+    getCurrentUser.mockRejectedValueOnce(new ApiError('network error', 0));
+
+    render(<OAuthCallbackPage />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    const [calledUrl] = replace.mock.calls[0];
+    expect(calledUrl).toContain('error=session_unavailable');
+  });
+
+  // 반대로 unreachable이 아닌 오류(예: 백엔드가 실제로 응답한 401)는 session_expired로 보내야
+  // 한다.
+  it('세션 확인이 unreachable이 아닌 오류로 실패하면 session_expired로 리다이렉트한다', async () => {
+    getCurrentUser.mockRejectedValueOnce(new ApiError('unauthorized', 401));
+
+    render(<OAuthCallbackPage />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    const [calledUrl] = replace.mock.calls[0];
+    expect(calledUrl).toContain('error=session_expired');
+  });
+
+  // hasRegisteredProfile()이 false인 프로필(관심 지역/거래유형 미등록)이면 destination(next 또는
+  // 홈) 대신 프로필 등록 화면으로 보내야 한다.
+  it('프로필이 미등록 상태면 destination 대신 /mypage/profile로 리다이렉트한다', async () => {
+    getCurrentUser.mockResolvedValue({ userId: 1, role: 'USER' });
+    getMyProfile.mockResolvedValue({ interestRegion: null, transactionType: null });
+
+    render(<OAuthCallbackPage />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/mypage/profile'));
+    expect(replace).toHaveBeenCalledTimes(1);
+  });
+
+  // notice=account_linked는 화이트리스트로 허용된 유일한 값이라 destination URL에 그대로
+  // 전달되어야 한다(홈 화면이 이 값을 보고 안내 배너를 띄움).
+  it('notice=account_linked는 destination URL에 그대로 전달된다', async () => {
+    mockSearchParams = new URLSearchParams('notice=account_linked');
+    getCurrentUser.mockResolvedValue({ userId: 1, role: 'USER' });
+    getMyProfile.mockResolvedValue({ interestRegion: '서울', transactionType: 'JEONSE' });
+
+    render(<OAuthCallbackPage />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    const [calledUrl] = replace.mock.calls[replace.mock.calls.length - 1];
+    expect(calledUrl).toBe('/home?notice=account_linked');
+  });
+
+  // account_linked가 아닌 임의의 notice 값은 화이트리스트에 없으므로 destination URL로
+  // 전달되지 않아야 한다(임의 값이 그대로 노출되는 오픈 파라미터 주입을 막기 위함).
+  it('account_linked가 아닌 notice 값은 destination URL로 전달되지 않는다', async () => {
+    mockSearchParams = new URLSearchParams('notice=something_else');
+    getCurrentUser.mockResolvedValue({ userId: 1, role: 'USER' });
+    getMyProfile.mockResolvedValue({ interestRegion: '서울', transactionType: 'JEONSE' });
+
+    render(<OAuthCallbackPage />);
+
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    const [calledUrl] = replace.mock.calls[replace.mock.calls.length - 1];
+    expect(calledUrl).toBe('/home');
   });
 });

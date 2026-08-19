@@ -101,6 +101,23 @@ describe('AdminReportsClient', () => {
     );
   });
 
+  it('반려 버튼을 누르고 확인하면 reviewAdminPropertyReport를 REJECTED로 호출한다', async () => {
+    getAdminPropertyReportDetail.mockResolvedValueOnce(reportDetail());
+    reviewAdminPropertyReport.mockResolvedValueOnce(reportDetail({ status: 'REJECTED' }));
+
+    render(<AdminReportsClient data={page([reportRow()])} filters={filters} currentUserId={999} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '상세보기' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: '반려' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: '반려' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: '확인' }));
+
+    await waitFor(() =>
+      expect(reviewAdminPropertyReport).toHaveBeenCalledWith(1, { status: 'REJECTED', memo: undefined }),
+    );
+  });
+
   // 이미 처리된 신고는 상세 모달에서도 처리 버튼을 숨긴다(RECEIVED일 때만 보임) - 일괄처리
   // 체크박스도 같은 이유로 RECEIVED 신고만 선택 가능해야 한다.
   it('RECEIVED가 아닌 신고의 체크박스는 비활성화된다', () => {
@@ -155,6 +172,32 @@ describe('AdminReportsClient', () => {
       expect(bulkReviewAdminPropertyReports).toHaveBeenCalledWith({
         reportIds: [1, 2],
         status: 'RESOLVED',
+        memo: undefined,
+      }),
+    );
+    expect(await screen.findByText('일괄 처리 결과')).toBeInTheDocument();
+    expect(onMutated).toHaveBeenCalledTimes(1);
+  });
+
+  it('체크박스로 선택 후 일괄 반려를 확인하면 선택된 id로 bulkReviewAdminPropertyReports를 REJECTED로 호출한다', async () => {
+    bulkReviewAdminPropertyReports.mockResolvedValueOnce({ succeededIds: [1, 2], failures: [] });
+    const onMutated = vi.fn();
+
+    render(
+      <AdminReportsClient data={page([reportRow(), reportRow2()])} filters={filters} currentUserId={999} onMutated={onMutated} />,
+    );
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]); // 전체 선택
+    expect(screen.getByText('2건 선택됨')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '선택 반려' }));
+    fireEvent.click(screen.getByRole('button', { name: '확인' }));
+
+    await waitFor(() =>
+      expect(bulkReviewAdminPropertyReports).toHaveBeenCalledWith({
+        reportIds: [1, 2],
+        status: 'REJECTED',
         memo: undefined,
       }),
     );
