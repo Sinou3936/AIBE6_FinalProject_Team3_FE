@@ -53,11 +53,32 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
   const [itemErrors, setItemErrors] = useState<Record<number, string>>({});
   const [helperItemId, setHelperItemId] = useState<number | null>(null);
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [highlightItemId, setHighlightItemId] = useState<number | null>(null);
   const openHelperRef = useRef<HTMLSpanElement | null>(null);
+  const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   const checklistId = checklist?.id;
   const activeItems = items.filter((item) => item.category === activeCategory);
   const uncheckedCount = items.filter((item) => !item.checked).length;
+  const missingRequiredItems = items.filter((item) => item.importance === 'required' && !item.checked);
+
+  useEffect(() => {
+    if (highlightItemId === null) {
+      return;
+    }
+    itemRefs.current[highlightItemId]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const timer = setTimeout(() => setHighlightItemId(null), 2000);
+    return () => clearTimeout(timer);
+  }, [highlightItemId, activeCategory]);
+
+  const handleJumpToMissingRequired = () => {
+    const target = missingRequiredItems[0];
+    if (!target) {
+      return;
+    }
+    setActiveCategory(target.category);
+    setHighlightItemId(target.id);
+  };
 
   useEffect(() => {
     if (helperItemId === null) {
@@ -201,9 +222,21 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
             </div>
           </div>
           <p className="mt-3 text-center text-xs text-slate-500">
-            {summary.hasStarted
-              ? `필수 확인 누락 ${summary.missingRequiredCount}개`
-              : (summary.message ?? '체크리스트를 시작해보세요')}
+            {summary.hasStarted ? (
+              missingRequiredItems.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={handleJumpToMissingRequired}
+                  className="font-bold text-slate-600 underline decoration-dotted underline-offset-2 hover:text-slate-900"
+                >
+                  필수 확인 누락 {missingRequiredItems.length}개
+                </button>
+              ) : (
+                `필수 확인 누락 ${missingRequiredItems.length}개`
+              )
+            ) : (
+              (summary.message ?? '체크리스트를 시작해보세요')
+            )}
           </p>
         </div>
 
@@ -227,9 +260,13 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
           {activeItems.map((item) => (
             <div
               key={item.id}
+              ref={(el) => {
+                itemRefs.current[item.id] = el;
+              }}
               className={cn(
-                'ansim-card overflow-visible bg-white p-4',
+                'ansim-card overflow-visible bg-white p-4 transition',
                 item.issueFound && 'border-orange-200 bg-orange-50/40',
+                highlightItemId === item.id && 'ring-2 ring-orange-400',
               )}
             >
               <div className="mb-1 flex items-start gap-2">

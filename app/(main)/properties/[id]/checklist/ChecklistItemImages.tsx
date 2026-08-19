@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Modal } from '../../../../ui/Modal';
 
 type ChecklistItemImagesProps = {
@@ -36,14 +37,39 @@ export function ChecklistItemImages({ images }: ChecklistItemImagesProps) {
 
       <Modal open={selectedIndex !== null} onClose={() => setSelectedIndex(null)} maxWidthClassName="max-w-lg">
         {selectedIndex !== null && (
-          <div className="relative aspect-square w-full overflow-hidden rounded-lg">
-            <Image
-              src={images[selectedIndex]}
-              alt={`참고 이미지 ${selectedIndex + 1} 확대`}
-              fill
-              sizes="(min-width: 640px) 512px, 100vw"
-              className="object-contain"
-            />
+          <div className="relative">
+            <div className="relative aspect-square w-full overflow-hidden rounded-lg">
+              <Image
+                src={images[selectedIndex]}
+                alt={`참고 이미지 ${selectedIndex + 1} 확대`}
+                fill
+                sizes="(min-width: 640px) 512px, 100vw"
+                className="object-contain"
+              />
+            </div>
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIndex((current) => ((current ?? 0) - 1 + images.length) % images.length)}
+                  aria-label="이전 사진"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-slate-950/50 p-1.5 text-white transition hover:bg-slate-950/70"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIndex((current) => ((current ?? 0) + 1) % images.length)}
+                  aria-label="다음 사진"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-slate-950/50 p-1.5 text-white transition hover:bg-slate-950/70"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+                <p className="mt-2 text-center text-xs text-slate-400">
+                  {selectedIndex + 1} / {images.length}
+                </p>
+              </>
+            )}
           </div>
         )}
       </Modal>
