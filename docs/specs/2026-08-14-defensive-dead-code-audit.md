@@ -135,7 +135,7 @@ backend 문서에도 동일 항목이 있으니 참고.
 ## 8. 공용(global) 코드
 
 1. **`Table` 컴포넌트의 `onRowClick` prop**(`app/ui/Table.tsx:26`) — 클릭 핸들러 + `cursor-pointer` 스타일까지 구현돼 있는데, 실제 사용처 3곳(`AdminChecklistTemplatesClient.tsx`, `AdminReportsClient.tsx`, `AdminUsersClient.tsx`) 전부 `selection`/`columns`만 넘기고 `onRowClick`은 안 넘김.
-2. **`decodeBase64Url()`**(`app/lib/base64Url.ts:14`) — `encodeBase64Url`과 대칭으로 만들었지만, 실제 디코드 쪽 소비처(`(main)/contract/result/page.tsx:14`, 서버 컴포넌트)는 Node `Buffer.from(data, 'base64url').toString('utf-8')`을 직접 써서 이 함수를 안 부름.
+2. ~~**`decodeBase64Url()`**(`app/lib/base64Url.ts:14`) — `encodeBase64Url`과 대칭으로 만들었지만, 실제 디코드 쪽 소비처(`(main)/contract/result/page.tsx:14`, 서버 컴포넌트)는 Node `Buffer.from(data, 'base64url').toString('utf-8')`을 직접 써서 이 함수를 안 부름.~~ — ✅ **(2026-08-19 해결)** `upload`→`result` 전달 방식을 base64url query string에서 `sessionStorage`로 바꾸면서 `app/lib/base64Url.ts` 파일 전체(`encodeBase64Url` 포함)를 삭제함. `result/page.tsx`도 Server Component에서 Client Component로 바뀜(`app/lib/contractResultStorage.ts` 참고).
 
 **⚠️ 감사 중 발견한 실제 프로덕션 버그**: **`ActivityHistoryItemDto`**(`app/types/api.ts:208`)와 그
 소비 경로 전체 — `app/services/activityHistory.ts:19`가 `GET /users/me/activity-history`를
@@ -149,7 +149,7 @@ backend 문서에도 동일 항목이 있으니 참고.
 
 ## 다음 단계 제안
 
-- **`app/data/property-detail.ts`의 `riskSummaries`**(완전한 dead code)와 **`app/lib/base64Url.ts`의 `decodeBase64Url()`**, **`Table.onRowClick`**은 바로 제거해도 안전해 보임.
+- **`app/data/property-detail.ts`의 `riskSummaries`**(완전한 dead code)와 **`Table.onRowClick`**은 바로 제거해도 안전해 보임. ~~`app/lib/base64Url.ts`의 `decodeBase64Url()`~~은 위 8번 항목대로 이미 파일째 제거됨(2026-08-19).
 - ~~**User 도메인의 WOLSE/MONTHLY_RENT 매핑 불일치는 실제 저장 실패로 이어질 수 있는 버그라 우선순위 있게 수정 권장**(`app/types/api.ts:235`, `app/mappers/user.ts:10-18`).~~ — ✅ **(2026-08-14 해결)**
 - **`GET /users/me/activity-history` 미구현**은 backend와 함께 실사용 여부부터 확인(backend에 구현할지, 이 frontend 호출을 뺄지 결정).
 - admin 관련 미렌더링 필드들(`deposit`/`monthlyRent`/`reviewerId`/`errorCode`/`version` 등)은 심각하지 않은 정리 항목이라 여유 있을 때 처리해도 무방.
