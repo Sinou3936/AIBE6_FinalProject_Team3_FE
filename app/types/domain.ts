@@ -109,6 +109,10 @@ export type PropertyMarketComparison = {
   referenceDate?: string;
   // 실제 적용된 반경 단계(300 또는 600) - 반경이 확장됐는지 사용자에게 알려주기 위함.
   radiusMeters?: number;
+  // 표본 필터링에 쓰인 면적오차 허용율(0.2 = ±20%).
+  areaErrorRate?: number;
+  // 실거래를 조회한 개월 수.
+  lookbackMonths?: number;
   // UNAVAILABLE일 때 사유(월세/단독다가구/좌표없음/표본부족 등)를 그대로 보여준다.
   message?: string;
 };
@@ -172,6 +176,9 @@ export type ChecklistOverview = {
   // 표시용으로 이미 포맷된 문자열("2026.07.30"). 체크리스트가 있으면 마지막 항목 수정 시각,
   // 시작 전이면 매물 등록/수정 시각으로 Backend가 대체해서 내려준다(항상 값이 있음).
   lastCheckedAt: string;
+  // 시작 전이면 undefined(0%와 구분) - ChecklistProgress와 동일한 패턴.
+  progressPercent?: number;
+  cautionCount?: number;
 };
 
 // GET /checklists 페이지네이션 응답. Backend PageResponse를 그대로 옮기되 content만
@@ -338,6 +345,11 @@ export type DepositSafetyCheck = {
   propertyId: number;
   status: DepositSafetyStatusId;
   jeonseRatio: number | null;
+  // 선순위보증금 반영 정밀 재계산이 적용된 결과인지, 적용됐다면 실제로 반영된 값이 얼마인지.
+  // 재계산 폼을 새로고침 후에도 "이미 반영된 값"으로 다시 채워주기 위해 필요하다.
+  seniorDepositApplied: boolean;
+  seniorDeposit: number | null;
+  maxClaimAmount: number | null;
   explanation: string | null;
   referenceDate: string | null;
   sampleCount: number | null;

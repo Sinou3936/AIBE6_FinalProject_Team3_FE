@@ -176,13 +176,25 @@ let refreshAbortController: AbortController | null = null;
 // 결국 'unreachable'로 정리되게 한다.
 const REFRESH_FETCH_TIMEOUT_MS = 10_000;
 
+// 타임아웃과 resetAuthRefreshState()의 명시적 abort를 하나의 신호로 합친다 - AbortSignal.any는
+// 둘 중 먼저 온 신호로 이 fetch를 끊는다. AbortSignal.any/timeout는 비교적 최신 API라, 이를
+// 지원하지 않는 런타임에서는 이 조합 자체가 동기적으로 예외를 던진다 - 그러면
+// refreshOnceInBrowser() 전체가 깨져서 이 세션의 모든 401이 자동 갱신 대신 강제 재로그인으로
+// 떨어진다. 무한 대기 타임아웃 보호(부가 기능)를 잃더라도, controller.signal만으로 최소한
+// 명시적 abort(resetAuthRefreshState)는 계속 동작해야 하므로 그쪽으로 폴백한다.
+function buildRefreshSignal(controller: AbortController): AbortSignal {
+  try {
+    return AbortSignal.any([controller.signal, AbortSignal.timeout(REFRESH_FETCH_TIMEOUT_MS)]);
+  } catch {
+    return controller.signal;
+  }
+}
+
 function refreshOnceInBrowser(): Promise<BrowserRefreshOutcome> {
   if (!refreshInFlight) {
     const controller = new AbortController();
     refreshAbortController = controller;
-    // 타임아웃과 resetAuthRefreshState()의 명시적 abort를 하나의 신호로 합친다 - AbortSignal.any는
-    // 둘 중 먼저 온 신호로 이 fetch를 끊는다.
-    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(REFRESH_FETCH_TIMEOUT_MS)]);
+    const signal = buildRefreshSignal(controller);
 
     refreshInFlight = fetch(`${getApiBaseUrl()}${REFRESH_PATH}`, {
       method: 'POST',

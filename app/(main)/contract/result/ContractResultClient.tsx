@@ -24,7 +24,7 @@ import { apiStatusToneClassMap, getJeonseRatioTone, riskSignalTypeMeta } from '.
 import { getContractAnalysisErrorMessage } from '../../../lib/contractAnalysisErrors';
 import { analyzeContract, sendContractClauseQuestion } from '../../../services/contract-analysis';
 import { getDepositSafety, getRiskSignals } from '../../../services/risk-analysis';
-import { type ContractOcrUncertainField } from '../../../types/api';
+import { type ContractChatMessage, type ContractOcrUncertainField } from '../../../types/api';
 import {
   type ContractAnalysisResult,
   type ContractAnalysisTab,
@@ -141,6 +141,10 @@ type ContractResultClientProps = {
   // OCR이 신뢰도 낮게 추출한 구간(이미지 입력 경로에서만 존재). 텍스트 직접 입력 경로는 OCR을
   // 거치지 않으므로 항상 빈 배열이고, 그 경우 이 안내 자체가 보이지 않는다.
   uncertainFields: ContractOcrUncertainField[];
+  // 인식된 텍스트 전체가 매우 짧을 때 true(흐린 사진/잘못된 촬영 등). uncertainFields는 특정
+  // 구간만 애매하다는 신호라 차분한 톤으로 보여주는 반면, 이건 결과 자체를 신뢰하기 어렵다는
+  // 더 강한 신호라 시각적으로 구분해서 강조한다. 텍스트 직접 입력 경로는 항상 false다.
+  shortTextWarning: boolean;
   loadError?: string;
   // 매물 상세/체크리스트 화면에서 "계약분석하기"로 넘어온 경우에만 있고(업로드 페이지 ->
   // ContractMaskingReviewPayload -> 이 컴포넌트로 이어짐), 그 외(직접 접속 등)엔 undefined다.
@@ -152,6 +156,7 @@ export function ContractResultClient({
   maskedText,
   maskedCount,
   uncertainFields,
+  shortTextWarning,
   loadError,
   propertyId,
 }: ContractResultClientProps) {
@@ -330,9 +335,14 @@ export function ContractResultClient({
       return;
     }
 
-    const historyForRequest = state.history
+    // Backend ContractAnalysisChatMessage는 role/content만 받아서, 완료된 턴 하나(질문+답변)를
+    // "user" 메시지와 "assistant" 메시지 2개로 나눠 시간순으로 펼친다.
+    const historyForRequest: ContractChatMessage[] = state.history
       .filter((entry): entry is ClauseChatEntry & { answer: string } => entry.answer !== null)
-      .map(({ question: q, answer }) => ({ question: q, answer }));
+      .flatMap(({ question: q, answer }): ContractChatMessage[] => [
+        { role: 'user', content: q },
+        { role: 'assistant', content: answer },
+      ]);
 
     // 응답을 기다리지 않고, 질문 말풍선부터 즉시 추가(answer: null = 로딩 표시 중)하고 입력창을 비운다.
     const pendingEntryIndex = state.history.length;
@@ -421,6 +431,17 @@ export function ContractResultClient({
                   {isMaskedTextExpanded ? '접기' : '전체 보기'}
                 </button>
               </>
+            )}
+
+            {!hasEditedMaskedText && shortTextWarning && (
+              <div className="mt-4 rounded-xl border-2 border-red-300 bg-red-50 p-4">
+                <p className="mb-1 flex items-center gap-2 text-sm font-bold text-red-700">
+                  <AlertTriangle className="h-4 w-4" /> 인식된 내용이 매우 적어요
+                </p>
+                <p className="text-sm text-red-700">
+                  이미지가 흐리거나 잘못 촬영됐을 수 있어요. 다시 촬영하거나 직접 입력해주세요.
+                </p>
+              </div>
             )}
 
             {!hasEditedMaskedText && displayableUncertainFields.length > 0 && (
@@ -711,7 +732,17 @@ export function ContractResultClient({
                     <div className="mb-6 flex items-center justify-between">
                       <h3 className="text-lg font-bold text-slate-950">보증금 안전성</h3>
                       {depositSafety.status === 'calculated' && depositSafety.jeonseRatio !== null ? (
-                        <Badge className={apiStatusToneClassMap[getJeonseRatioTone(depositSafety.jeonseRatio)]}>
+                        <Badge
+                          className={
+                            apiStatusToneClassMap[
+                              getJeonseRatioTone(
+                                depositSafety.jeonseRatio,
+                                depositSafety.cautionFrom,
+                                depositSafety.warnTo,
+                              )
+                            ]
+                          }
+                        >
                           전세가율 {depositSafety.jeonseRatio}%
                         </Badge>
                       ) : (

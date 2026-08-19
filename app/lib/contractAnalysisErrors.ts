@@ -8,6 +8,7 @@ const CONTRACT_ANALYSIS_ERROR_MESSAGES: Record<string, string> = {
   CONTRACT_ANALYSIS_AI_API_ERROR: 'AI 서비스가 잠시 불안정해요. 잠시 후 다시 시도해주세요.',
   CONTRACT_ANALYSIS_AI_HALLUCINATION: '분석 중 문제가 발생했어요. 다시 시도해주세요.',
   CONTRACT_ANALYSIS_TEXT_TOO_SHORT: '입력한 내용이 너무 짧아요. 20자 이상 입력해주세요.',
+  CONTRACT_ANALYSIS_FILE_TOO_LARGE: '이미지 크기가 너무 커요. 10MB 이하로 다시 업로드해주세요.',
 };
 
 export function getContractAnalysisErrorMessage(error: unknown, fallback: string): string {

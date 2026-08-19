@@ -99,6 +99,9 @@ export type ChecklistOverviewDto = {
   status: ChecklistStatusDto;
   // 체크리스트가 있으면 checklist.updatedAt, 없으면 property.updatedAt으로 Backend가 대체해서 내려준다.
   lastCheckedAt: string;
+  // 체크리스트를 아직 시작 안 했으면 null(0%와 구분) - GROUP BY 집계 쿼리로 N+1 없이 계산된다.
+  progressPercent: number | null;
+  cautionCount: number | null;
 };
 
 // 계약 문구 분석 4단계 파이프라인: 입력 제출 -> OCR -> 마스킹 -> AI 분석.
@@ -134,6 +137,9 @@ export type OcrExtractResponseDto = {
   confidence: number;
   editable: boolean;
   uncertainFields: ContractOcrUncertainField[];
+  // 인식된 텍스트 자체가 매우 짧을 때(흐린 사진, 잘못된 촬영 등) true - uncertainFields(특정 구간의
+  // 낮은 신뢰도)와 달리 결과 전체의 신뢰도가 낮다는 신호라 더 강하게 안내해야 한다.
+  shortTextWarning: boolean;
 };
 
 // upload -> result 페이지 전달용 조합 페이로드. 백엔드가 내려주는 단일 응답이 아니라, OCR 단계의
@@ -145,6 +151,8 @@ export type ContractMaskingReviewPayload = {
   maskedText: string;
   maskedCount: number;
   uncertainFields: ContractOcrUncertainField[];
+  // OCR 응답의 shortTextWarning 그대로 - 텍스트 직접 입력 경로는 OCR을 안 거치므로 항상 false다.
+  shortTextWarning: boolean;
   propertyId?: number;
 };
 
@@ -188,15 +196,17 @@ export type ContractChatClauseContext = {
   explanation: string;
 };
 
-export type ContractChatHistoryEntry = {
-  question: string;
-  answer: string;
+// Backend ContractAnalysisChatMessage(role/content만 받음)와 동일한 형태 - 한 번의 질문/답변
+// 턴이 "user" 메시지 하나 + "assistant" 메시지 하나로 나뉘어 시간순으로 배열에 들어간다.
+export type ContractChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
 };
 
 export type ContractChatRequestDto = {
   clause: ContractChatClauseContext;
   question: string;
-  history?: ContractChatHistoryEntry[];
+  history?: ContractChatMessage[];
 };
 
 // 응답 형태는 명세받은 게 없어 analyzeContract 응답(ContractAnalysisResultDto)과 같은 패턴으로
@@ -374,6 +384,10 @@ export type MarketComparisonDto = {
   referenceDate: string | null;
   // 실제 적용된 반경 단계(300 또는 600). status가 UNAVAILABLE이면 null.
   radiusMeters: number | null;
+  // 표본 필터링에 쓰인 면적오차 허용율(0.2 = ±20%). status가 UNAVAILABLE이면 null.
+  areaErrorRate: number | null;
+  // 실거래를 조회한 개월 수. status가 UNAVAILABLE이면 null.
+  lookbackMonths: number | null;
   // UNAVAILABLE 사유를 사람이 읽을 수 있는 문장으로 내려준다(월세/단독다가구/좌표없음/표본부족 등).
   // AVAILABLE이면 null.
   message: string | null;
@@ -665,6 +679,9 @@ export type RiskCheckReasonDto =
   | 'NO_COMPARABLE_TRANSACTION'
   | 'ADDRESS_INFO_MISSING'
   | 'PROPERTY_TYPE_UNSUPPORTED'
+  // (2026-08-14) 월세(거래유형 미지원)를 PROPERTY_TYPE_UNSUPPORTED와 구분하기 위해 신설됨 -
+  // risk-analysis-design.md 전수조사 결과 버그 2번 참고.
+  | 'TRANSACTION_TYPE_UNSUPPORTED'
   | 'POLICY_CALCULATION_ERROR'
   | 'DATA_FETCH_FAILURE'
   | 'INTERNAL_ERROR';

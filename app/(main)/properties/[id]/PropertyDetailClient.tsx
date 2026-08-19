@@ -17,6 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { apiStatusToneClassMap, getJeonseRatioTone, riskSignalTypeMeta } from '../../../data/risk-analysis';
+import { formatAreaWithPyeong } from '../../../lib/numberFormat';
 import { roomTypeLabelMap } from '../../../mappers/property';
 import { deleteProperty } from '../../../services/properties';
 import { type DepositSafetyCheck, type PropertyDetail, type RiskSignalList } from '../../../types/domain';
@@ -210,7 +211,7 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
 
             <div className="mb-10 grid grid-cols-2 gap-6 md:grid-cols-3">
               {[
-                [Maximize, '전용면적', property.area ? `${property.area}㎡` : '정보 없음'],
+                [Maximize, '전용면적', property.area ? formatAreaWithPyeong(property.area) : '정보 없음'],
                 [Calendar, '등록일', property.createdAt ?? '정보 없음'],
               ].map(([Icon, label, value]) => {
                 const TypedIcon = Icon as typeof Maximize;
@@ -255,6 +256,13 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
                       인근 실거래 {property.marketComparison.sampleCount}건 기준 (반경{' '}
                       {property.marketComparison.radiusMeters}m)
                     </p>
+                    {typeof property.marketComparison.areaErrorRate === 'number' &&
+                      typeof property.marketComparison.lookbackMonths === 'number' && (
+                        <p className="mb-1 text-xs text-slate-400">
+                          면적오차 ±{Math.round(property.marketComparison.areaErrorRate * 100)}% · 최근{' '}
+                          {property.marketComparison.lookbackMonths}개월 실거래 기준으로 비교했어요.
+                        </p>
+                      )}
                     <p className="text-xl font-bold text-slate-950">
                       {formatDifferenceMessage(property.marketComparison.differenceRateText)}
                     </p>
@@ -343,7 +351,17 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
                       </button>
                     </div>
                     {depositSafety.status === 'calculated' && depositSafety.jeonseRatio !== null ? (
-                      <Badge className={apiStatusToneClassMap[getJeonseRatioTone(depositSafety.jeonseRatio)]}>
+                      <Badge
+                        className={
+                          apiStatusToneClassMap[
+                            getJeonseRatioTone(
+                              depositSafety.jeonseRatio,
+                              depositSafety.cautionFrom,
+                              depositSafety.warnTo,
+                            )
+                          ]
+                        }
+                      >
                         전세가율 {depositSafety.jeonseRatio}%
                       </Badge>
                     ) : (
@@ -447,8 +465,8 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
       <Modal open={isJeonseRatioHelpOpen} onClose={() => setIsJeonseRatioHelpOpen(false)}>
         <h3 className="mb-3 text-base font-bold text-slate-950">전세가율이 뭔가요?</h3>
         <p className="mb-3 text-sm leading-relaxed text-slate-600">
-          전세가율은 이 집을 팔았을 때 받을 수 있는 금액(매매 시세) 대비, 내가 내는 전세보증금의 비율이에요. 이
-          비율이 낮을수록 집값이 떨어지더라도 집을 팔아 보증금을 돌려받을 여지가 커요.
+          전세가율은 이 집을 팔았을 때 받을 수 있는 금액(매매 시세) 대비, 내가 내는 전세보증금의 비율이에요. 이 비율이
+          낮을수록 집값이 떨어지더라도 집을 팔아 보증금을 돌려받을 여지가 커요.
         </p>
         {depositSafety?.cautionFrom !== null &&
         depositSafety?.cautionFrom !== undefined &&

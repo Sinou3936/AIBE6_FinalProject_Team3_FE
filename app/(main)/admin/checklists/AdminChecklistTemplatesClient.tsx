@@ -72,6 +72,24 @@ const CODE_LABEL: Record<ChecklistItemCodeDto, string> = {
   RESIDENT_REGISTRATION_REQUEST: '전입세대열람원 요청 (미제공 시 자동 주의)',
 };
 
+// 백엔드 AdminChecklistTemplateService.REQUIRED_ITEM_TYPE_BY_CODE와 동일한 6개 code 전부를
+// 그대로 미러링한다 - 여기 없는 code/itemType 조합으로 저장을 시도하면 백엔드 validateCode()가
+// ADMIN_CHECKLIST_TEMPLATE_INVALID_CODE로 무조건 거부하므로, 프론트에서 먼저 막지 않으면
+// 저장 버튼을 누른 뒤에야 서버 에러로 드러난다. 강제하는 이유는 code마다 다르다 -
+// TRUST_REGISTRATION/OWNERSHIP_MATCH/DATE_OF_CONFIRMATION_REQUEST/RESIDENT_REGISTRATION_REQUEST는
+// ChecklistItem.answer()의 자동 주의(issueFound) 판정이 그 itemType의 answer 분기에서만 동작하고,
+// OWNERSHIP_ACQUISITION_DATE/TAX_DELINQUENCY_NOTICE는 자동 판정과는 무관하지만(각각
+// risk-analysis 연계용 보조 신호, 안내 문구 전용) 백엔드가 어차피 고정된 itemType을 요구한다
+// (ChecklistItemCode 자바독 참고) - 두 경우 모두 백엔드는 예외 없이 동일하게 거부한다.
+const CODE_REQUIRED_ITEM_TYPES: Partial<Record<ChecklistItemCodeDto, ChecklistItemTypeDto[]>> = {
+  TRUST_REGISTRATION: ['YES_NO'],
+  OWNERSHIP_MATCH: ['YES_NO'],
+  OWNERSHIP_ACQUISITION_DATE: ['DATE'],
+  TAX_DELINQUENCY_NOTICE: ['CHECK'],
+  DATE_OF_CONFIRMATION_REQUEST: ['DOCUMENT_REQUEST'],
+  RESIDENT_REGISTRATION_REQUEST: ['DOCUMENT_REQUEST'],
+};
+
 type FormState = {
   category: ChecklistCategoryDto;
   content: string;
@@ -194,6 +212,15 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
     if (!Number.isInteger(displayOrder) || displayOrder < 1) {
       setFormError('노출 순서는 1 이상의 숫자여야 합니다.');
       return;
+    }
+    if (form.code) {
+      const requiredItemTypes = CODE_REQUIRED_ITEM_TYPES[form.code];
+      if (requiredItemTypes && !requiredItemTypes.includes(form.itemType)) {
+        setFormError(
+          `"${CODE_LABEL[form.code]}" 코드는 응답 방식이 ${requiredItemTypes.map((type) => ITEM_TYPE_LABEL[type]).join('/')}일 때만 사용할 수 있습니다. 응답 방식을 바꾸거나 코드를 "없음"으로 선택해주세요.`,
+        );
+        return;
+      }
     }
 
     setSubmitting(true);

@@ -41,12 +41,23 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
   // 인증에 성공한 이메일 값 - 인증 완료 후 사용자가 이메일을 다시 바꾸면 그 이메일은 아직
   // 인증되지 않은 것이므로, 실제 제출값과 이 값이 다르면 인증 완료 상태를 무효화해야 한다.
   const verifiedEmailRef = useRef<string>('');
+  // 인증번호를 발송/확인 중인(아직 verified는 아닌) 이메일 값 - verifiedEmailRef와 달리 'sent'
+  // 상태에서도 채워진다. 코드를 요청한 뒤(status 'sent') 확인하기 전에 이메일을 고치면, 아래
+  // resetPendingVerification이 없을 경우 "확인" 버튼이 새 이메일 값으로 confirmEmailVerification을
+  // 호출해 발급된 적 없는 코드로 검증을 시도하게 된다(회귀 버그) - 이 ref로 그 상태를 감지해
+  // 리셋한다.
+  const codeTargetEmailRef = useRef<string>('');
 
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const timer = setInterval(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
     return () => clearInterval(timer);
-  }, [resendCooldown]);
+    // resendCooldown 값 자체가 아니라 "0보다 큰지"에만 반응해야 한다 - 매초 값이 바뀔 때마다
+    // 이 값 전체를 의존성으로 넣으면 카운트다운 60초 동안 interval을 60번 새로 만들고 지우는
+    // 낭비가 생긴다. 카운트다운이 시작되는 시점(0 → 양수로 전환)에만 interval을 하나 만들고,
+    // 그 안에서 계속 감소시킨다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resendCooldown > 0]);
   // 중복확인 응답이 도착했을 때 입력값이 요청 시점과 여전히 같은지 비교하기 위한 최신값 ref.
   // (2026-08-12) 닉네임을 빠르게 바꿔가며 중복확인을 연달아 누르면, 두 요청 모두 비동기로
   // 진행되어 늦게 도착하는 응답이 최신 입력값과 무관하게 nicknameCheckStatus를 덮어쓸 수
@@ -91,6 +102,7 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
     setEmailVerificationError(undefined);
     try {
       await requestEmailVerification(email);
+      codeTargetEmailRef.current = email;
       setEmailVerificationStatus('sent');
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (requestError) {
@@ -99,13 +111,11 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
       // 쿨다운(429) 응답이면 백엔드가 이미 이 이메일에 대해 쿨다운을 걸어둔 것이므로, 버튼도
       // 즉시 다시 누를 수 있는 것처럼 보이지 않도록 클라이언트에서도 카운트다운을 시작한다 -
       // 안 그러면 재발송을 눌러도 매번 같은 429만 반복해서 받게 된다. 메일 발송 자체가 실패한
-      // 경우(EMAIL_SEND_FAILED)는 Redis 쿨다운이 먼저 걸린 뒤에 실패하므로 마찬가지로 쿨다운이
-      // 이미 소비된 상태다 - 두 경우 모두 카운트다운을 시작해 실제 서버 상태와 맞춘다.
-      if (
-        requestError instanceof ApiError &&
-        (requestError.body?.code === 'AUTH_EMAIL_VERIFICATION_TOO_MANY_REQUESTS' ||
-          requestError.body?.code === 'EMAIL_SEND_FAILED')
-      ) {
+      // 경우(EMAIL_SEND_FAILED)는 반대로 백엔드가 쿨다운을 이미 해제해뒀다
+      // (EmailVerificationService.requestCode()의 releaseCooldownBestEffort 참고 - 발송 실패는
+      // 사용자 잘못이 아니므로 즉시 재시도를 허용한다) - 여기서 클라이언트 쿨다운까지 걸면 서버는
+      // 재시도를 허용하는데 버튼만 60초 동안 막는 모순이 생긴다.
+      if (requestError instanceof ApiError && requestError.body?.code === 'AUTH_EMAIL_VERIFICATION_TOO_MANY_REQUESTS') {
         setResendCooldown(RESEND_COOLDOWN_SECONDS);
       }
     }
@@ -177,9 +187,16 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
             onChange={(event) => {
               const value = event.target.value;
               setEmail(value);
-              // 인증 완료 후 이메일을 다시 바꾸면 그 값은 아직 인증되지 않았으므로 상태를 리셋한다.
-              if (verifiedEmailRef.current && verifiedEmailRef.current !== value) {
+              // 인증번호를 요청/확인하던 이메일과 값이 달라지면(인증 완료 후든, 코드 발송만
+              // 받아두고 아직 확인 전이든) 그 진행 상태는 새 이메일에 대해 더 이상 유효하지
+              // 않으므로 전부 리셋한다 - 안 그러면 "확인" 버튼이 옛 이메일 기준으로 발급된
+              // 코드를 새 이메일로 검증 시도해 항상 실패하고, 옛 이메일의 재발송 쿨다운이
+              // 새 이메일에도 그대로 적용된 것처럼 버튼이 막혀 보인다.
+              if (codeTargetEmailRef.current && codeTargetEmailRef.current !== value) {
                 setEmailVerificationStatus('idle');
+                setVerificationCode('');
+                setResendCooldown(0);
+                codeTargetEmailRef.current = '';
               }
               setEmailVerificationError(undefined);
             }}

@@ -57,6 +57,21 @@ function formatDate(dateString: string): string {
   return `${month}/${day}`;
 }
 
+// 배열 인덱스로 두 시계열을 짝짓지 않는다 - signups[i]와 propertyRegistrations[i]가 항상 같은
+// 날짜라는 보장은 코드상 없다(둘 다 백엔드가 날짜 범위를 하루도 빠짐없이 채워서 보통은 같은
+// 길이/순서로 오지만, 그 전제가 어긋나는 경계 케이스가 생기면 인덱스 매칭은 조용히 엉뚱한 날짜
+// 아래 다른 날짜의 값을 그려버린다). 실제 date 값으로 맞춰야 그런 경우에도 최소한 값이 밀리지
+// 않는다(그 날짜의 매물등록 데이터가 아예 없으면 0으로 처리). 컴포넌트에서 분리해 단위테스트
+// 가능하게 한다.
+export function buildTrendData(trends: AdminDashboardStatsDto['trends']) {
+  const propertyRegistrationsByDate = new Map(trends.propertyRegistrations.map((point) => [point.date, point.count]));
+  return trends.signups.map((point) => ({
+    date: formatDate(point.date),
+    가입자: point.count,
+    매물등록: propertyRegistrationsByDate.get(point.date) ?? 0,
+  }));
+}
+
 export function AdminDashboardClient({ stats, loadError, startDate, endDate }: AdminDashboardClientProps) {
   const router = useRouter();
   const [rangeStart, setRangeStart] = useState(startDate);
@@ -124,11 +139,7 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
     return null;
   }
 
-  const trendData = stats.trends.signups.map((point, index) => ({
-    date: formatDate(point.date),
-    가입자: point.count,
-    매물등록: stats.trends.propertyRegistrations[index]?.count ?? 0,
-  }));
+  const trendData = buildTrendData(stats.trends);
 
   const registrationData = stats.distributions.byPropertyRegistration.map((item) => ({
     name: REGISTRATION_LABEL[item.registered ? 'true' : 'false'],

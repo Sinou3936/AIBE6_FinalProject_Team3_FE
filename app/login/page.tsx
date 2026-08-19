@@ -52,7 +52,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   // 재시도하면 항상 refreshToken이 비어 있는 것으로 처리돼 세션이 멀쩡해도 무조건 재로그인을
   // 강제한다(SessionRecoverRetryButton.tsx 참고) - 그 배포에서는 대신 브라우저가 직접
   // 크로스오리진으로 백엔드에 재확인하는 클라이언트 버튼을 쓴다.
-  const showRetry = error === 'session_unavailable' && Boolean(next);
+  //
+  // next 존재 여부와 무관하게 보여준다 - 보호된 페이지에서 튕겨온 게 아니라 처음부터 소셜
+  // 로그인을 시도했다가(next 없음) OAuth 완료 직후 세션 확인이 일시 실패한 경우에도, next가
+  // 없다는 이유만으로 재시도 버튼 자체가 사라지면 사용자는 일시적 오류인데도 로그인을 처음부터
+  // 다시 해야 했다. 없으면 sanitizeNextPath와 동일한 기본 경로(/home)로 대체한다.
+  const showRetry = error === 'session_unavailable';
+  const retryNext = next ?? '/home';
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
@@ -68,13 +74,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         {errorMessage && (
           <NoticeBox icon={AlertCircle} iconClassName="text-red-500" className="mb-6 bg-red-50 text-red-600">
             {errorMessage}
-            {showRetry && next && (
+            {showRetry && (
               <>
                 {' '}
                 {crossOriginAuth ? (
-                  <SessionRecoverRetryButton next={next} />
+                  <SessionRecoverRetryButton next={retryNext} />
                 ) : (
-                  <Link href={`/auth/session-recover?next=${encodeURIComponent(next)}`} className="font-bold underline">
+                  <Link
+                    href={`/auth/session-recover?next=${encodeURIComponent(retryNext)}`}
+                    className="font-bold underline"
+                  >
                     다시 시도
                   </Link>
                 )}

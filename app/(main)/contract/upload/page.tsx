@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AlertCircle, ArrowRight, CheckCircle2, Info, Loader2, RotateCcw, Upload } from 'lucide-react';
-import { encodeBase64Url } from '../../../lib/base64Url';
 import { getContractAnalysisErrorMessage } from '../../../lib/contractAnalysisErrors';
+import { saveContractMaskingReview } from '../../../lib/contractResultStorage';
 import { extractOcrText, maskContractText, submitContractInput } from '../../../services/contract-analysis';
 import { type ContractMaskingReviewPayload } from '../../../types/api';
 
@@ -84,8 +84,8 @@ export default function Page() {
   const isButtonEnabled = allChecked && hasInput && !isProcessing;
 
   const navigateToMaskingReview = (payload: ContractMaskingReviewPayload) => {
-    const encoded = encodeBase64Url(JSON.stringify(payload));
-    router.push(`/contract/result?data=${encoded}`);
+    saveContractMaskingReview(payload);
+    router.push('/contract/result');
   };
 
   // "특약사항 분석하기" 버튼 하나로 텍스트든 이미지든 상관없이 (이미지면 OCR까지) 마스킹까지 자동으로
@@ -110,12 +110,17 @@ export default function Page() {
 
         setProcessingStep('masking');
         const maskResult = await maskContractText(ocrResult.extractedText);
-        navigateToMaskingReview({ ...maskResult, uncertainFields: ocrResult.uncertainFields, propertyId });
+        navigateToMaskingReview({
+          ...maskResult,
+          uncertainFields: ocrResult.uncertainFields,
+          shortTextWarning: ocrResult.shortTextWarning,
+          propertyId,
+        });
         return;
       }
 
       // 텍스트 직접 입력: 항상 nextStep이 'MASKING'이어야 정상이다. OCR을 거치지 않으므로
-      // uncertainFields는 항상 빈 배열이다.
+      // uncertainFields는 항상 빈 배열이고 shortTextWarning도 항상 false다.
       setProcessingStep('submitting-input');
       const inputResult = await submitContractInput({ inputType: 'TEXT', text, propertyId });
       if (inputResult.nextStep === 'OCR') {
@@ -124,7 +129,7 @@ export default function Page() {
 
       setProcessingStep('masking');
       const maskResult = await maskContractText(text);
-      navigateToMaskingReview({ ...maskResult, uncertainFields: [], propertyId });
+      navigateToMaskingReview({ ...maskResult, uncertainFields: [], shortTextWarning: false, propertyId });
     } catch (error) {
       setSubmitError(
         getContractAnalysisErrorMessage(error, '특약사항 분석에 실패했습니다. 잠시 후 다시 시도해 주세요.'),

@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertTriangle, ArrowRight, FileSearch, Link2, Loader2 } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { quickActions, quickActionToneMap } from '../../data/dashboard';
@@ -22,6 +22,7 @@ import {
 import { AccountUnavailableRedirect } from '../../ui/AccountUnavailableRedirect';
 import { ChecklistProgressWidget } from '../../ui/ChecklistProgressWidget';
 import { NoticeBox } from '../../ui/NoticeBox';
+import { OnboardingIntroModal } from '../../ui/OnboardingIntroModal';
 import { PriorityActionCard } from '../../ui/PriorityActionCard';
 
 const emptyProfile: UserProfile = {
@@ -54,9 +55,18 @@ type PageData = {
 };
 
 function HomePageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const notice = searchParams.get('notice') ?? undefined;
   const [data, setData] = useState<PageData | null>(null);
+  // 프로필 등록(온보딩) 직후 한 번만 보여주는 사용법 안내 - 진행 상황을 계속 추적하는 위젯이
+  // 아니라 그냥 이 시점에 한 번 뜨고 닫히면 끝인 정적 모달이라, 지연 초기화로 최초 렌더에서만
+  // notice 값을 확인한다. 닫을 때 쿼리를 지워서 새로고침해도 다시 뜨지 않게 한다.
+  const [showOnboardingIntro, setShowOnboardingIntro] = useState(() => notice === 'profile_registered');
+  const closeOnboardingIntro = useCallback(() => {
+    setShowOnboardingIntro(false);
+    router.replace('/home');
+  }, [router]);
 
   // setData는 이 함수 안에서 직접 호출하지 않고 항상 .then(setData)로 호출부에서 건다 - 이펙트
   // 본문에서 곧장 setState를 호출하는 모양이 되지 않도록 하기 위함(mypage/profile/page.tsx 참고).
@@ -190,6 +200,8 @@ function HomePageContent() {
   return (
     <div className="container mx-auto max-w-5xl px-4 py-6 md:py-10">
       {data.profileNotFound && <AccountUnavailableRedirect />}
+
+      <OnboardingIntroModal open={showOnboardingIntro} onClose={closeOnboardingIntro} />
 
       <div className="mb-8">
         <h1 className="ansim-page-title mb-2">계약 전 확인할 항목을 정리했어요</h1>
