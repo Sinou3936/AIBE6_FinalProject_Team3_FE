@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Modal } from '../../../../ui/Modal';
 
 type ChecklistItemImagesProps = {
@@ -38,6 +38,14 @@ export function ChecklistItemImages({ images }: ChecklistItemImagesProps) {
       <Modal open={selectedIndex !== null} onClose={() => setSelectedIndex(null)} maxWidthClassName="max-w-lg">
         {selectedIndex !== null && (
           <div className="relative">
+            <button
+              type="button"
+              onClick={() => setSelectedIndex(null)}
+              aria-label="닫기"
+              className="absolute -right-2 -top-2 z-10 rounded-full bg-slate-950/50 p-1.5 text-white transition hover:bg-slate-950/70"
+            >
+              <X className="h-5 w-5" />
+            </button>
             <div className="relative aspect-square w-full overflow-hidden rounded-lg">
               <Image
                 src={images[selectedIndex]}
