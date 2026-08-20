@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type AdminChecklistItemTemplateDto } from '../../../types/api';
 import { AdminChecklistTemplatesClient } from './AdminChecklistTemplatesClient';
 
@@ -41,6 +41,14 @@ function template(overrides: Partial<AdminChecklistItemTemplateDto> = {}): Admin
 }
 
 describe('AdminChecklistTemplatesClient', () => {
+  // 회귀 테스트(2026-08-20 전수조사) - beforeEach로 mock을 리셋하는 코드가 아예 없어서, 한
+  // 테스트에서 설정한 mockResolvedValue/호출 기록이 다음 테스트로 새어나갈 수 있었다(실제로
+  // updateAdminChecklistItemTemplate 하나만 테스트 안에서 수동 mockClear()로 땜질돼 있었고, 다른
+  // mock들은 그마저도 없었다) - 테스트 실행 순서에 따라 결과가 달라지는 걸 막는다.
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
   // 회귀 테스트 - TRUST_REGISTRATION/OWNERSHIP_MATCH 자동 판정 코드는 백엔드 ChecklistItem.answerYesNo()
   // 에서만 확인되므로, 응답 방식을 YES_NO가 아닌 값으로 두고 저장하면 자동 주의 판정이 조용히
   // 죽는다(경고 없이 저장 자체는 성공했었다). 이제는 저장 시점에 막혀야 한다.
@@ -226,7 +234,6 @@ describe('AdminChecklistTemplatesClient', () => {
   // 응답이 그사이 다른 문항으로 바뀐 화면을 오염시킬 수 있음). 저장 버튼도 이미지 액션이 끝날
   // 때까지 막혀야 한다.
   it('이미지 추가가 진행 중이면 저장 버튼이 비활성화되고 저장 요청도 나가지 않는다', async () => {
-    updateAdminChecklistItemTemplate.mockClear(); // 이전 테스트들의 호출 기록이 남아있지 않도록.
     getAdminChecklistTemplateImages.mockResolvedValue([]);
     let resolveAddImage: (value: { id: number; imageUrl: string }) => void;
     addAdminChecklistTemplateImage.mockReturnValue(

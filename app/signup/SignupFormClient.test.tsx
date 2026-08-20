@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '../lib/api/http';
 import { SignupFormClient } from './SignupFormClient';
 
@@ -25,6 +25,22 @@ const passwordPolicy = { pattern: '.{8,72}', message: '영문, 숫자 포함 8~7
 const nicknamePolicy = { pattern: '.{2,20}', message: '2~20자' };
 
 describe('SignupFormClient', () => {
+  // 회귀 테스트(2026-08-20 전수조사) - beforeEach로 mock을 리셋하는 코드가 아예 없어서, 한
+  // 테스트에서 설정한 mockResolvedValue/mockRejectedValue나 호출 기록이 다음 테스트로 새어나갈
+  // 수 있었다 - 테스트 실행 순서에 따라 결과가 달라지는 걸 막는다.
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  // vi.useFakeTimers()/vi.spyOn()을 쓰는 아래 "setInterval을 한 번만 생성한다" 테스트가 중간
+  // assert에서 실패하면(예: callsAfterStart 검증), 테스트 본문 마지막의 vi.useRealTimers()/
+  // setIntervalSpy.mockRestore()가 실행되지 못하고 fake timer가 이후 테스트로 새어나갔다
+  // (2026-08-20 전수조사에서 지적) - afterEach에 두면 테스트 성공/실패와 무관하게 항상 정리된다.
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
   // 회귀 테스트 - 인증번호를 요청한 뒤(status 'sent') 확인하기 전에 이메일을 수정하면, 기존에는
   // "확인" 버튼이 새로 바뀐 이메일 값으로 confirmEmailVerification을 호출해 발급된 적 없는
   // 코드로 검증을 시도했다(항상 실패). 지금은 이메일이 바뀌면 인증 진행 상태 자체가 리셋되어
