@@ -179,6 +179,10 @@ describe('AdminChecklistTemplatesClient', () => {
     // 배경의 테이블 행에도 같은 라벨의 "삭제" 버튼이 있어(Modal이 언마운트하지 않고 덮어씌우는
     // 방식), 모달 컨테이너로 범위를 좁혀 이미지 목록의 삭제 버튼만 클릭한다.
     const modalContainer = screen.getByText('문항 수정').parentElement as HTMLElement;
+    // 삭제는 이제 확인 없이 바로 실행되지 않는다 - 첫 클릭은 "정말 삭제할까요?" 인라인 확인으로
+    // 바꾸고, 그 확인 상태의 "삭제" 버튼을 다시 눌러야 실제 삭제 요청이 나간다.
+    fireEvent.click(within(modalContainer).getByRole('button', { name: '삭제' }));
+    await within(modalContainer).findByText('정말 삭제할까요?');
     fireEvent.click(within(modalContainer).getByRole('button', { name: '삭제' }));
 
     await waitFor(() => expect(deleteAdminChecklistTemplateImage).toHaveBeenCalledWith(1, 100));

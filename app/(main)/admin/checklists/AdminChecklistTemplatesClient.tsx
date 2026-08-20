@@ -159,6 +159,12 @@ function toFormState(template: AdminChecklistItemTemplateDto): FormState {
   };
 }
 
+function isCodeCompatibleWithItemType(code: FormState['code'], itemType: ChecklistItemTypeDto): boolean {
+  if (!code) return true;
+  const requiredItemTypes = CODE_REQUIRED_ITEM_TYPES[code];
+  return !requiredItemTypes || requiredItemTypes.includes(itemType);
+}
+
 function toCreateRequest(form: FormState): AdminChecklistItemTemplateCreateRequestDto {
   const allPropertyTypes = [...form.applicablePropertyTypes, ...form.unknownPropertyTypeTokens];
   return {
@@ -228,6 +234,13 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
         return;
       }
     }
+    // 백엔드는 options를 자유 텍스트 컬럼으로 그대로 통과시키므로, 선택지가 비어 있어도 저장
+    // 자체는 성공한다 - "선택지 응답" 타입인데 실제 선택지가 없는 문항이 조용히 만들어지는 걸
+    // 막는다.
+    if (form.itemType === 'MULTIPLE_CHOICE' && !form.options.trim()) {
+      setFormError('선택지 응답 방식은 선택지를 최소 1개 이상 입력해주세요.');
+      return;
+    }
 
     setSubmitting(true);
     setFormError(undefined);
@@ -268,6 +281,11 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   const [imagesError, setImagesError] = useState<string | undefined>();
   const [newImageUrl, setNewImageUrl] = useState('');
   const [imageActionPending, setImageActionPending] = useState(false);
+  // 삭제는 되돌릴 수 없는데(문항/템플릿 삭제와 달리) 확인 단계 없이 버튼 하나로 바로 실행됐다 -
+  // 같은 화면의 다른 삭제(문항/템플릿)는 전부 확인 모달을 거친다. 이미 열려 있는 수정 모달 위에
+  // Modal을 하나 더 겹쳐 띄우는 대신(포커스 트랩/Escape가 두 겹으로 얽힘), 삭제 버튼을 누르면
+  // 그 자리에서 "정말 삭제?" 확인/취소로 바뀌는 인라인 2단계 확인으로 처리한다.
+  const [imagePendingDeleteId, setImagePendingDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
     if (editingTemplateId === null) {
@@ -278,6 +296,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
       setImages([]);
       setImagesError(undefined);
       setNewImageUrl('');
+      setImagePendingDeleteId(null);
       return;
     }
     let cancelled = false;
@@ -323,6 +342,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
       setImagesError(resolveErrorMessage(error, '이미지 삭제에 실패했습니다.'));
     } finally {
       setImageActionPending(false);
+      setImagePendingDeleteId(null);
     }
   }
 
@@ -507,7 +527,15 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                   응답 방식
                   <select
                     value={modal.form.itemType}
-                    onChange={(event) => updateForm({ itemType: event.target.value as ChecklistItemTypeDto })}
+                    onChange={(event) => {
+                      const nextItemType = event.target.value as ChecklistItemTypeDto;
+                      // code는 특정 itemType에서만 쓸 수 있다(CODE_REQUIRED_ITEM_TYPES 참고) - 응답
+                      // 방식을 바꿔서 지금 선택된 code와 더 이상 호환되지 않으면, 저장 시점에야
+                      // 에러로 알리는 대신 여기서 바로 "없음"으로 되돌려 애초에 비호환 조합이
+                      // 화면에 남지 않게 한다.
+                      const codeStillValid = isCodeCompatibleWithItemType(modal.form.code, nextItemType);
+                      updateForm({ itemType: nextItemType, code: codeStillValid ? modal.form.code : NONE_CODE });
+                    }}
                     className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
                   >
                     {Object.entries(ITEM_TYPE_LABEL).map(([value, label]) => (
@@ -550,11 +578,17 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                   className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
                 >
                   <option value={NONE_CODE}>없음</option>
-                  {Object.entries(CODE_LABEL).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
+                  {Object.entries(CODE_LABEL).map(([value, label]) => {
+                    const code = value as ChecklistItemCodeDto;
+                    const compatible = isCodeCompatibleWithItemType(code, modal.form.itemType);
+                    return (
+                      <option key={value} value={value} disabled={!compatible}>
+                        {compatible
+                          ? label
+                          : `${label} (응답 방식을 ${CODE_REQUIRED_ITEM_TYPES[code]!.map((type) => ITEM_TYPE_LABEL[type]).join('/')}(으)로 바꿔야 선택 가능)`}
+                      </option>
+                    );
+                  })}
                 </select>
               </label>
 
@@ -613,24 +647,46 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                   )}
                   {images.length > 0 && (
                     <ul className="mb-2 space-y-2">
-                      {images.map((image) => (
+                      {images.map((image, index) => (
                         <li key={image.id} className="flex items-center gap-2">
                           {/* eslint-disable-next-line @next/next/no-img-element -- 관리자가 임의 URL을
                           입력해 next.config.js 허용 호스트 목록에 없을 수 있어 next/image로 최적화 불가 */}
                           <img
                             src={image.imageUrl}
-                            alt=""
+                            alt={`예시 이미지 ${index + 1}`}
                             className="h-10 w-10 shrink-0 rounded-lg border border-slate-200 object-cover"
                           />
                           <span className="flex-1 truncate text-xs text-slate-500">{image.imageUrl}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteImage(image.id)}
-                            disabled={imageActionPending}
-                            className="shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                          >
-                            삭제
-                          </button>
+                          {imagePendingDeleteId === image.id ? (
+                            <span className="flex shrink-0 items-center gap-1">
+                              <span className="text-xs font-bold text-red-600">정말 삭제할까요?</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteImage(image.id)}
+                                disabled={imageActionPending}
+                                className="shrink-0 rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white disabled:opacity-50"
+                              >
+                                삭제
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setImagePendingDeleteId(null)}
+                                disabled={imageActionPending}
+                                className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                              >
+                                취소
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setImagePendingDeleteId(image.id)}
+                              disabled={imageActionPending}
+                              className="shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            >
+                              삭제
+                            </button>
+                          )}
                         </li>
                       ))}
                     </ul>

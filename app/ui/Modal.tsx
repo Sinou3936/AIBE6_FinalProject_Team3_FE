@@ -98,6 +98,24 @@ export function Modal({ open, onClose, children, maxWidthClassName = 'max-w-sm' 
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose]);
 
+  // 포커스 유실 감지 - 위 open 전환 effect는 [open]에만 반응하므로, 같은 Modal 인스턴스가 열린
+  // 채로 내부 컨텐츠만 완전히 바뀌는 경우(예: AdminUsersClient/AdminReportsClient의 대량처리
+  // 확인 화면 -> 결과 화면 전환)는 포커스를 옮기지 않았다. 그 전환에서는 포커스를 갖고 있던
+  // "확인" 버튼 자체가 통째로 언마운트되면서 브라우저가 포커스를 body로 떨어뜨려, 스크린리더
+  // 사용자가 "성공 3명, 실패 1명" 같은 결과를 놓치는 문제가 있었다. children을 의존성으로 두면
+  // 이 effect는 다이얼로그가 열린 동안의 모든 리렌더(예: 폼 입력 중 매 keystroke)마다 실행되므로,
+  // activeElement가 실제로 다이얼로그 밖으로 밀려났을 때만 되돌린다 - 안 그러면 입력 중인 필드의
+  // 포커스를 매 타이핑마다 빼앗아가 버린다.
+  useEffect(() => {
+    if (!open) return;
+    const container = dialogRef.current;
+    if (!container) return;
+    if (document.activeElement && container.contains(document.activeElement)) return;
+    const heading = container.querySelector<HTMLElement>(HEADING_SELECTOR);
+    const [firstFocusable] = getFocusableElements(container);
+    (heading ?? firstFocusable ?? container).focus();
+  }, [open, children]);
+
   // 컨텐츠 안의 첫 heading을 찾아 dialog의 접근 가능한 이름으로 연결한다. children을 의존성에
   // 넣어, 같은 Modal 인스턴스가 열린 채로 내부 컨텐츠만 바뀌는 경우(예: AdminReportsClient의
   // 로딩 -> 상세 전환)에도 다시 찾는다 - DOM(다이얼로그 안의 실제 heading 엘리먼트)을 읽어야만
