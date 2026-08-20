@@ -280,4 +280,109 @@ describe('AdminChecklistTemplatesClient', () => {
 
     expect(await screen.findByText('예시 이미지를 불러오지 못했습니다.')).toBeInTheDocument();
   });
+
+  // 회귀 테스트(2026-08-20 전수조사) - 확대 뷰는 폼의 기본 좁은 너비(max-w-sm)를 그대로 물려받아
+  // "겨우 조금 커진" 수준이었다. 확대 중일 때만 더 넓은 너비 클래스를 써야 한다.
+  it('확대 뷰는 폼보다 넓은 max-w 클래스를 쓴다', async () => {
+    getAdminChecklistTemplateImages.mockResolvedValue([{ id: 100, imageUrl: 'https://example.com/a.png' }]);
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }));
+    await screen.findByText('https://example.com/a.png');
+    expect(screen.getByRole('dialog').className).not.toContain('max-w-2xl');
+
+    fireEvent.click(screen.getByRole('button', { name: '예시 이미지 1 확대' }));
+    await screen.findByRole('img', { name: '예시 이미지 1 확대' });
+    expect(screen.getByRole('dialog').className).toContain('max-w-2xl');
+  });
+
+  // 신규 기능(2026-08-20, 멘토링 피드백) - 이전/다음 버튼은 있었지만 키보드로는 넘길 방법이
+  // 없었다. 방향키로도 사진을 넘길 수 있어야 한다.
+  it('확대 뷰에서 방향키로 이전/다음 사진으로 넘어간다', async () => {
+    getAdminChecklistTemplateImages.mockResolvedValue([
+      { id: 100, imageUrl: 'https://example.com/a.png' },
+      { id: 101, imageUrl: 'https://example.com/b.png' },
+    ]);
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }));
+    await screen.findByText('https://example.com/a.png');
+    fireEvent.click(screen.getByRole('button', { name: '예시 이미지 1 확대' }));
+    await screen.findByRole('img', { name: '예시 이미지 1 확대' });
+
+    fireEvent.keyDown(document, { key: 'ArrowRight' });
+    expect(await screen.findByRole('img', { name: '예시 이미지 2 확대' })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'ArrowLeft' });
+    expect(await screen.findByRole('img', { name: '예시 이미지 1 확대' })).toBeInTheDocument();
+  });
+
+  // 회귀 테스트(2026-08-20 전수조사) - 확대 뷰에서 Escape를 누르면 모달 전체가 아니라 확대 뷰만
+  // 먼저 닫혀야 하고(handleModalClose가 imagePendingDeleteId/enlargedImageId를 우선 처리), 닫힌
+  // 뒤 포커스는 그 사진을 열었던 썸네일 버튼으로 돌아가야 한다.
+  it('확대 뷰에서 Escape를 누르면 확대만 닫히고 포커스가 썸네일로 돌아간다', async () => {
+    getAdminChecklistTemplateImages.mockResolvedValue([{ id: 100, imageUrl: 'https://example.com/a.png' }]);
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }));
+    await screen.findByText('https://example.com/a.png');
+    // 확대 뷰 전환은 폼 트리 전체를 언마운트하므로(엔라지 화면과 폼 화면은 같은 삼항연산의 서로
+    // 다른 분기), 닫힌 뒤 새로 마운트된 버튼을 다시 조회해야 한다 - 클릭 전에 잡아둔 참조는
+    // 화면에 남아있는 노드와 같은 모양이어도 실제로는 이미 떨어져나간(detached) 옛 DOM 노드다.
+    fireEvent.click(screen.getByRole('button', { name: '예시 이미지 1 확대' }));
+    await screen.findByRole('img', { name: '예시 이미지 1 확대' });
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(await screen.findByText('문항 수정')).toBeInTheDocument(); // 폼으로 돌아왔다(모달 전체가 닫히지 않음).
+    expect(screen.getByRole('button', { name: '예시 이미지 1 확대' })).toHaveFocus();
+  });
+
+  // 회귀 테스트(2026-08-20 전수조사) - 인라인 삭제 확인("정말 삭제할까요?") 도중 Escape/배경
+  // 클릭을 누르면 모달 전체가 닫혀 입력 중이던 폼 내용을 통째로 잃었다. 확인 단계만 취소되어야
+  // 한다.
+  it('삭제 확인 도중 Escape를 누르면 확인만 취소되고 모달은 닫히지 않는다', async () => {
+    getAdminChecklistTemplateImages.mockResolvedValue([{ id: 100, imageUrl: 'https://example.com/a.png' }]);
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }));
+    await screen.findByText('https://example.com/a.png');
+    const modalContainer = screen.getByText('문항 수정').parentElement as HTMLElement;
+    fireEvent.click(within(modalContainer).getByRole('button', { name: '삭제' }));
+    await within(modalContainer).findByText('정말 삭제할까요?');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(screen.getByText('문항 수정')).toBeInTheDocument(); // 모달이 그대로 열려 있다.
+    expect(screen.queryByText('정말 삭제할까요?')).not.toBeInTheDocument(); // 확인 단계만 취소됐다.
+  });
+
+  // 회귀 테스트(2026-08-20 전수조사) - 썸네일 확대 버튼에 imageActionPending 가드가 빠져 있어,
+  // 다른 이미지의 추가/삭제 요청이 진행 중인 동안에도 확대를 열 수 있었다. 그 요청이 뒤늦게
+  // 끝나 이미지 목록이 바뀌면(특히 앞쪽 이미지가 삭제되는 경우) 인덱스 기반 확대 뷰가 조용히
+  // 다른 사진으로 바뀌는 문제로 이어졌다 - id 기반 추적으로 근본 원인은 고쳤지만, 애초에 진행
+  // 중인 변경이 끝날 때까지 새 확대 자체를 막는 게 더 안전하다.
+  it('이미지 액션이 진행 중이면 썸네일 확대 버튼도 비활성화된다', async () => {
+    getAdminChecklistTemplateImages.mockResolvedValue([{ id: 100, imageUrl: 'https://example.com/a.png' }]);
+    let resolveAddImage: (value: { id: number; imageUrl: string }) => void;
+    addAdminChecklistTemplateImage.mockReturnValue(
+      new Promise((resolve) => {
+        resolveAddImage = resolve;
+      }),
+    );
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }));
+    await screen.findByText('https://example.com/a.png');
+
+    fireEvent.change(screen.getByPlaceholderText('이미지 URL 붙여넣기'), {
+      target: { value: 'https://example.com/b.png' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '추가' }));
+
+    expect(screen.getByRole('button', { name: '예시 이미지 1 확대' })).toBeDisabled();
+
+    resolveAddImage!({ id: 101, imageUrl: 'https://example.com/b.png' });
+    await waitFor(() => expect(screen.getByRole('button', { name: '예시 이미지 1 확대' })).not.toBeDisabled());
+  });
 });

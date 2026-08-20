@@ -203,12 +203,18 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
     setFormError(undefined);
   }
 
-  // Modal의 Escape/배경 클릭 핸들러는 이 함수 하나에만 연결돼 있다 - 확대 뷰가 떠 있는 동안
-  // Escape를 누르면 모달 전체가 아니라 확대 뷰만 먼저 닫혀야 한다(한 번 더 누르면 그때 모달이
-  // 닫힘 - 이미지 목록/삭제 확인이 사라진 채로 갑자기 폼 전체가 닫히는 걸 막는다).
+  // Modal의 Escape/배경 클릭 핸들러는 이 함수 하나에만 연결돼 있다 - 인라인 삭제 확인이나 확대
+  // 뷰가 떠 있는 동안 Escape/배경 클릭을 누르면 모달 전체가 아니라 그 단계만 먼저 취소/닫혀야
+  // 한다(한 번 더 누르면 그때 모달이 닫힘). 삭제 확인을 확대 뷰보다 먼저 체크하는 이유는 성격이
+  // 다르기 때문이다 - 확대 뷰는 언제든 다시 열 수 있는 조회 상태지만, 삭제 확인 단계에서 배경을
+  // 잘못 클릭했다고 폼 전체가 닫혀버리면(2026-08-20 전수조사에서 지적) 입력 중이던 내용을 잃는다.
   function handleModalClose() {
-    if (enlargedImageIndex !== null) {
-      setEnlargedImageIndex(null);
+    if (imagePendingDeleteId !== null) {
+      setImagePendingDeleteId(null);
+      return;
+    }
+    if (enlargedImageId !== null) {
+      setEnlargedImageId(null);
       return;
     }
     closeModal();
@@ -307,13 +313,22 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   // 모달이 열려 있는 위에 Modal을 하나 더 겹쳐 띄우지 않고(포커스 트랩/Escape가 두 겹으로 얽힘 -
   // 위 imagePendingDeleteId 인라인 확인과 같은 이유), 같은 모달 안에서 폼 내용을 확대 뷰로
   // 덮어씌우는 방식으로 처리한다.
-  const [enlargedImageIndex, setEnlargedImageIndex] = useState<number | null>(null);
+  // 인덱스가 아니라 image.id로 추적한다(2026-08-20 전수조사에서 발견) - 어떤 이미지를 확대해서
+  // 보고 있는 도중, 그 목록이 다른 이유로(예: 방금 삭제 요청한 다른 이미지의 응답이 뒤늦게
+  // 도착) 바뀌면 배열이 앞으로 당겨지면서 같은 인덱스가 가리키는 이미지 자체가 조용히 바뀌거나
+  // 범위를 벗어난다 - id로 추적하면 목록 순서가 바뀌어도 사용자가 보고 있던 바로 그 사진을
+  // 계속 보여준다.
+  const [enlargedImageId, setEnlargedImageId] = useState<number | null>(null);
   // 삭제 버튼 -> "정말 삭제할까요?" 확인/취소로 전환될 때 원래 버튼이 통째로 언마운트돼 포커스가
   // body로 떨어지는 문제(2026-08-20 전수조사에서 발견)를 고치기 위한 포커스 이동용 참조들.
   const confirmDeleteButtonRef = useRef<HTMLButtonElement | null>(null);
   const deleteTriggerButtonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  // 확대 뷰를 닫을 때(X 버튼/Escape/배경 클릭) 포커스를 그 사진을 열었던 썸네일로 되돌리기
+  // 위한 참조 - 위 deleteTriggerButtonRefs와 동일한 이유(2026-08-20 전수조사에서 발견).
+  const enlargeTriggerButtonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
   const newImageUrlInputRef = useRef<HTMLInputElement | null>(null);
   const previousPendingDeleteIdRef = useRef<number | null>(null);
+  const previousEnlargedImageIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (imagePendingDeleteId !== null) {
@@ -327,6 +342,44 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
     previousPendingDeleteIdRef.current = imagePendingDeleteId;
   }, [imagePendingDeleteId]);
 
+  // 확대 뷰가 닫힐 때(X 버튼/Escape/배경 클릭) 포커스를 그 사진을 열었던 썸네일로 되돌린다 -
+  // 위 imagePendingDeleteId 포커스 복구 effect와 동일한 패턴(2026-08-20 전수조사에서 발견).
+  useEffect(() => {
+    if (enlargedImageId === null && previousEnlargedImageIdRef.current !== null) {
+      enlargeTriggerButtonRefs.current.get(previousEnlargedImageIdRef.current)?.focus();
+    }
+    previousEnlargedImageIdRef.current = enlargedImageId;
+  }, [enlargedImageId]);
+
+  // 안전장치 - 확대 중인 이미지가 어떤 이유로든(삭제 완료 등) 목록에서 사라지면 확대 상태를
+  // 정리한다. 이게 없으면 enlargedImageId는 non-null로 남아있는데 화면엔 폼이 그려져서, Escape를
+  // 한 번 눌러도 (이미 안 보이는) 확대 뷰를 닫는 걸로 소비돼 버려 모달이 안 닫히는 것처럼
+  // 보인다(2026-08-20 전수조사에서 발견).
+  useEffect(() => {
+    if (enlargedImageId !== null && !images.some((image) => image.id === enlargedImageId)) {
+      setEnlargedImageId(null);
+    }
+  }, [enlargedImageId, images]);
+
+  // 확대 뷰가 떠 있는 동안 좌우 방향키로 이전/다음 사진을 넘길 수 있다(2026-08-20 멘토링
+  // 피드백 - 이전/다음 버튼은 이미 있었지만 키보드로는 넘길 방법이 없었다).
+  useEffect(() => {
+    if (enlargedImageId === null || images.length <= 1) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      setEnlargedImageId((current) => {
+        if (current === null) return current;
+        const currentIndex = images.findIndex((image) => image.id === current);
+        if (currentIndex === -1) return current;
+        const delta = event.key === 'ArrowLeft' ? -1 : 1;
+        const nextIndex = (currentIndex + delta + images.length) % images.length;
+        return images[nextIndex].id;
+      });
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [enlargedImageId, images]);
+
   useEffect(() => {
     if (editingTemplateId === null) {
       // 모달이 닫히거나 생성/삭제 모달로 바뀌어 editingTemplateId가 null이 될 때만 의미 있는
@@ -337,7 +390,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
       setImagesError(undefined);
       setNewImageUrl('');
       setImagePendingDeleteId(null);
-      setEnlargedImageIndex(null);
+      setEnlargedImageId(null);
       return;
     }
     let cancelled = false;
@@ -386,6 +439,9 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
       setImagePendingDeleteId(null);
     }
   }
+
+  const enlargedIndex = enlargedImageId !== null ? images.findIndex((image) => image.id === enlargedImageId) : -1;
+  const enlargedImage = enlargedIndex >= 0 ? images[enlargedIndex] : null;
 
   return (
     <div>
@@ -464,7 +520,13 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
         />
       )}
 
-      <Modal open={modal !== null} onClose={handleModalClose}>
+      <Modal
+        open={modal !== null}
+        onClose={handleModalClose}
+        // 확대 뷰는 사진을 크게 보기 위한 화면이라 폼의 기본 좁은 너비(max-w-sm)로는 "겨우 조금
+        // 커진" 수준이었다(멘토링 피드백, 2026-08-20) - 확대 중일 때만 더 넓은 너비를 쓴다.
+        maxWidthClassName={enlargedImageId !== null ? 'max-w-2xl' : undefined}
+      >
         {modal && modal.type === 'delete' && (
           <div>
             <h2 className="mb-2 text-lg font-bold text-slate-950">이 문항을 삭제할까요?</h2>
@@ -495,7 +557,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
 
         {modal && modal.type !== 'delete' && (
           <div>
-            {enlargedImageIndex !== null && images[enlargedImageIndex] ? (
+            {enlargedImage ? (
               <div className="relative flex min-h-64 flex-col items-center justify-center">
                 {/* Modal은 컨텐츠 안의 첫 heading을 찾아 dialog의 aria-labelledby로 연결한다 - 폼
                 화면(문항 수정/추가)에는 h2가 있는데 이 확대 화면엔 없으면, 전환하는 순간 dialog의
@@ -504,7 +566,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                 <h2 className="sr-only">예시 이미지 확대 보기</h2>
                 <button
                   type="button"
-                  onClick={() => setEnlargedImageIndex(null)}
+                  onClick={() => setEnlargedImageId(null)}
                   aria-label="닫기"
                   className="absolute right-2 top-2 z-10 rounded-full bg-slate-950/50 p-1.5 text-white transition hover:bg-slate-950/70"
                 >
@@ -513,17 +575,15 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                 {/* eslint-disable-next-line @next/next/no-img-element -- 관리자가 임의 URL을 입력해
                 next.config.js 허용 호스트 목록에 없을 수 있어 next/image로 최적화 불가 */}
                 <img
-                  src={images[enlargedImageIndex].imageUrl}
-                  alt={`예시 이미지 ${enlargedImageIndex + 1} 확대`}
+                  src={enlargedImage.imageUrl}
+                  alt={`예시 이미지 ${enlargedIndex + 1} 확대`}
                   className="max-h-96 max-w-full rounded-lg object-contain"
                 />
                 {images.length > 1 && (
                   <>
                     <button
                       type="button"
-                      onClick={() =>
-                        setEnlargedImageIndex((current) => ((current ?? 0) - 1 + images.length) % images.length)
-                      }
+                      onClick={() => setEnlargedImageId(images[(enlargedIndex - 1 + images.length) % images.length].id)}
                       aria-label="이전 사진"
                       className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-slate-950/50 p-1.5 text-white transition hover:bg-slate-950/70"
                     >
@@ -531,14 +591,14 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEnlargedImageIndex((current) => ((current ?? 0) + 1) % images.length)}
+                      onClick={() => setEnlargedImageId(images[(enlargedIndex + 1) % images.length].id)}
                       aria-label="다음 사진"
                       className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-slate-950/50 p-1.5 text-white transition hover:bg-slate-950/70"
                     >
                       <ChevronRight className="h-5 w-5" />
                     </button>
-                    <p className="mt-2 text-center text-xs text-slate-400">
-                      {enlargedImageIndex + 1} / {images.length}
+                    <p aria-live="polite" className="mt-2 text-center text-xs text-slate-400">
+                      {enlargedIndex + 1} / {images.length}
                     </p>
                   </>
                 )}
@@ -743,9 +803,18 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                             <li key={image.id} className="flex items-center gap-2">
                               <button
                                 type="button"
-                                onClick={() => setEnlargedImageIndex(index)}
+                                ref={(el) => {
+                                  if (el) enlargeTriggerButtonRefs.current.set(image.id, el);
+                                  else enlargeTriggerButtonRefs.current.delete(image.id);
+                                }}
+                                onClick={() => setEnlargedImageId(image.id)}
+                                // 삭제 요청이 진행 중인 동안 다른 사진을 확대하면, 그 요청이 끝나
+                                // 목록이 바뀌었을 때 확대 뷰가 예상 밖으로 갱신될 여지가 생긴다
+                                // (id 기반 추적으로 실제 오동작은 막혀 있지만, 애초에 진행 중인
+                                // 변경이 끝날 때까지 새 확대를 막는 편이 더 안전하다).
+                                disabled={imageActionPending}
                                 aria-label={`예시 이미지 ${index + 1} 확대`}
-                                className="shrink-0"
+                                className="shrink-0 disabled:opacity-50"
                               >
                                 {/* eslint-disable-next-line @next/next/no-img-element -- 관리자가 임의 URL을
                             입력해 next.config.js 허용 호스트 목록에 없을 수 있어 next/image로 최적화 불가 */}
