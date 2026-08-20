@@ -83,12 +83,21 @@ export function Modal({ open, onClose, children, maxWidthClassName = 'max-w-sm' 
       const last = focusableElements[focusableElements.length - 1];
       const active = document.activeElement;
 
+      // container.contains(active)만 확인하면 안 된다 - 다이얼로그 컨테이너 자신이나(포커스 유실
+      // 복구 시 fallback 대상, tabIndex={-1}) heading(포커스 유실 복구가 tabindex="-1"을 부여해
+      // 포커스시키는 경우)은 container 안에 있지만 focusableElements 목록에는 없다(선택자가
+      // [tabindex]:not([tabindex="-1"])이므로 제외됨). 이 두 요소는 브라우저의 자연스러운 탭
+      // 순서에 아예 없어서, 여기서 Shift+Tab을 가로채지 않으면 포커스가 모달 밖으로 새어나간다
+      // (2026-08-20 전수조사에서 지적 - 정확히 오늘 고친 대량처리 결과화면 포커스 복구 직후에
+      // 재현됨). focusableElements에 포함된 요소에 포커스가 있을 때만 "트랩 안에 있다"고 본다.
+      const activeIsTrapped = active !== null && focusableElements.includes(active as HTMLElement);
+
       if (event.shiftKey) {
-        if (active === first || !container.contains(active)) {
+        if (!activeIsTrapped || active === first) {
           event.preventDefault();
           last.focus();
         }
-      } else if (active === last || !container.contains(active)) {
+      } else if (!activeIsTrapped || active === last) {
         event.preventDefault();
         first.focus();
       }
@@ -159,7 +168,12 @@ export function Modal({ open, onClose, children, maxWidthClassName = 'max-w-sm' 
         aria-modal="true"
         aria-labelledby={headingId}
         tabIndex={-1}
-        className={`ansim-card w-full ${maxWidthClassName} p-6`}
+        // ansim-card의 overflow-hidden만으로는 세로 스크롤이 없어, 관리자 체크리스트 문항 수정
+        // 모달처럼 필드가 많은 폼은 뷰포트보다 길어지면 위/아래 내용이 화면 밖으로 잘리고 스크롤할
+        // 방법이 없었다(2026-08-20 전수조사에서 지적). max-h/overflow-y-auto는 Tailwind
+        // 유틸리티(@layer utilities)라 ansim-card의 overflow-hidden(@layer components)보다
+        // 캐스케이드 순서상 항상 이긴다.
+        className={`ansim-card w-full ${maxWidthClassName} max-h-[calc(100dvh-2rem)] overflow-y-auto p-6`}
         onClick={(event) => event.stopPropagation()}
       >
         {children}
