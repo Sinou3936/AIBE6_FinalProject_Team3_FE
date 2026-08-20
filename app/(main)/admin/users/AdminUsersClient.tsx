@@ -191,7 +191,11 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
 
   return (
     <div>
-      <h1 className="ansim-page-title mb-6">유저 관리</h1>
+      {/* 관리자 페이지 4곳의 제목 아래 간격을 h1 자체가 아니라 이 wrapper에 주는 방식으로
+      통일한다(2026-08-20 멘토링 피드백 - AdminDashboardClient.tsx 주석 참고). */}
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="ansim-page-title">유저 관리</h1>
+      </div>
 
       <form onSubmit={handleSearchSubmit} className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_auto_auto_auto]">
         <div className="relative">

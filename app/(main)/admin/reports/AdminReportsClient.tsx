@@ -235,7 +235,11 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
 
   return (
     <div>
-      <h1 className="ansim-page-title mb-6">신고 관리</h1>
+      {/* 관리자 페이지 4곳의 제목 아래 간격을 h1 자체가 아니라 이 wrapper에 주는 방식으로
+      통일한다(2026-08-20 멘토링 피드백 - AdminDashboardClient.tsx 주석 참고). */}
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="ansim-page-title">신고 관리</h1>
+      </div>
 
       <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-[auto_auto_auto]">
         <label className="block">
@@ -362,9 +366,18 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
           if (!submitting) closeModal();
         }}
       >
-        {detailLoading && <p className="text-sm text-slate-500">불러오는 중...</p>}
+        {detailLoading && (
+          <div>
+            {/* Modal은 컨텐츠 안의 첫 heading을 찾아 dialog의 aria-labelledby로 연결한다 - 로딩
+            중엔 heading이 없어 dialog의 접근 가능한 이름이 없었다(2026-08-20 전수조사에서 지적).
+            AdminChecklistTemplatesClient의 확대 뷰와 동일한 패턴으로 sr-only heading을 둔다. */}
+            <h2 className="sr-only">신고 상세 불러오는 중</h2>
+            <p className="text-sm text-slate-500">불러오는 중...</p>
+          </div>
+        )}
         {!detailLoading && !detail && detailError && (
           <div>
+            <h2 className="sr-only">신고 상세를 불러오지 못했습니다</h2>
             <p role="alert" className="mb-4 text-sm text-red-600">
               {detailError}
             </p>

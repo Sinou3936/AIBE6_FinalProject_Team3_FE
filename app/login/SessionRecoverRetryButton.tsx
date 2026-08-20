@@ -14,9 +14,15 @@ import { getCurrentUser } from '../services/auth';
  */
 export function SessionRecoverRetryButton({ next }: { next: string }) {
   const [retrying, setRetrying] = useState(false);
+  // 실패하면 버튼은 "재시도 중..."에서 "다시 시도"로 조용히 되돌아갈 뿐, 실패했다는 사실 자체를
+  // 알릴 방법이 전혀 없었다(2026-08-20 전수조사에서 지적) - 화면을 보는 사용자도 버튼 라벨이
+  // 원래대로 돌아온 것만으로는 시도가 실패했는지 그냥 아직 안 눌렀는지 구분하기 어렵고,
+  // 스크린리더 사용자는 더더욱 알 방법이 없다.
+  const [failed, setFailed] = useState(false);
 
   const handleRetry = () => {
     setRetrying(true);
+    setFailed(false);
     getCurrentUser()
       .then(() => {
         // next는 로그인 화면(searchParams)에서 그대로 넘어온 값이라 외부에서 조작 가능하다 -
@@ -33,12 +39,20 @@ export function SessionRecoverRetryButton({ next }: { next: string }) {
         // retrying을 풀어줘야 한다. 예전엔 isUnreachableError일 때만 풀어줬는데, 리다이렉트가
         // 시작되지 않는 다른 실패들에서는 버튼이 "재시도 중..."에 영구히 멈춰 있었다.
         setRetrying(false);
+        setFailed(true);
       });
   };
 
   return (
-    <button type="button" onClick={handleRetry} disabled={retrying} className="font-bold underline disabled:opacity-50">
-      {retrying ? '재시도 중...' : '다시 시도'}
-    </button>
+    <span>
+      <button type="button" onClick={handleRetry} disabled={retrying} className="font-bold underline disabled:opacity-50">
+        {retrying ? '재시도 중...' : '다시 시도'}
+      </button>
+      {failed && (
+        <p role="alert" className="mt-1 text-sm text-red-600">
+          다시 시도했지만 아직 확인할 수 없어요. 잠시 후 다시 시도해 주세요.
+        </p>
+      )}
+    </span>
   );
 }

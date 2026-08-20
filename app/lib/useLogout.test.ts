@@ -17,6 +17,11 @@ vi.mock('./api/http', () => ({
   resetAuthRefreshState: (...args: unknown[]) => resetAuthRefreshState(...args),
 }));
 
+const clearStoredDevLoginKey = vi.fn();
+vi.mock('./devLoginKey', () => ({
+  clearStoredDevLoginKey: (...args: unknown[]) => clearStoredDevLoginKey(...args),
+}));
+
 describe('useLogout', () => {
   // (2026-08-12 추가) mock 호출 이력이 테스트 간에 남아있으면(vi.fn()은 기본적으로 안 지워짐)
   // 아래 두 번째 테스트의 "push가 호출 안 됐다" 검증이 첫 번째 테스트의 push('/login') 호출과
@@ -64,5 +69,23 @@ describe('useLogout', () => {
     expect(result.current.logoutError).toBe('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     // isLoggingOut이 다시 false로 돌아와야 사용자가 재시도 버튼을 다시 누를 수 있다.
     expect(result.current.isLoggingOut).toBe(false);
+    // 로그아웃 자체가 실패했으니 개발자 로그인 키까지 지울 이유가 없다 - 세션이 안 끊겼을
+    // 수 있는데 이 값만 먼저 지우면 재시도 흐름에서 혼란을 준다.
+    expect(clearStoredDevLoginKey).not.toHaveBeenCalled();
+  });
+
+  // 회귀 테스트(2026-08-20) - 개발자용 로그인 부트스트랩 키(devLoginKey.ts)는 로그아웃/세션 만료와
+  // 무관하게 localStorage에 영구히 남아, 공유/키오스크 기기에서 로그아웃 후에도 "개발자용 관리자
+  // 로그인" 버튼이 계속 다시 뜨는 원인이었다. 로그아웃 성공 시 같이 정리해야 한다.
+  it('로그아웃에 성공하면 개발자 로그인 키도 함께 지운다', async () => {
+    logout.mockResolvedValue(undefined);
+
+    const { result } = renderHook(() => useLogout());
+
+    await act(async () => {
+      await result.current.handleLogout();
+    });
+
+    expect(clearStoredDevLoginKey).toHaveBeenCalledTimes(1);
   });
 });

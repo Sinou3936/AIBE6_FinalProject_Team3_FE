@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { captureDevLoginKeyFromUrl, getStoredDevLoginKey } from './devLoginKey';
+import { captureDevLoginKeyFromUrl, clearStoredDevLoginKey, getStoredDevLoginKey } from './devLoginKey';
 
 describe('devLoginKey', () => {
   beforeEach(() => {
@@ -43,5 +43,16 @@ describe('devLoginKey', () => {
     captureDevLoginKeyFromUrl();
 
     expect(getStoredDevLoginKey()).toBe('secret-123');
+  });
+
+  // 회귀 테스트(2026-08-20) - 이 값은 로그아웃/세션 만료와 무관하게 영구히 남아있었다.
+  it('clearStoredDevLoginKey()로 저장된 키를 지울 수 있다', () => {
+    window.history.replaceState({}, '', '/#devkey=secret-123');
+    captureDevLoginKeyFromUrl();
+    expect(getStoredDevLoginKey()).toBe('secret-123');
+
+    clearStoredDevLoginKey();
+
+    expect(getStoredDevLoginKey()).toBeNull();
   });
 });
