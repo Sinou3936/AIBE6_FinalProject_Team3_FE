@@ -497,6 +497,11 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
           <div>
             {enlargedImageIndex !== null && images[enlargedImageIndex] ? (
               <div className="relative flex min-h-64 flex-col items-center justify-center">
+                {/* Modal은 컨텐츠 안의 첫 heading을 찾아 dialog의 aria-labelledby로 연결한다 - 폼
+                화면(문항 수정/추가)에는 h2가 있는데 이 확대 화면엔 없으면, 전환하는 순간 dialog의
+                접근 가능한 이름이 사라진다(2026-08-20 외부 리뷰에서 지적). 시각적으로는 필요 없어
+                sr-only로 감추되, Modal이 인식할 heading 자체는 남긴다. */}
+                <h2 className="sr-only">예시 이미지 확대 보기</h2>
                 <button
                   type="button"
                   onClick={() => setEnlargedImageIndex(null)}

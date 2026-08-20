@@ -208,6 +208,10 @@ describe('AdminChecklistTemplatesClient', () => {
     expect(screen.getByText('1 / 2')).toBeInTheDocument();
     // 확대 뷰로 전환되면 폼 자체는 안 보여야 한다(포커스 트랩이 숨겨진 폼 요소까지 도는 걸 방지).
     expect(screen.queryByText('문항 수정')).not.toBeInTheDocument();
+    // 회귀 테스트(2026-08-20, 외부 리뷰 지적) - Modal은 컨텐츠 안의 첫 heading을 찾아 dialog의
+    // aria-labelledby로 연결한다. 확대 뷰에 heading이 없으면 폼 화면("문항 수정")에서는 있던
+    // dialog의 접근 가능한 이름이 전환하는 순간 사라진다.
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('예시 이미지 확대 보기');
 
     fireEvent.click(screen.getByRole('button', { name: '다음 사진' }));
     expect(await screen.findByRole('img', { name: '예시 이미지 2 확대' })).toBeInTheDocument();
