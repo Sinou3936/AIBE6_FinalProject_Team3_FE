@@ -43,12 +43,18 @@ function toQueryString(params: Record<string, string | number | undefined>): str
 
 export async function getAdminUsers(
   params: AdminUserSearchParams = {},
+  // 목록 조회 도중 필터가 바뀌거나 화면을 벗어나면(admin/users/page.tsx) 호출부가 이 fetch
+  // 자체를 중단할 수 있어야 한다 - signal이 없으면 이미 관심 없어진 요청이 계속 진행되다가
+  // 뒤늦게 도착해 그사이 바뀐 화면의 state를 오염시키거나(clampToValidPage의 router.replace가
+  // 이미 다른 페이지로 이동한 뒤에 실행되는 등), 서버 자원만 불필요하게 소모한다
+  // (2026-08-20 전수조사에서 지적).
+  signal?: AbortSignal,
 ): Promise<PageResponseDto<AdminUserListItemDto>> {
   if (useMockData) {
     return getMockAdminUsers(params);
   }
   const path = `/admin/users${toQueryString(params)}`;
-  return requestJson<PageResponseDto<AdminUserListItemDto>>(path);
+  return requestJson<PageResponseDto<AdminUserListItemDto>>(path, { signal });
 }
 
 export type AdminPropertyReportSearchParams = {
@@ -59,12 +65,14 @@ export type AdminPropertyReportSearchParams = {
 
 export async function getAdminPropertyReports(
   params: AdminPropertyReportSearchParams = {},
+  // 위 getAdminUsers와 동일한 이유(admin/reports/page.tsx).
+  signal?: AbortSignal,
 ): Promise<PageResponseDto<AdminPropertyReportListItemDto>> {
   if (useMockData) {
     return getMockAdminPropertyReports(params);
   }
   const path = `/admin/property-reports${toQueryString(params)}`;
-  return requestJson<PageResponseDto<AdminPropertyReportListItemDto>>(path);
+  return requestJson<PageResponseDto<AdminPropertyReportListItemDto>>(path, { signal });
 }
 
 export type AdminDashboardStatsParams = {
