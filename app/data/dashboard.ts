@@ -17,9 +17,9 @@ export const quickActions: QuickAction[] = [
     tone: 'teal',
   },
   {
-    // 매물/신호 상태별로 다르게 연결하는 방향도 검토했으나(getRiskCheckHref, 지금은 삭제됨),
-    // 신호만 걸러 보는 필터가 매물 목록에 아직 없어 실효성이 애매해 일단 전체 목록으로 통일함 -
-    // 그 필터가 생기면 다시 검토.
+    // to는 fallback 기본값일 뿐 실제로는 항상 덮어써진다 - home/page.tsx가
+    // app/lib/riskCheckAction.ts의 getRiskCheckHref()로 매물/신호 상태에 따라 동적으로
+    // 계산한 href를 이 카드(title === '위험 신호 확인')에 주입한다(#181).
     to: '/properties',
     icon: ShieldAlert,
     title: '위험 신호 확인',

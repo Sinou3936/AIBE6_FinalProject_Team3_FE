@@ -47,6 +47,7 @@
 | 확인 필요 신호 개수 / 전세가율 배지 | ✅ `PropertiesClient`/`PropertyListItem`의 조건부 렌더링은 이전부터 있었으나, BE 응답(`PropertyListItemDto`)에 필드 자체가 없어 항상 "준비 중"만 보였음 — BE에 `checkSignalCount`/`signalSummary`/`jeonseRatio` 필드가 추가되면서 실제 값으로 연동됨. `jeonseRatio`는 BE가 percent 정수만 내려주는 컨벤션이라 FE 타입을 `string`→`number`로 정정하고 "%" 포맷팅을 FE에서 붙이도록 수정(`getJeonseRatioDisplay`) |
 | 검색 결과 없음 → 빈 목록 | ✅ "조건에 맞는 매물이 없습니다" 문구 |
 | 실패: 인증 실패/잘못된 검색 조건 | ✅ 인증 실패는 `(main)/layout.tsx`가 상위에서 처리(Auth 문서 참고). "잘못된 검색 조건"(면적/보증금/월세 범위의 최소값이 최대값보다 큰 경우)은 BE의 `PROPERTY_INVALID_SEARCH_CONDITION` 에러 메시지를 그대로 화면에 노출 |
+| 확인 필요 신호가 있는 매물만 필터링 | ✅ **(#181, BE #233)** BE `GET /properties`에 추가된 `hasSignal` 쿼리파라미터를 그대로 활용. `PropertiesClient`에 "확인 필요 신호만" 토글 pill 추가(`filter.hasSignal`, `true`일 때만 URL에 `hasSignal=true` 반영). 홈 화면 "위험 신호 확인" 퀵액션 카드도 `app/lib/riskCheckAction.ts`의 `getRiskCheckHref()`로 매물/신호 상태에 따라 동적 라우팅 복원(매물 0개→등록, 신호 매물 1개→해당 매물 위험 신호 분석 화면 직행, 신호 매물 0개→전체 목록, 2개 이상→`hasSignal=true` 필터된 목록). PR #180에서 "필터가 없어 실효성이 애매하다"는 이유로 정적 `/properties` 링크로 되돌렸던 부분을 이 필터가 생기면서 다시 이어감 |
 
 ## 매물 상세 조회 — 요구사항 대비
 
