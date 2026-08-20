@@ -53,8 +53,14 @@ describe('resetAuthRefreshState', () => {
     expect(result.sessionRefreshOutcome).toBe('unreachable');
   });
 
+  // 회귀 테스트(2026-08-20 전수조사) - 원래 이 테스트는 resetAuthRefreshState()만 두 번 호출하고
+  // refreshCallCount가 0인지만 확인했다 - requestJson()을 한 번도 안 거쳐 실제 refresh 자체를
+  // 구동하지 않으므로, resetAuthRefreshState()를 빈 함수로 바꿔도 그대로 통과했다. 실제로 refresh를
+  // 한 번 완주시킨 뒤 reset하고, 두 번째 refresh가 첫 번째의 캐시된 상태를 물려받지 않고 독립적으로
+  // 다시 실행되는지 끝까지 확인한다.
   it('reset 이후 새 refresh 시도는 이전 refresh의 결과를 물려받지 않는다', async () => {
     let refreshCallCount = 0;
+    let protectedCallCount = 0;
 
     const fetchMock = vi.fn((url: unknown) => {
       const href = String(url);
@@ -62,21 +68,38 @@ describe('resetAuthRefreshState', () => {
         refreshCallCount += 1;
         return Promise.resolve(new Response(null, { status: 200 }));
       }
-      return Promise.resolve(
-        new Response(JSON.stringify({ success: false, error: { code: 'AUTH_TOKEN_EXPIRED', message: 'expired' } }), {
-          status: 401,
-        }),
-      );
+      protectedCallCount += 1;
+      // 각 requestJson() 사이클은 최초 요청(홀수 번째 - 만료된 access token으로 401)과 refresh
+      // 성공 후 재시도(짝수 번째 - 새 access token으로 성공) 두 번의 protected 호출로 이뤄진다.
+      const isInitialRequestOfCycle = protectedCallCount % 2 === 1;
+      if (isInitialRequestOfCycle) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ success: false, error: { code: 'AUTH_TOKEN_EXPIRED', message: 'expired' } }), {
+            status: 401,
+          }),
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify({ success: true, data: { ok: true } }), { status: 200 }));
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const { resetAuthRefreshState } = await import('./http');
+    const { requestJson, resetAuthRefreshState } = await import('./http');
+
+    const first = await requestJson<{ ok: boolean }>('/some/protected/path');
+    expect(first).toEqual({ ok: true });
+    expect(refreshCallCount).toBe(1);
 
     resetAuthRefreshState();
     resetAuthRefreshState();
 
     // reset 자체는 새 요청을 만들지 않는다 - 상태만 정리한다.
-    expect(refreshCallCount).toBe(0);
+    expect(refreshCallCount).toBe(1);
+
+    const second = await requestJson<{ ok: boolean }>('/some/protected/path');
+    expect(second).toEqual({ ok: true });
+    // reset 이후 두 번째 refresh는 첫 번째가 남긴 lastRefreshSucceededAt/refreshInFlight 상태를
+    // 물려받지 않고 독립적으로 다시 실행돼야 한다 - 캐시된 결과로 스킵됐다면 이 값이 1에 머문다.
+    expect(refreshCallCount).toBe(2);
   });
 });
 

@@ -50,7 +50,14 @@ export class ApiError extends Error {
 export function isUnreachableError(error: unknown): boolean {
   return (
     error instanceof ApiError &&
-    (error.sessionRefreshOutcome === 'unreachable' || error.status === 0 || error.body?.code === 'NETWORK_ERROR')
+    (error.sessionRefreshOutcome === 'unreachable' ||
+      error.status === 0 ||
+      error.body?.code === 'NETWORK_ERROR' ||
+      // readApiResponse()가 응답 본문이 JSON이 아닐 때(nginx/CDN이 만든 HTML 502/503 에러 페이지 등)
+      // 만들어내는 코드도 같은 "서버와 통신할 수 없음" 부류인데 이 목록에 빠져 있었다 - 그 결과
+      // 실제로는 일시 장애인 상황이 세션만료(관리자 화면에서는 가짜 404)로 잘못 분류됐다
+      // (2026-08-20 전수조사에서 지적, app.sinou.site 502 장애 이력 참고).
+      error.body?.code === 'INVALID_RESPONSE')
   );
 }
 

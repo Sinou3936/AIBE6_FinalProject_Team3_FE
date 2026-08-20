@@ -29,4 +29,19 @@ describe('readApiResponse - JSON이 아닌 응답 본문', () => {
       message: '서버와 통신할 수 없습니다. 잠시 후 다시 시도해 주세요.',
     });
   });
+
+  // 회귀 테스트(2026-08-20 전수조사) - INVALID_RESPONSE 메시지만 한국어로 고쳤을 뿐, isUnreachableError()가
+  // 이 코드를 인식하지 못해 실제로는 "서버와 통신할 수 없음" 상황인데도 MainLayoutGate/admin
+  // layout/oauth callback에서 세션만료(관리자 화면은 가짜 404)로 오분류됐다.
+  it('INVALID_RESPONSE 에러는 isUnreachableError()가 true로 판정한다', async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(new Response('<html>502 Bad Gateway</html>', { status: 502 })),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestJson, isUnreachableError } = await import('./http');
+
+    const error = await requestJson('/some/path').catch((e: unknown) => e);
+    expect(isUnreachableError(error)).toBe(true);
+  });
 });
