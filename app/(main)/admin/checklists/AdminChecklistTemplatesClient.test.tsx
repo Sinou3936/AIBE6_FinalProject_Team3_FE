@@ -189,6 +189,34 @@ describe('AdminChecklistTemplatesClient', () => {
     await waitFor(() => expect(screen.queryByText('https://example.com/a.png')).not.toBeInTheDocument());
   });
 
+  // 신규 기능(2026-08-20, 멘토링 피드백) - 예시 이미지를 작은 썸네일로만 보여주고 확대/이전다음
+  // 자체가 없었다(체크리스트 응답 화면의 예시 이미지 뷰어에는 이미 있었지만 관리자 페이지에는
+  // 없었음). 썸네일 클릭 시 확대 + 이전/다음 탐색이 되는지 확인한다.
+  it('예시 이미지를 클릭하면 확대되고, 이전/다음 버튼으로 다른 이미지로 넘어간다', async () => {
+    getAdminChecklistTemplateImages.mockResolvedValue([
+      { id: 100, imageUrl: 'https://example.com/a.png' },
+      { id: 101, imageUrl: 'https://example.com/b.png' },
+    ]);
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }));
+    await screen.findByText('https://example.com/a.png');
+
+    fireEvent.click(screen.getByRole('button', { name: '예시 이미지 1 확대' }));
+
+    expect(await screen.findByRole('img', { name: '예시 이미지 1 확대' })).toBeInTheDocument();
+    expect(screen.getByText('1 / 2')).toBeInTheDocument();
+    // 확대 뷰로 전환되면 폼 자체는 안 보여야 한다(포커스 트랩이 숨겨진 폼 요소까지 도는 걸 방지).
+    expect(screen.queryByText('문항 수정')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '다음 사진' }));
+    expect(await screen.findByRole('img', { name: '예시 이미지 2 확대' })).toBeInTheDocument();
+    expect(screen.getByText('2 / 2')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '닫기' }));
+    expect(await screen.findByText('문항 수정')).toBeInTheDocument();
+  });
+
   // 회귀 테스트(2026-08-20) - closeModal()은 imageActionPending 중 닫기를 막지만, submitForm()은
   // 이 가드가 없어 저장 버튼을 누르면 이미지 요청이 끝나기 전에 모달이 닫혀버렸다(뒤늦게 도착한
   // 응답이 그사이 다른 문항으로 바뀐 화면을 오염시킬 수 있음). 저장 버튼도 이미지 액션이 끝날
