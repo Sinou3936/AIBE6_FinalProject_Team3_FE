@@ -112,6 +112,14 @@ export function Modal({ open, onClose, children, maxWidthClassName = 'max-w-sm' 
     if (!container) return;
     if (document.activeElement && container.contains(document.activeElement)) return;
     const heading = container.querySelector<HTMLElement>(HEADING_SELECTOR);
+    // heading(h1~h6)은 기본적으로 포커스를 받을 수 없는 엘리먼트라 tabindex 없이 .focus()를
+    // 호출하면 조용히 무시된다(activeElement가 그대로 body에 남음) - 이 effect가 고치려던 포커스
+    // 유실이 재현되고 만다. firstFocusable보다 heading을 우선하는 이유(대량처리 결과 화면처럼
+    // 포커스 가능한 요소가 없거나 있어도 heading을 먼저 읽어주는 게 자연스러운 경우가 있음)를
+    // 유지하려면 heading에 tabindex="-1"을 직접 부여해 실제로 포커스 가능하게 만들어야 한다.
+    if (heading && !heading.hasAttribute('tabindex')) {
+      heading.setAttribute('tabindex', '-1');
+    }
     const [firstFocusable] = getFocusableElements(container);
     (heading ?? firstFocusable ?? container).focus();
   }, [open, children]);
