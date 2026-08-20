@@ -1,7 +1,15 @@
 import { useMockData } from '../config/dataSource';
 import { requestJson } from '../lib/api/http';
-import { mapContractAnalysisResultDto } from '../mappers/contract-analysis';
-import { getMockContractAnalysisResult } from '../repositories/contractAnalysisRepository';
+import {
+  mapContractAnalysisResultDto,
+  mapContractHistoryClauseDto,
+  mapContractHistoryItemDto,
+} from '../mappers/contract-analysis';
+import {
+  getMockContractAnalysisResult,
+  getMockContractHistoryClauses,
+  getMockContractHistoryPage,
+} from '../repositories/contractAnalysisRepository';
 import {
   type ContractAnalysisResultDto,
   type ContractAnalyzeRequestDto,
@@ -9,13 +17,17 @@ import {
   type ContractChatMessage,
   type ContractChatRequestDto,
   type ContractChatResponseDto,
+  type ContractHistoryDetailDto,
+  type ContractHistoryItemDto,
   type ContractInputResponseDto,
+  type ContractInputType,
   type ContractMaskingRequestDto,
   type ContractMaskingResponseDto,
   type ContractOcrUncertainField,
   type OcrExtractResponseDto,
+  type PageResponseDto,
 } from '../types/api';
-import { type ContractAnalysisResult } from '../types/domain';
+import { type ContractAnalysisResult, type ContractClause, type ContractHistoryPage } from '../types/domain';
 
 // 서버는 분석 결과를 포함해 아무 것도 저장하지 않는 정책이라(이력 조회 목적 저장 없음),
 // 이전 단계 응답값을 클라이언트가 들고 있다가 다음 단계 요청에 그대로 실어 보내는 구조다.
@@ -102,6 +114,7 @@ export async function maskContractText(text: string): Promise<MaskContractTextRe
 export async function analyzeContract(
   maskedText: string,
   userConfirmed: boolean,
+  inputType: ContractInputType,
   propertyId?: number,
 ): Promise<ContractAnalysisResult> {
   if (useMockData) {
@@ -110,7 +123,7 @@ export async function analyzeContract(
 
   const dto = await requestJson<ContractAnalysisResultDto>('/contract-analysis/analyze', {
     method: 'POST',
-    body: JSON.stringify({ maskedText, userConfirmed, propertyId } satisfies ContractAnalyzeRequestDto),
+    body: JSON.stringify({ maskedText, userConfirmed, inputType, propertyId } satisfies ContractAnalyzeRequestDto),
   });
 
   return mapContractAnalysisResultDto(dto);
@@ -136,4 +149,51 @@ export async function sendContractClauseQuestion(
     method: 'POST',
     body: JSON.stringify({ clause, question, history } satisfies ContractChatRequestDto),
   });
+}
+
+export type GetContractHistoryParams = {
+  page?: number;
+  size?: number;
+};
+
+// 마이페이지 "계약분석 이력" 섹션용. 정렬(최신순)은 항상 고정이라(Backend
+// ContractAnalysisHistoryService 참고) sort 쿼리 파라미터는 받지 않는다 - page/size만
+// getMyChecklistOverviews(checklist.ts)와 동일한 패턴으로 다룬다.
+export async function getMyContractHistory(
+  params?: GetContractHistoryParams,
+  cookieHeader?: string,
+): Promise<ContractHistoryPage> {
+  if (useMockData) {
+    return getMockContractHistoryPage(params?.page, params?.size);
+  }
+
+  const query = new URLSearchParams();
+  if (params?.page !== undefined) query.set('page', String(params.page));
+  if (params?.size !== undefined) query.set('size', String(params.size));
+  const queryString = query.toString();
+
+  const page = await requestJson<PageResponseDto<ContractHistoryItemDto>>(
+    queryString ? `/users/me/contract-history?${queryString}` : '/users/me/contract-history',
+    cookieHeader ? { headers: { Cookie: cookieHeader } } : undefined,
+  );
+
+  return {
+    items: page.content.map(mapContractHistoryItemDto),
+    page: page.page,
+    size: page.size,
+    totalElements: page.totalElements,
+    totalPages: page.totalPages,
+    hasNext: page.hasNext,
+  };
+}
+
+// 이력 항목 클릭 시 아코디언(위험 조항 분석)만 보여주는 용도라, summary/disclaimer 등 나머지
+// 상세 필드는 쓰지 않고 clauses만 꺼내서 돌려준다.
+export async function getContractHistoryClauses(id: number): Promise<ContractClause[]> {
+  if (useMockData) {
+    return getMockContractHistoryClauses();
+  }
+
+  const dto = await requestJson<ContractHistoryDetailDto>(`/users/me/contract-history/${id}`);
+  return dto.clauses.map(mapContractHistoryClauseDto);
 }

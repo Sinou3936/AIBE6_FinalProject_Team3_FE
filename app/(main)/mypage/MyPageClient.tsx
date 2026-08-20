@@ -19,6 +19,7 @@ import {
 import { Badge } from '../../ui/Badge';
 import { InfoRow } from '../../ui/InfoRow';
 import { PropertyListItem } from '../../ui/PropertyListItem';
+import { ContractHistorySection } from './ContractHistorySection';
 import { WithdrawConfirmModal } from './WithdrawConfirmModal';
 
 type MyPageClientProps = {
@@ -234,6 +235,8 @@ export function MyPageClient({
           </div>
         )}
       </div>
+
+      <ContractHistorySection />
 
       {ENABLE_ANALYSIS_HISTORY && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
