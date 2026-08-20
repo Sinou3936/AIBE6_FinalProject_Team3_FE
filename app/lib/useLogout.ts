@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { resetAuthRefreshState } from './api/http';
+import { clearStoredDevLoginKey } from './devLoginKey';
 import { logout } from '../services/auth';
 
 // MainLayoutClient.tsx(헤더)와 MyPageClient.tsx 양쪽에서 거의 동일한 로그아웃 처리 로직이
@@ -66,6 +67,9 @@ export function useLogout() {
     try {
       await logoutOnce();
       resetAuthRefreshState();
+      // 개발자용 로그인 부트스트랩 키는 세션과 무관하게 localStorage에 영구히 남는다 - 로그아웃
+      // 시점에 같이 정리해, 이 값을 지웠던 이력이 없는 브라우저에서 계속 남아있는 걸 막는다.
+      clearStoredDevLoginKey();
       router.push('/login');
     } catch {
       setLogoutError('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.');
