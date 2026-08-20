@@ -111,6 +111,7 @@ function AdminUsersPageContent() {
     return (
       <div className="flex min-h-[30vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+        <span className="sr-only">로딩 중</span>
       </div>
     );
   }
@@ -137,6 +138,7 @@ export default function AdminUsersPage() {
       fallback={
         <div className="flex min-h-[30vh] items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+          <span className="sr-only">로딩 중</span>
         </div>
       }
     >

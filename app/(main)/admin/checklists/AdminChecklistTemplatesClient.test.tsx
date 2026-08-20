@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { type AdminChecklistItemTemplateDto } from '../../../types/api';
 import { AdminChecklistTemplatesClient } from './AdminChecklistTemplatesClient';
@@ -97,5 +97,100 @@ describe('AdminChecklistTemplatesClient', () => {
     expect(createAdminChecklistItemTemplate).toHaveBeenCalledWith(
       expect.objectContaining({ code: 'TRUST_REGISTRATION', itemType: 'YES_NO' }),
     );
+  });
+
+  it('수정 모달에서 내용을 바꾸고 저장하면 updateAdminChecklistItemTemplate을 호출하고 목록을 새로고침한다', async () => {
+    getAdminChecklistTemplateImages.mockResolvedValue([]);
+    updateAdminChecklistItemTemplate.mockResolvedValue(template());
+    const onMutated = vi.fn();
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={onMutated} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }));
+    await screen.findByText('등록된 예시 이미지가 없습니다.');
+
+    fireEvent.change(screen.getByLabelText(/문항 내용/), { target: { value: '창문이 잘 잠기나요?' } });
+    fireEvent.click(screen.getByRole('button', { name: '저장' }));
+
+    await screen.findByText('문항 추가'); // 모달이 닫힌 뒤 안정될 때까지 대기
+    expect(updateAdminChecklistItemTemplate).toHaveBeenCalledWith(
+      1,
+      expect.objectContaining({ content: '창문이 잘 잠기나요?' }),
+    );
+    expect(onMutated).toHaveBeenCalledTimes(1);
+  });
+
+  it('삭제 버튼 확인 시 deleteAdminChecklistItemTemplate을 호출하고 목록을 새로고침한다', async () => {
+    deleteAdminChecklistItemTemplate.mockResolvedValue(undefined);
+    const onMutated = vi.fn();
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={onMutated} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '삭제' }));
+    await screen.findByText('이 문항을 삭제할까요?');
+
+    const dialogHeading = screen.getByText('이 문항을 삭제할까요?');
+    const dialog = dialogHeading.parentElement as HTMLElement;
+    fireEvent.click(within(dialog).getByRole('button', { name: '삭제' }));
+
+    await waitFor(() => expect(deleteAdminChecklistItemTemplate).toHaveBeenCalledWith(1));
+    expect(onMutated).toHaveBeenCalledTimes(1);
+  });
+
+  it('삭제 실패 시 모달을 닫지 않고 에러 메시지를 보여준다', async () => {
+    deleteAdminChecklistItemTemplate.mockRejectedValueOnce(new Error('삭제할 수 없습니다.'));
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '삭제' }));
+    await screen.findByText('이 문항을 삭제할까요?');
+    const dialog = screen.getByText('이 문항을 삭제할까요?').parentElement as HTMLElement;
+    fireEvent.click(within(dialog).getByRole('button', { name: '삭제' }));
+
+    expect(await screen.findByText('삭제할 수 없습니다.')).toBeInTheDocument();
+    expect(screen.getByText('이 문항을 삭제할까요?')).toBeInTheDocument();
+  });
+
+  it('수정 모달에서 이미지를 추가하면 목록에 반영되고 입력창이 비워진다', async () => {
+    getAdminChecklistTemplateImages.mockResolvedValue([]);
+    addAdminChecklistTemplateImage.mockResolvedValue({ id: 100, imageUrl: 'https://example.com/a.png' });
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }));
+    await screen.findByText('등록된 예시 이미지가 없습니다.');
+
+    fireEvent.change(screen.getByPlaceholderText('이미지 URL 붙여넣기'), {
+      target: { value: 'https://example.com/a.png' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '추가' }));
+
+    await waitFor(() =>
+      expect(addAdminChecklistTemplateImage).toHaveBeenCalledWith(1, { imageUrl: 'https://example.com/a.png' }),
+    );
+    expect(await screen.findByText('https://example.com/a.png')).toBeInTheDocument();
+    expect((screen.getByPlaceholderText('이미지 URL 붙여넣기') as HTMLInputElement).value).toBe('');
+  });
+
+  it('수정 모달에서 이미지를 삭제하면 목록에서 사라진다', async () => {
+    getAdminChecklistTemplateImages.mockResolvedValue([{ id: 100, imageUrl: 'https://example.com/a.png' }]);
+    deleteAdminChecklistTemplateImage.mockResolvedValue(undefined);
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }));
+    await screen.findByText('https://example.com/a.png');
+
+    // 배경의 테이블 행에도 같은 라벨의 "삭제" 버튼이 있어(Modal이 언마운트하지 않고 덮어씌우는
+    // 방식), 모달 컨테이너로 범위를 좁혀 이미지 목록의 삭제 버튼만 클릭한다.
+    const modalContainer = screen.getByText('문항 수정').parentElement as HTMLElement;
+    fireEvent.click(within(modalContainer).getByRole('button', { name: '삭제' }));
+
+    await waitFor(() => expect(deleteAdminChecklistTemplateImage).toHaveBeenCalledWith(1, 100));
+    await waitFor(() => expect(screen.queryByText('https://example.com/a.png')).not.toBeInTheDocument());
+  });
+
+  it('이미지 로딩 실패 시 에러 메시지를 보여준다', async () => {
+    getAdminChecklistTemplateImages.mockRejectedValueOnce(new Error('예시 이미지를 불러오지 못했습니다.'));
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }));
+
+    expect(await screen.findByText('예시 이미지를 불러오지 못했습니다.')).toBeInTheDocument();
   });
 });

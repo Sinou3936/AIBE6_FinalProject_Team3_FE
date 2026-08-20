@@ -155,7 +155,10 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
   }
 
   async function submitReview(nextStatus: 'RESOLVED' | 'REJECTED') {
-    if (!detail) return;
+    // disabled 속성은 submitting state가 커밋된 *이후*에야 버튼에 반영되므로, 더블클릭/터치
+    // 더블탭/Enter 키 반복입력처럼 커밋 전에 두 번째 호출이 들어오면 disabled만으로는 막지
+    // 못한다 - 여기서 진행 중이면 바로 반환해 같은 액션이 중복 요청되는 걸 막는다.
+    if (!detail || submitting) return;
     setSubmitting(true);
     setDetailError(undefined);
     try {
@@ -210,7 +213,7 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
   }
 
   async function confirmBulkAction() {
-    if (!bulkAction) return;
+    if (!bulkAction || bulkSubmitting) return;
     setBulkSubmitting(true);
     setBulkError(undefined);
     try {
@@ -235,42 +238,54 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
       <h1 className="ansim-page-title mb-6">신고 관리</h1>
 
       <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-[auto_auto_auto]">
-        <select
-          value={status}
-          onChange={(event) => {
-            setStatus(event.target.value);
-            navigate({ status: event.target.value });
-          }}
-          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
-        >
-          <option value="RECEIVED">접수 (대기중)</option>
-          <option value="RESOLVED">조치완료</option>
-          <option value="REJECTED">반려</option>
-          <option value="ALL">전체</option>
-        </select>
-        <select
-          value={reason}
-          onChange={(event) => {
-            setReason(event.target.value);
-            navigate({ reason: event.target.value });
-          }}
-          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
-        >
-          <option value="">전체 사유</option>
-          {Object.entries(REASON_LABEL).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
+        <label className="block">
+          <span className="sr-only">상태 필터</span>
+          <select
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              navigate({ status: event.target.value });
+            }}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+          >
+            <option value="RECEIVED">접수 (대기중)</option>
+            <option value="RESOLVED">조치완료</option>
+            <option value="REJECTED">반려</option>
+            <option value="ALL">전체</option>
+          </select>
+        </label>
+        <label className="block">
+          <span className="sr-only">사유 필터</span>
+          <select
+            value={reason}
+            onChange={(event) => {
+              setReason(event.target.value);
+              navigate({ reason: event.target.value });
+            }}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+          >
+            <option value="">전체 사유</option>
+            {Object.entries(REASON_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {loadError && (
-        <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
+        <div role="alert" className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">
+          {loadError}
+        </div>
       )}
 
       {selectedIds.size > 0 && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-100 bg-teal-50 px-4 py-3">
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-100 bg-teal-50 px-4 py-3"
+        >
           <span className="text-sm font-bold text-teal-700">{selectedIds.size}건 선택됨</span>
           <div className="flex gap-2">
             <button
@@ -287,7 +302,7 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
-              className="rounded-lg px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-slate-600"
+              className="rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-600"
             >
               선택 해제
             </button>
@@ -303,6 +318,7 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
               onToggle: toggleSelect,
               onToggleAll: toggleSelectAll,
               isRowSelectable: (row) => isReportBulkSelectable(row, currentUserId),
+              getRowAriaLabel: (row) => `신고 #${row.id} 선택`,
             }}
             columns={[
               { key: 'id', header: 'ID', render: (row) => row.id },
@@ -349,7 +365,9 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
         {detailLoading && <p className="text-sm text-slate-500">불러오는 중...</p>}
         {!detailLoading && !detail && detailError && (
           <div>
-            <p className="mb-4 text-sm text-red-600">{detailError}</p>
+            <p role="alert" className="mb-4 text-sm text-red-600">
+              {detailError}
+            </p>
             <div className="flex justify-end">
               <button
                 onClick={closeModal}
@@ -392,7 +410,11 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
               )}
             </div>
 
-            {detailError && <p className="mb-3 text-sm text-red-600">{detailError}</p>}
+            {detailError && (
+              <p role="alert" className="mb-3 text-sm text-red-600">
+                {detailError}
+              </p>
+            )}
 
             {detail.status === 'RECEIVED' && detail.reporterId === currentUserId ? (
               // 본인이 신고한 건은 backend가 셀프 검토로 거부한다(AdminUsersClient의 본인 계정
@@ -437,15 +459,15 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
               <div>
                 <label className="mb-1 block text-xs font-bold text-slate-600">
                   처리 메모 (선택, {memo.length}/{MEMO_MAX_LENGTH}자)
+                  <textarea
+                    value={memo}
+                    onChange={(event) => setMemo(event.target.value)}
+                    rows={2}
+                    maxLength={MEMO_MAX_LENGTH}
+                    placeholder="처리 메모 (선택)"
+                    className="ansim-input mb-3 mt-1 w-full resize-none"
+                  />
                 </label>
-                <textarea
-                  value={memo}
-                  onChange={(event) => setMemo(event.target.value)}
-                  rows={2}
-                  maxLength={MEMO_MAX_LENGTH}
-                  placeholder="처리 메모 (선택)"
-                  className="ansim-input mb-3 w-full resize-none"
-                />
                 <div className="flex justify-end gap-2">
                   <button
                     onClick={closeModal}
@@ -516,16 +538,20 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
               </h2>
               <label className="mb-1 block text-xs font-bold text-slate-600">
                 처리 메모 (선택, 선택한 항목 전체에 동일하게 적용됩니다, {bulkMemo.length}/{MEMO_MAX_LENGTH}자)
+                <textarea
+                  value={bulkMemo}
+                  onChange={(event) => setBulkMemo(event.target.value)}
+                  rows={2}
+                  maxLength={MEMO_MAX_LENGTH}
+                  placeholder="처리 메모 (선택)"
+                  className="ansim-input mb-3 mt-1 w-full resize-none"
+                />
               </label>
-              <textarea
-                value={bulkMemo}
-                onChange={(event) => setBulkMemo(event.target.value)}
-                rows={2}
-                maxLength={MEMO_MAX_LENGTH}
-                placeholder="처리 메모 (선택)"
-                className="ansim-input mb-3 w-full resize-none"
-              />
-              {bulkError && <p className="mb-3 text-sm text-red-600">{bulkError}</p>}
+              {bulkError && (
+                <p role="alert" className="mb-3 text-sm text-red-600">
+                  {bulkError}
+                </p>
+              )}
               <div className="flex justify-end gap-2">
                 <button
                   onClick={closeBulkModal}

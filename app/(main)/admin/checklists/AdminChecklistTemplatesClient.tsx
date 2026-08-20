@@ -188,7 +188,10 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   const [formError, setFormError] = useState<string | undefined>();
 
   function closeModal() {
-    if (submitting) return;
+    // 이미지 추가/삭제 요청이 진행 중일 때도 submitting과 동일하게 닫기를 막는다 - 안 막으면 그
+    // 요청의 응답이 도착했을 때 이미 사라진(보이지 않는) images/imagesError state를 조용히
+    // 갱신하게 된다.
+    if (submitting || imageActionPending) return;
     setModal(null);
     setFormError(undefined);
   }
@@ -201,7 +204,10 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   }
 
   async function submitForm() {
-    if (!modal || modal.type === 'delete') return;
+    // disabled 속성은 submitting state가 커밋된 *이후*에야 버튼에 반영되므로, 더블클릭/터치
+    // 더블탭/Enter 키 반복입력처럼 커밋 전에 두 번째 호출이 들어오면 disabled만으로는 막지
+    // 못한다 - 여기서 진행 중이면 바로 반환해 같은 액션이 중복 요청되는 걸 막는다.
+    if (!modal || modal.type === 'delete' || submitting) return;
     const { form } = modal;
 
     if (!form.content.trim()) {
@@ -241,7 +247,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   }
 
   async function confirmDelete() {
-    if (!modal || modal.type !== 'delete') return;
+    if (!modal || modal.type !== 'delete' || submitting) return;
     setSubmitting(true);
     setFormError(undefined);
     try {
@@ -292,7 +298,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   }, [editingTemplateId]);
 
   async function handleAddImage() {
-    if (editingTemplateId === null || !newImageUrl.trim()) return;
+    if (editingTemplateId === null || !newImageUrl.trim() || imageActionPending) return;
     setImageActionPending(true);
     setImagesError(undefined);
     try {
@@ -307,7 +313,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   }
 
   async function handleDeleteImage(imageId: number) {
-    if (editingTemplateId === null) return;
+    if (editingTemplateId === null || imageActionPending) return;
     setImageActionPending(true);
     setImagesError(undefined);
     try {
@@ -338,7 +344,9 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
       </p>
 
       {loadError && (
-        <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
+        <div role="alert" className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">
+          {loadError}
+        </div>
       )}
 
       {data && (
@@ -400,7 +408,11 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
           <div>
             <h2 className="mb-2 text-lg font-bold text-slate-950">이 문항을 삭제할까요?</h2>
             <p className="mb-4 text-sm text-slate-500">{modal.template.content}</p>
-            {formError && <p className="mb-3 text-sm text-red-600">{formError}</p>}
+            {formError && (
+              <p className="mb-3 text-sm text-red-600" role="alert">
+                {formError}
+              </p>
+            )}
             <div className="flex justify-end gap-2">
               <button
                 onClick={closeModal}
@@ -546,8 +558,10 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                 </select>
               </label>
 
-              <div className="text-xs font-bold text-slate-600">
-                적용 매물유형 (선택 안 하면 전체 매물유형에 적용)
+              <fieldset className="m-0 border-0 p-0 text-xs font-bold text-slate-600">
+                <legend className="p-0 text-xs font-bold text-slate-600">
+                  적용 매물유형 (선택 안 하면 전체 매물유형에 적용)
+                </legend>
                 <div className="mt-1 flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                   {Object.entries(propertyTypeLabelMap).map(([value, label]) => {
                     const propertyType = value as PropertyTypeDto;
@@ -571,11 +585,11 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                   })}
                 </div>
                 {modal.form.unknownPropertyTypeTokens.length > 0 && (
-                  <p className="mt-1.5 text-xs text-amber-600">
+                  <p className="mt-1.5 text-xs text-amber-700" role="alert">
                     알 수 없는 매물유형 값이 있어 그대로 유지됩니다: {modal.form.unknownPropertyTypeTokens.join(', ')}
                   </p>
                 )}
-              </div>
+              </fieldset>
 
               {modal.type === 'edit' && (
                 <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
@@ -639,12 +653,20 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                       추가
                     </button>
                   </div>
-                  {imagesError && <p className="mt-1.5 text-xs text-red-600">{imagesError}</p>}
+                  {imagesError && (
+                    <p className="mt-1.5 text-xs text-red-600" role="alert">
+                      {imagesError}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
 
-            {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
+            {formError && (
+              <p className="mt-3 text-sm text-red-600" role="alert">
+                {formError}
+              </p>
+            )}
 
             <div className="mt-4 flex justify-end gap-2">
               <button

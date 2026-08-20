@@ -130,7 +130,11 @@ export function PasswordUpdateFormClient({ hasPassword, passwordPolicy }: Passwo
           {passwordMismatch && <p className="mt-1 text-sm text-red-600">비밀번호가 일치하지 않습니다.</p>}
         </label>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <p className="text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        )}
 
         <button type="submit" disabled={isSaving} className="ansim-button-primary w-full py-3 disabled:opacity-60">
           {isSaving ? `${hasPassword ? '변경' : '설정'} 중...` : `비밀번호 ${hasPassword ? '변경' : '설정'}`}

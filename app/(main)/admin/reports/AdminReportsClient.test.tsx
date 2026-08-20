@@ -101,6 +101,23 @@ describe('AdminReportsClient', () => {
     );
   });
 
+  it('반려 버튼을 누르고 확인하면 reviewAdminPropertyReport를 REJECTED로 호출한다', async () => {
+    getAdminPropertyReportDetail.mockResolvedValueOnce(reportDetail());
+    reviewAdminPropertyReport.mockResolvedValueOnce(reportDetail({ status: 'REJECTED' }));
+
+    render(<AdminReportsClient data={page([reportRow()])} filters={filters} currentUserId={999} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '상세보기' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: '반려' })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: '반려' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: '확인' }));
+
+    await waitFor(() =>
+      expect(reviewAdminPropertyReport).toHaveBeenCalledWith(1, { status: 'REJECTED', memo: undefined }),
+    );
+  });
+
   // 이미 처리된 신고는 상세 모달에서도 처리 버튼을 숨긴다(RECEIVED일 때만 보임) - 일괄처리
   // 체크박스도 같은 이유로 RECEIVED 신고만 선택 가능해야 한다.
   it('RECEIVED가 아닌 신고의 체크박스는 비활성화된다', () => {
@@ -162,6 +179,32 @@ describe('AdminReportsClient', () => {
     expect(onMutated).toHaveBeenCalledTimes(1);
   });
 
+  it('체크박스로 선택 후 일괄 반려를 확인하면 선택된 id로 bulkReviewAdminPropertyReports를 REJECTED로 호출한다', async () => {
+    bulkReviewAdminPropertyReports.mockResolvedValueOnce({ succeededIds: [1, 2], failures: [] });
+    const onMutated = vi.fn();
+
+    render(
+      <AdminReportsClient data={page([reportRow(), reportRow2()])} filters={filters} currentUserId={999} onMutated={onMutated} />,
+    );
+
+    const checkboxes = screen.getAllByRole('checkbox');
+    fireEvent.click(checkboxes[0]); // 전체 선택
+    expect(screen.getByText('2건 선택됨')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '선택 반려' }));
+    fireEvent.click(screen.getByRole('button', { name: '확인' }));
+
+    await waitFor(() =>
+      expect(bulkReviewAdminPropertyReports).toHaveBeenCalledWith({
+        reportIds: [1, 2],
+        status: 'REJECTED',
+        memo: undefined,
+      }),
+    );
+    expect(await screen.findByText('일괄 처리 결과')).toBeInTheDocument();
+    expect(onMutated).toHaveBeenCalledTimes(1);
+  });
+
   // 회귀 테스트 - A(응답 느림)를 열고 바로 B(응답 빠름)를 열면, B가 먼저 반영된 뒤 뒤늦게 도착한
   // A의 응답이 detail을 도로 덮어써 B를 보고 있어야 할 화면에 A의 내용이 보일 수 있었다.
   it('느린 상세 조회가 나중에 도착해도 그 사이 새로 연 신고의 상세를 덮어쓰지 않는다', async () => {
@@ -188,5 +231,27 @@ describe('AdminReportsClient', () => {
 
     expect(screen.getByText('신고 #2')).toBeInTheDocument();
     expect(screen.queryByText('신고 #1')).not.toBeInTheDocument();
+  });
+
+  // 뒤로가기/앞으로가기로 filters prop만 바뀌고 컴포넌트가 언마운트되지 않는 경우를 재현한다 -
+  // 상태/사유 드롭다운의 로컬 state가 새 prop으로 재동기화돼야 한다.
+  it('filters prop이 바뀌면(뒤로가기 등) 상태/사유 드롭다운 값도 갱신된다', () => {
+    const { rerender } = render(
+      <AdminReportsClient data={page([reportRow()])} filters={{ status: 'RECEIVED', reason: '' }} currentUserId={999} />,
+    );
+
+    expect((screen.getByDisplayValue('접수 (대기중)') as HTMLSelectElement).value).toBe('RECEIVED');
+
+    rerender(
+      <AdminReportsClient
+        data={page([reportRow()])}
+        filters={{ status: 'RESOLVED', reason: 'PRICE_MISMATCH' }}
+        currentUserId={999}
+      />,
+    );
+
+    const selects = screen.getAllByRole('combobox') as HTMLSelectElement[];
+    expect(selects[0].value).toBe('RESOLVED');
+    expect(selects[1].value).toBe('PRICE_MISMATCH');
   });
 });
