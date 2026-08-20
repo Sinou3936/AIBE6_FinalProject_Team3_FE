@@ -69,6 +69,7 @@ export function mapDepositSafetyCheckDto(dto: DepositSafetyCheckDto): DepositSaf
     calculatedAt: dto.calculatedAt,
     disclaimer: dto.disclaimer,
     recentOwnershipChangeWarning: dto.recentOwnershipChangeWarning,
+    priceAnomalyWarning: dto.priceAnomalyWarning,
     cautionFrom: dto.cautionFrom,
     warnFrom: dto.warnFrom,
     warnTo: dto.warnTo,
