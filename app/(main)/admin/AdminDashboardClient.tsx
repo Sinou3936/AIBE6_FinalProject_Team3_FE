@@ -131,7 +131,9 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
       <div>
         <h1 className="ansim-page-title mb-6">대시보드</h1>
         {rangeForm}
-        <div className="ansim-card border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
+        <div role="alert" className="ansim-card border-red-100 bg-red-50 p-6 text-sm text-red-700">
+          {loadError}
+        </div>
       </div>
     );
   }
@@ -159,7 +161,7 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
 
       {rangeForm}
 
-      <p className="mb-4 text-xs text-slate-400">
+      <p className="mb-4 text-xs text-slate-500">
         아래 통계는 {formatDate(startDate)}~{formatDate(endDate)} 기간 기준입니다.
       </p>
 

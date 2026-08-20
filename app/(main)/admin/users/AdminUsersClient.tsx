@@ -113,7 +113,10 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
   }
 
   async function confirmAction() {
-    if (!action) return;
+    // disabled 속성은 submitting state가 커밋된 *이후*에야 버튼에 반영되므로, 더블클릭/터치
+    // 더블탭/Enter 키 반복입력처럼 커밋 전에 두 번째 호출이 들어오면 disabled만으로는 막지
+    // 못한다 - 여기서 진행 중이면 바로 반환해 같은 액션이 중복 요청되는 걸 막는다.
+    if (!action || submitting) return;
     setSubmitting(true);
     setActionError(undefined);
     try {
@@ -170,7 +173,7 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
   }
 
   async function confirmBulkAction() {
-    if (!bulkAction) return;
+    if (!bulkAction || bulkSubmitting) return;
     setBulkSubmitting(true);
     setBulkError(undefined);
     try {
@@ -193,49 +196,67 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
       <form onSubmit={handleSearchSubmit} className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-[1fr_1fr_auto_auto_auto]">
         <div className="relative">
           <Search className="ansim-search-icon" />
-          <input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="이메일 검색"
-            className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
-          />
+          <label className="block">
+            <span className="sr-only">이메일 검색</span>
+            <input
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="이메일 검색"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-3 text-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+            />
+          </label>
         </div>
-        <input
-          value={nickname}
-          onChange={(event) => setNickname(event.target.value)}
-          placeholder="닉네임 검색"
-          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
-        />
-        <select
-          value={role}
-          onChange={(event) => setRole(event.target.value)}
-          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
-        >
-          <option value="">전체 권한</option>
-          <option value="USER">일반</option>
-          <option value="ADMIN">관리자</option>
-        </select>
-        <select
-          value={status}
-          onChange={(event) => setStatus(event.target.value)}
-          className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
-        >
-          <option value="">전체 상태</option>
-          <option value="ACTIVE">활성</option>
-          <option value="SUSPENDED">정지</option>
-          <option value="WITHDRAWN">탈퇴</option>
-        </select>
+        <label className="block">
+          <span className="sr-only">닉네임 검색</span>
+          <input
+            value={nickname}
+            onChange={(event) => setNickname(event.target.value)}
+            placeholder="닉네임 검색"
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
+          />
+        </label>
+        <label className="block">
+          <span className="sr-only">권한 필터</span>
+          <select
+            value={role}
+            onChange={(event) => setRole(event.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+          >
+            <option value="">전체 권한</option>
+            <option value="USER">일반</option>
+            <option value="ADMIN">관리자</option>
+          </select>
+        </label>
+        <label className="block">
+          <span className="sr-only">상태 필터</span>
+          <select
+            value={status}
+            onChange={(event) => setStatus(event.target.value)}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+          >
+            <option value="">전체 상태</option>
+            <option value="ACTIVE">활성</option>
+            <option value="SUSPENDED">정지</option>
+            <option value="WITHDRAWN">탈퇴</option>
+          </select>
+        </label>
         <button type="submit" className="ansim-button-primary px-5 py-2.5 text-sm">
           검색
         </button>
       </form>
 
       {loadError && (
-        <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
+        <div role="alert" className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">
+          {loadError}
+        </div>
       )}
 
       {selectedIds.size > 0 && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-100 bg-teal-50 px-4 py-3">
+        <div
+          role="status"
+          aria-live="polite"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-teal-100 bg-teal-50 px-4 py-3"
+        >
           <span className="text-sm font-bold text-teal-700">{selectedIds.size}명 선택됨</span>
           <div className="flex gap-2">
             <button
@@ -252,7 +273,7 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
-              className="rounded-lg px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-slate-600"
+              className="rounded-lg px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-600"
             >
               선택 해제
             </button>
@@ -268,6 +289,7 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
               onToggle: toggleSelect,
               onToggleAll: toggleSelectAll,
               isRowSelectable: (row) => isUserBulkSelectable(row, currentUserId),
+              getRowAriaLabel: (row) => `${row.nickname} 선택`,
             }}
             columns={[
               { key: 'id', header: 'ID', render: (row) => row.id },
@@ -300,7 +322,7 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
                   // 자기 자신의 권한/상태는 백엔드가 항상 거부한다(스스로 잠기는 사고 방지) — 실패할
                   // 액션을 보여주지 않고 여기서 숨긴다.
                   if (row.id === currentUserId) {
-                    return <span className="text-xs text-slate-400">본인 계정</span>;
+                    return <span className="text-xs text-slate-500">본인 계정</span>;
                   }
                   return (
                     <div className="flex gap-2">
@@ -350,7 +372,11 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
             <p className="mb-4 text-sm text-slate-500">
               {action.user.nickname} ({action.user.email ?? '이메일 없음'})
             </p>
-            {actionError && <p className="mb-3 text-sm text-red-600">{actionError}</p>}
+            {actionError && (
+              <p role="alert" className="mb-3 text-sm text-red-600">
+                {actionError}
+              </p>
+            )}
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setAction(null)}
@@ -400,7 +426,11 @@ export function AdminUsersClient({ data, loadError, filters, currentUserId, onMu
               <h2 className="mb-2 text-lg font-bold text-slate-950">
                 선택한 {selectedIds.size}명을 {bulkAction.status === 'SUSPENDED' ? '정지' : '정지 해제'}할까요?
               </h2>
-              {bulkError && <p className="mb-3 text-sm text-red-600">{bulkError}</p>}
+              {bulkError && (
+                <p role="alert" className="mb-3 text-sm text-red-600">
+                  {bulkError}
+                </p>
+              )}
               <div className="flex justify-end gap-2">
                 <button
                   onClick={closeBulkModal}

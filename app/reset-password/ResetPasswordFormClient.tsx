@@ -71,10 +71,18 @@ export function ResetPasswordFormClient({ token, passwordPolicy }: ResetPassword
           autoComplete="new-password"
           required
         />
-        {passwordMismatch && <p className="mt-1 text-sm text-red-600">비밀번호가 일치하지 않습니다.</p>}
+        {passwordMismatch && (
+          <p role="alert" className="mt-1 text-sm text-red-600">
+            비밀번호가 일치하지 않습니다.
+          </p>
+        )}
       </label>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       <button
         type="submit"

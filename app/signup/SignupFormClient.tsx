@@ -252,9 +252,15 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
           </div>
         )}
         {emailVerificationStatus === 'verified' && (
-          <p className="mt-1.5 text-sm font-bold text-teal-700">이메일 인증이 완료되었습니다.</p>
+          <p className="mt-1.5 text-sm font-bold text-teal-700" role="alert">
+            이메일 인증이 완료되었습니다.
+          </p>
         )}
-        {emailVerificationError && <p className="mt-1.5 text-sm text-red-600">{emailVerificationError}</p>}
+        {emailVerificationError && (
+          <p className="mt-1.5 text-sm text-red-600" role="alert">
+            {emailVerificationError}
+          </p>
+        )}
       </label>
       <label className="block">
         <span className="mb-1.5 block text-sm font-bold text-slate-700">비밀번호</span>
@@ -284,7 +290,11 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
           autoComplete="new-password"
           required
         />
-        {passwordMismatch && <p className="mt-1 text-sm text-red-600">비밀번호가 일치하지 않습니다.</p>}
+        {passwordMismatch && (
+          <p role="alert" className="mt-1 text-sm text-red-600">
+            비밀번호가 일치하지 않습니다.
+          </p>
+        )}
       </label>
       <label className="block">
         <span className="mb-1.5 block text-sm font-bold text-slate-700">닉네임</span>
@@ -315,21 +325,37 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
           </button>
         </div>
         {nicknameCheckStatus === 'available' && (
-          <p className="mt-1.5 text-sm font-bold text-teal-700">사용 가능한 닉네임입니다.</p>
+          <p className="mt-1.5 text-sm font-bold text-teal-700" role="alert">
+            사용 가능한 닉네임입니다.
+          </p>
         )}
         {nicknameCheckStatus === 'duplicate' && (
-          <p className="mt-1.5 text-sm font-bold text-red-600">이미 사용 중인 닉네임입니다.</p>
+          <p className="mt-1.5 text-sm font-bold text-red-600" role="alert">
+            이미 사용 중인 닉네임입니다.
+          </p>
         )}
-        {nicknameCheckStatus === 'invalid' && <p className="mt-1.5 text-sm text-red-600">{nicknamePolicy.message}</p>}
+        {nicknameCheckStatus === 'invalid' && (
+          <p className="mt-1.5 text-sm text-red-600" role="alert">
+            {nicknamePolicy.message}
+          </p>
+        )}
         {nicknameCheckStatus === 'error' && (
-          <p className="mt-1.5 text-sm text-red-600">닉네임 확인에 실패했습니다. 다시 시도해 주세요.</p>
+          <p className="mt-1.5 text-sm text-red-600" role="alert">
+            닉네임 확인에 실패했습니다. 다시 시도해 주세요.
+          </p>
         )}
         {nicknameRequiredError && nicknameCheckStatus === 'idle' && (
-          <p className="mt-1.5 text-sm font-bold text-red-600">닉네임 중복 확인을 먼저 진행해 주세요.</p>
+          <p className="mt-1.5 text-sm font-bold text-red-600" role="alert">
+            닉네임 중복 확인을 먼저 진행해 주세요.
+          </p>
         )}
       </label>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      )}
 
       <button
         type="submit"

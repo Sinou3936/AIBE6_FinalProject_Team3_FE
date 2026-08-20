@@ -75,6 +75,7 @@ export default function MainLayoutGate({ children }: { children: ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+        <span className="sr-only">로그인 확인 중</span>
       </div>
     );
   }
