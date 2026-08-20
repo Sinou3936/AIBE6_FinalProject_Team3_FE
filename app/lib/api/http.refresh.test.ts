@@ -189,3 +189,86 @@ describe('AbortSignal.any 미지원 환경 폴백', () => {
     expect(protectedPathCallCount).toBe(2);
   });
 });
+
+// 회귀/커버리지 테스트(2026-08-20) - 두 요청(A/B)이 거의 동시에 401을 받았는데 A의 refresh가 먼저
+// 끝나 성공한 뒤에야 B의 401이 뒤늦게 도착하면, requestJson()은 B를 위해 refreshOnceInBrowser()를
+// 다시 부르지 않고 lastRefreshSucceededAt과 비교해 바로 재시도만 한다(위 requestJson() 안의
+// `requestStartedAt < lastRefreshSucceededAt` 분기). 이 분기 자체는 지금까지 직접 구동하는
+// 테스트가 없었다 - 로직은 맞아 보였지만(다른 분기들과 대칭적인 단일 재시도 구조), 실제로 두
+// 요청을 겹쳐 구동해서 (1) refresh가 정확히 한 번만 나가는지 (2) 뒤늦게 도착한 B가 정상적으로
+// 재시도에 성공하는지를 검증한다.
+describe('이미 다른 요청이 refresh를 끝낸 뒤 늦게 도착한 401', () => {
+  const originalEnv = process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  beforeEach(() => {
+    vi.resetModules();
+    process.env.NEXT_PUBLIC_API_BASE_URL = 'http://localhost:8080';
+  });
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_API_BASE_URL = originalEnv;
+    vi.unstubAllGlobals();
+  });
+
+  it('refreshOnceInBrowser()를 다시 부르지 않고 바로 재시도만 한다', async () => {
+    let resolveBFirstResponse: (response: Response) => void;
+    const bFirstResponsePromise = new Promise<Response>((resolve) => {
+      resolveBFirstResponse = resolve;
+    });
+    let refreshCallCount = 0;
+    let protectedCallCount = 0;
+
+    const fetchMock = vi.fn((url: unknown) => {
+      const href = String(url);
+      if (href.endsWith('/auth/refresh')) {
+        refreshCallCount += 1;
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }
+      protectedCallCount += 1;
+      if (protectedCallCount === 1) {
+        // B의 최초 요청 - A가 refresh를 끝낼 때까지 응답을 붙잡아둔다(뒤늦게 도착시키기 위함).
+        return bFirstResponsePromise;
+      }
+      if (protectedCallCount === 2) {
+        // A의 최초 요청 - 곧바로 401을 받아 refresh를 트리거한다.
+        return Promise.resolve(
+          new Response(JSON.stringify({ success: false, error: { code: 'AUTH_TOKEN_EXPIRED', message: 'expired' } }), {
+            status: 401,
+          }),
+        );
+      }
+      // A의 재시도, 그리고 나중의 B의 재시도 - 새 access token으로 정상 응답을 받는다.
+      return Promise.resolve(new Response(JSON.stringify({ success: true, data: { who: 'retry' } }), { status: 200 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestJson } = await import('./http');
+
+    // B가 먼저 요청을 시작한다(requestStartedAt이 A보다 이르다) - 응답은 아직 안 옴.
+    const bPromise = requestJson<{ who: string }>('/some/protected/path-b');
+    // B의 fetch가 실제로 호출된 뒤에 A를 시작해야 호출 순서(1=B, 2=A)가 보장된다.
+    await vi.waitFor(() => expect(protectedCallCount).toBe(1));
+    // requestStartedAt은 Date.now() 밀리초 단위라, 실제 시간차 없이 바로 이어서 실행하면 B의
+    // requestStartedAt과 A의 refresh 성공 시각(lastRefreshSucceededAt)이 같은 밀리초로 찍혀
+    // `<` 비교가 false가 될 수 있다(둘 다 만들어지는 데 실제로 몇 ms는 걸린다는 전제가 깨짐) -
+    // 최소 몇 ms의 실제 간격을 둬 이 분기가 실제 운영 환경처럼 "이후"로 판정되게 한다.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+
+    // A는 이 시점 이후에 시작해 곧바로 401 -> refresh -> 재시도까지 전부 끝낸다.
+    const aResult = await requestJson<{ who: string }>('/some/protected/path-a');
+    expect(aResult).toEqual({ who: 'retry' });
+    expect(refreshCallCount).toBe(1);
+
+    // A의 refresh 성공 이후에야 B의 최초 요청이 401로 뒤늦게 도착한다.
+    resolveBFirstResponse!(
+      new Response(JSON.stringify({ success: false, error: { code: 'AUTH_TOKEN_EXPIRED', message: 'expired' } }), {
+        status: 401,
+      }),
+    );
+
+    const bResult = await bPromise;
+    expect(bResult).toEqual({ who: 'retry' });
+    // B 때문에 refresh가 한 번 더 나가면 안 된다 - A의 refresh 성공 결과를 그대로 재사용해야 한다.
+    expect(refreshCallCount).toBe(1);
+  });
+});
