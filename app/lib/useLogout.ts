@@ -50,6 +50,18 @@ export function useLogout() {
     // 브라우저의 네트워크 응답 처리라서, /auth/logout을 보내기 "전에" 먼저 진행 중이던 refresh를
     // abort시켜야 그 응답 자체가 도착하지 않는다. 성공 후에도 한 번 더 불러, logout 호출 도중에
     // 새로 시작된 refresh(예: 다른 컴포넌트의 401)까지 마저 정리한다.
+    //
+    // 감수하는 좁은 부작용(전수조사 지적) - refreshOnceInBrowser()의 Promise는 탭 안 모든
+    // 호출자가 공유하므로, 이 abort는 "나"뿐 아니라 같은 순간 같은 refresh를 기다리던 다른
+    // 컴포넌트의 요청도 함께 취소시킨다. 그 뒤 /auth/logout 자체가 네트워크 장애로 실패하면
+    // (세션은 실제로 안 끊겼는데) 그 다른 요청은 'unreachable'로 실패한다. 이건 근본적으로
+    // 분리할 수 없다 - 회전형 refresh token 특성상 여러 호출자가 각자 refresh를 부르면 서로의
+    // 토큰을 무효화시키므로(위 dedup 주석 참고) fetch 자체를 공유해야 하고, 공유하는 한 abort는
+    // 항상 전체에 영향을 준다. 다행히 requestJson()은 'unreachable'을 절대 강제 로그아웃으로
+    // 처리하지 않으므로(그 요청 하나만 부드러운 에러를 받을 뿐), 이 좁은 레이스가 사용자를
+    // 잘못 로그아웃시키는 데까지는 이어지지 않는다 - 그 이상 줄이려면 refresh 자체를 호출자별로
+    // 분리해야 하는데, 그건 이 dedup이 막던 원래 버그(동시 401이 refresh token을 이중 회전시켜
+    // 서로를 무효화하는 문제)를 되살리는 것과 같다.
     resetAuthRefreshState();
     try {
       await logoutOnce();

@@ -38,7 +38,7 @@ export default async function ResetPasswordPage({ searchParams }: ResetPasswordP
         {token ? (
           <ResetPasswordFormClient token={token} passwordPolicy={passwordPolicy} />
         ) : (
-          <p className="text-sm text-red-600">
+          <p role="alert" className="text-sm text-red-600">
             유효하지 않은 링크입니다. 비밀번호 찾기를 다시 요청해 주세요.
           </p>
         )}
