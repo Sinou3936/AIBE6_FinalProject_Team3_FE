@@ -362,9 +362,18 @@ export function AdminReportsClient({ data, loadError, filters, currentUserId, on
           if (!submitting) closeModal();
         }}
       >
-        {detailLoading && <p className="text-sm text-slate-500">불러오는 중...</p>}
+        {detailLoading && (
+          <div>
+            {/* Modal은 컨텐츠 안의 첫 heading을 찾아 dialog의 aria-labelledby로 연결한다 - 로딩
+            중엔 heading이 없어 dialog의 접근 가능한 이름이 없었다(2026-08-20 전수조사에서 지적).
+            AdminChecklistTemplatesClient의 확대 뷰와 동일한 패턴으로 sr-only heading을 둔다. */}
+            <h2 className="sr-only">신고 상세 불러오는 중</h2>
+            <p className="text-sm text-slate-500">불러오는 중...</p>
+          </div>
+        )}
         {!detailLoading && !detail && detailError && (
           <div>
+            <h2 className="sr-only">신고 상세를 불러오지 못했습니다</h2>
             <p role="alert" className="mb-4 text-sm text-red-600">
               {detailError}
             </p>
