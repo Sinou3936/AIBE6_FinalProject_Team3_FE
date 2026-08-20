@@ -370,6 +370,14 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
             닉네임 중복 확인을 먼저 진행해 주세요.
           </p>
         )}
+        {/* 회귀 테스트(2026-08-20) - 중복확인이 진행 중(checking)일 때 바로 회원가입을 누르면
+            handleSubmit이 제출은 막지만, 안내 문구는 idle 상태에서만 렌더링돼 아무 설명 없이
+            버튼만 조용히 무반응이었다. checking 상태 전용 문구를 추가해 이 경우도 알려준다. */}
+        {nicknameRequiredError && nicknameCheckStatus === 'checking' && (
+          <p className="mt-1.5 text-sm font-bold text-red-600" role="alert">
+            닉네임 중복 확인이 끝난 후 다시 시도해 주세요.
+          </p>
+        )}
       </label>
 
       {error && (
