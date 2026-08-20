@@ -189,6 +189,57 @@ describe('AdminChecklistTemplatesClient', () => {
     await waitFor(() => expect(screen.queryByText('https://example.com/a.png')).not.toBeInTheDocument());
   });
 
+  // 회귀 테스트(2026-08-20) - closeModal()은 imageActionPending 중 닫기를 막지만, submitForm()은
+  // 이 가드가 없어 저장 버튼을 누르면 이미지 요청이 끝나기 전에 모달이 닫혀버렸다(뒤늦게 도착한
+  // 응답이 그사이 다른 문항으로 바뀐 화면을 오염시킬 수 있음). 저장 버튼도 이미지 액션이 끝날
+  // 때까지 막혀야 한다.
+  it('이미지 추가가 진행 중이면 저장 버튼이 비활성화되고 저장 요청도 나가지 않는다', async () => {
+    updateAdminChecklistItemTemplate.mockClear(); // 이전 테스트들의 호출 기록이 남아있지 않도록.
+    getAdminChecklistTemplateImages.mockResolvedValue([]);
+    let resolveAddImage: (value: { id: number; imageUrl: string }) => void;
+    addAdminChecklistTemplateImage.mockReturnValue(
+      new Promise((resolve) => {
+        resolveAddImage = resolve;
+      }),
+    );
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }));
+    await screen.findByText('등록된 예시 이미지가 없습니다.');
+
+    fireEvent.change(screen.getByPlaceholderText('이미지 URL 붙여넣기'), {
+      target: { value: 'https://example.com/a.png' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: '추가' }));
+
+    expect(screen.getByRole('button', { name: '저장' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: '저장' }));
+    expect(updateAdminChecklistItemTemplate).not.toHaveBeenCalled();
+    expect(screen.getByText('문항 수정')).toBeInTheDocument(); // 모달이 안 닫혔다
+
+    resolveAddImage!({ id: 100, imageUrl: 'https://example.com/a.png' });
+    await waitFor(() => expect(screen.getByRole('button', { name: '저장' })).not.toBeDisabled());
+  });
+
+  // 회귀 테스트(2026-08-20) - 삭제 버튼이 인라인 확인으로 바뀌면서 원래 버튼이 언마운트돼 포커스가
+  // body로 떨어졌다(키보드/스크린리더 사용자가 확인/취소 버튼을 다시 찾아야 했음). 전환마다 새
+  // 버튼으로 포커스를 명시적으로 옮겨야 한다.
+  it('삭제 확인으로 전환/취소될 때 포커스를 새 버튼으로 옮긴다', async () => {
+    getAdminChecklistTemplateImages.mockResolvedValue([{ id: 100, imageUrl: 'https://example.com/a.png' }]);
+    render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: '수정' }));
+    await screen.findByText('https://example.com/a.png');
+    const modalContainer = screen.getByText('문항 수정').parentElement as HTMLElement;
+
+    fireEvent.click(within(modalContainer).getByRole('button', { name: '삭제' }));
+    const confirmRow = (await within(modalContainer).findByText('정말 삭제할까요?')).parentElement as HTMLElement;
+    expect(within(confirmRow).getByRole('button', { name: '삭제' })).toHaveFocus();
+
+    fireEvent.click(within(confirmRow).getByRole('button', { name: '취소' }));
+    await waitFor(() => expect(within(modalContainer).getByRole('button', { name: '삭제' })).toHaveFocus());
+  });
+
   it('이미지 로딩 실패 시 에러 메시지를 보여준다', async () => {
     getAdminChecklistTemplateImages.mockRejectedValueOnce(new Error('예시 이미지를 불러오지 못했습니다.'));
     render(<AdminChecklistTemplatesClient data={[template()]} onMutated={vi.fn()} />);

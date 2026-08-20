@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import { propertyTypeLabelMap } from '../../../mappers/property';
 import { getAdminChecklistTemplateImages } from '../../../services/admin';
@@ -213,7 +213,11 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
     // disabled 속성은 submitting state가 커밋된 *이후*에야 버튼에 반영되므로, 더블클릭/터치
     // 더블탭/Enter 키 반복입력처럼 커밋 전에 두 번째 호출이 들어오면 disabled만으로는 막지
     // 못한다 - 여기서 진행 중이면 바로 반환해 같은 액션이 중복 요청되는 걸 막는다.
-    if (!modal || modal.type === 'delete' || submitting) return;
+    // closeModal()과 동일한 이유로 이미지 추가/삭제가 진행 중일 때도 저장을 막는다 - 안 막으면
+    // 이 함수가 곧바로 setModal(null)로 모달을 닫아버려(아래) closeModal()의 imageActionPending
+    // 가드를 그대로 우회하고, 뒤늦게 도착한 이미지 응답이 이미 다른 문항으로 바뀐 images
+    // state를 오염시킨다(2026-08-20 전수조사에서 발견).
+    if (!modal || modal.type === 'delete' || submitting || imageActionPending) return;
     const { form } = modal;
 
     if (!form.content.trim()) {
@@ -286,6 +290,24 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   // Modal을 하나 더 겹쳐 띄우는 대신(포커스 트랩/Escape가 두 겹으로 얽힘), 삭제 버튼을 누르면
   // 그 자리에서 "정말 삭제?" 확인/취소로 바뀌는 인라인 2단계 확인으로 처리한다.
   const [imagePendingDeleteId, setImagePendingDeleteId] = useState<number | null>(null);
+  // 삭제 버튼 -> "정말 삭제할까요?" 확인/취소로 전환될 때 원래 버튼이 통째로 언마운트돼 포커스가
+  // body로 떨어지는 문제(2026-08-20 전수조사에서 발견)를 고치기 위한 포커스 이동용 참조들.
+  const confirmDeleteButtonRef = useRef<HTMLButtonElement | null>(null);
+  const deleteTriggerButtonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const newImageUrlInputRef = useRef<HTMLInputElement | null>(null);
+  const previousPendingDeleteIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (imagePendingDeleteId !== null) {
+      confirmDeleteButtonRef.current?.focus();
+    } else if (previousPendingDeleteIdRef.current !== null) {
+      // 취소를 눌렀으면 원래 삭제 버튼이 그대로 남아있어 그리로, 삭제가 실제로 완료됐으면 그
+      // 버튼도 같이 사라졌으니(ref가 비어있음) 목록 근처의 URL 입력창으로 대신 돌려준다.
+      const trigger = deleteTriggerButtonRefs.current.get(previousPendingDeleteIdRef.current);
+      (trigger ?? newImageUrlInputRef.current)?.focus();
+    }
+    previousPendingDeleteIdRef.current = imagePendingDeleteId;
+  }, [imagePendingDeleteId]);
 
   useEffect(() => {
     if (editingTemplateId === null) {
@@ -662,6 +684,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                               <span className="text-xs font-bold text-red-600">정말 삭제할까요?</span>
                               <button
                                 type="button"
+                                ref={confirmDeleteButtonRef}
                                 onClick={() => handleDeleteImage(image.id)}
                                 disabled={imageActionPending}
                                 className="shrink-0 rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white disabled:opacity-50"
@@ -680,6 +703,10 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                           ) : (
                             <button
                               type="button"
+                              ref={(el) => {
+                                if (el) deleteTriggerButtonRefs.current.set(image.id, el);
+                                else deleteTriggerButtonRefs.current.delete(image.id);
+                              }}
                               onClick={() => setImagePendingDeleteId(image.id)}
                               disabled={imageActionPending}
                               className="shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
@@ -694,6 +721,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
                   <div className="flex gap-2">
                     <input
                       type="text"
+                      ref={newImageUrlInputRef}
                       value={newImageUrl}
                       onChange={(event) => setNewImageUrl(event.target.value)}
                       placeholder="이미지 URL 붙여넣기"
@@ -727,14 +755,14 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
             <div className="mt-4 flex justify-end gap-2">
               <button
                 onClick={closeModal}
-                disabled={submitting}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
+                disabled={submitting || imageActionPending}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 disabled:opacity-50"
               >
                 취소
               </button>
               <button
                 onClick={submitForm}
-                disabled={submitting}
+                disabled={submitting || imageActionPending}
                 className="ansim-button-primary px-4 py-2 text-sm disabled:opacity-50"
               >
                 저장
