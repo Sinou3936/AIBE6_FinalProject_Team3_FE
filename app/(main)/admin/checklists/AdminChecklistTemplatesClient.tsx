@@ -445,6 +445,9 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
 
   return (
     <div>
+      {/* 관리자 페이지 4곳의 제목 아래 간격을 h1 자체가 아니라 이 wrapper에 주는 방식으로
+      통일한다(2026-08-20 멘토링 피드백 - AdminDashboardClient.tsx 주석 참고, 원래 이 페이지만
+      이 구조였다). */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="ansim-page-title">체크리스트 관리</h1>
         <button
