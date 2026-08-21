@@ -103,6 +103,11 @@ export type ChecklistOverviewDto = {
   // 체크리스트를 아직 시작 안 했으면 null(0%와 구분) - GROUP BY 집계 쿼리로 N+1 없이 계산된다.
   progressPercent: number | null;
   cautionCount: number | null;
+  // status가 COMPLETED여도 0보다 클 수 있다 - refreshStatus()가 REQUIRED만 보고 완료를 판정해서
+  // GENERAL 항목은 완료 판정에서 제외되기 때문. 시작 전이면 null.
+  generalMissingCount: number | null;
+  // status가 COMPLETED면 정의상 항상 0(필수를 다 해야 완료 판정되므로). 시작 전이면 null.
+  requiredMissingCount: number | null;
 };
 
 // 계약 문구 분석 4단계 파이프라인: 입력 제출 -> OCR -> 마스킹 -> AI 분석.
@@ -422,6 +427,21 @@ export type PropertyAddressDto = {
   longitude: number;
 };
 
+// 기준가(중앙값) 산출에 실제로 쓰인 개별 실거래 표본 1건(#264/#197, 5차 멘토링 피드백 7-2).
+// 국토부 실거래가 공개시스템이 원래도 공개하는 공공데이터라 별도 개인정보 이슈는 없다.
+export type MarketTransactionSampleDto = {
+  buildingName: string | null;
+  address: string;
+  dealDate: string; // yyyy-MM-dd
+  depositWon: number;
+  areaSqm: number | null;
+  // 표본이 대표 5건으로 추려질 때 이 표본이 최고가/최저가로 뽑혔는지 표시(#264 7-2 보완).
+  // 목록 자체는 항상 최신 계약일순으로 정렬되는데, 최고가/최저가로 뽑힌 표본이 목록 중간에
+  // 섞여 있으면 왜 포함됐는지 알기 어려워 배지로 알려주기 위함. 최근순으로 뽑혔거나(대표 5건 중
+  // 나머지), 표본이 5건 이하라 전부 노출된 경우엔 null.
+  priceHighlight: 'HIGHEST' | 'LOWEST' | null;
+};
+
 export type MarketComparisonDto = {
   status: 'UNAVAILABLE' | 'AVAILABLE';
   referencePrice: number | null;
@@ -434,6 +454,8 @@ export type MarketComparisonDto = {
   areaErrorRate: number | null;
   // 실거래를 조회한 개월 수. status가 UNAVAILABLE이면 null.
   lookbackMonths: number | null;
+  // 기준가 계산에 쓰인 개별 표본 목록, 최신 계약일 순. status가 UNAVAILABLE이면 null.
+  samples: MarketTransactionSampleDto[] | null;
   // UNAVAILABLE 사유를 사람이 읽을 수 있는 문장으로 내려준다(월세/단독다가구/좌표없음/표본부족 등).
   // AVAILABLE이면 null.
   message: string | null;

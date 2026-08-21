@@ -53,6 +53,7 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
   const [itemErrors, setItemErrors] = useState<Record<number, string>>({});
   const [helperItemId, setHelperItemId] = useState<number | null>(null);
   const [isCompleteModalOpen, setIsCompleteModalOpen] = useState(false);
+  const [isCompletedNoticeOpen, setIsCompletedNoticeOpen] = useState(false);
   const [highlightItemId, setHighlightItemId] = useState<number | null>(null);
   const openHelperRef = useRef<HTMLSpanElement | null>(null);
   const itemRefs = useRef<Record<number, HTMLDivElement | null>>({});
@@ -420,16 +421,22 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
           ))}
         </div>
 
-        {uncheckedCount > 0 && (
+        {missingRequiredItems.length > 0 ? (
           <p className="mt-6 text-center text-xs text-slate-400">
-            아직 확인하지 않은 항목이 {uncheckedCount}개 남았어요 (일반 항목 포함 전체 확인 시 완료 가능)
+            아직 확인하지 않은 필수 항목이 {missingRequiredItems.length}개 남았어요
           </p>
+        ) : (
+          uncheckedCount > 0 && (
+            <p className="mt-6 text-center text-xs text-slate-400">
+              일반 항목 {uncheckedCount}개는 아직 확인 전이에요 (완료할 수 있어요)
+            </p>
+          )
         )}
 
         <div className={cn('flex flex-col gap-3 md:flex-row', uncheckedCount > 0 ? 'mt-2' : 'mt-6')}>
           <button
             type="button"
-            disabled={summary.progressPercent < 100}
+            disabled={missingRequiredItems.length > 0}
             onClick={() => setIsCompleteModalOpen(true)}
             className="ansim-button-primary flex-1 px-5 py-3 disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -452,9 +459,7 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
 
       <Modal open={isCompleteModalOpen} onClose={() => setIsCompleteModalOpen(false)}>
         <h2 className="mb-2 text-lg font-bold text-slate-950">정말로 체크 다 하셨나요?</h2>
-        <p className="mb-5 text-sm text-slate-500">
-          현장에서 직접 확인한 내용이 맞는지 다시 한 번 확인해 주세요. 확인 후에는 홈으로 이동해요.
-        </p>
+        <p className="mb-5 text-sm text-slate-500">현장에서 직접 확인한 내용이 맞는지 다시 한 번 확인해 주세요.</p>
         <div className="flex gap-2">
           <button
             type="button"
@@ -463,10 +468,25 @@ export function ChecklistClient({ propertyId, checklist, initialSummary, loadErr
           >
             취소
           </button>
-          <button type="button" onClick={() => router.push('/home')} className="ansim-button-primary flex-1 py-3">
+          <button
+            type="button"
+            onClick={() => {
+              setIsCompleteModalOpen(false);
+              setIsCompletedNoticeOpen(true);
+            }}
+            className="ansim-button-primary flex-1 py-3"
+          >
             확인
           </button>
         </div>
+      </Modal>
+
+      <Modal open={isCompletedNoticeOpen} onClose={() => router.push('/home')}>
+        <h2 className="mb-2 text-lg font-bold text-slate-950">체크리스트 작성이 완료되었습니다</h2>
+        <p className="mb-5 text-sm text-slate-500">수고하셨어요. 확인한 내용은 언제든 다시 보러 올 수 있어요.</p>
+        <button type="button" onClick={() => router.push('/home')} className="ansim-button-primary w-full py-3">
+          홈으로 가기
+        </button>
       </Modal>
     </div>
   );

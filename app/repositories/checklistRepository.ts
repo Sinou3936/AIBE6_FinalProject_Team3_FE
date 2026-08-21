@@ -95,6 +95,12 @@ export function getMockChecklistOverviews(page = 0, size = 5): ChecklistOverview
   const totalCount = mockChecklistItemDtos.length;
   const checkedCount = mockChecklistItemDtos.filter((item) => item.checked).length;
   const issueCount = mockChecklistItemDtos.filter((item) => item.issueFound).length;
+  const generalMissingCount = mockChecklistItemDtos.filter(
+    (item) => item.importance === 'GENERAL' && !item.checked,
+  ).length;
+  const requiredMissingCount = mockChecklistItemDtos.filter(
+    (item) => item.importance === 'REQUIRED' && !item.checked,
+  ).length;
   const progressPercent = totalCount === 0 ? 0 : Math.round((checkedCount / totalCount) * 100);
 
   const allItems = getMockProperties().map((property) => ({
@@ -107,6 +113,8 @@ export function getMockChecklistOverviews(page = 0, size = 5): ChecklistOverview
     lastCheckedAt,
     progressPercent: status === 'NOT_STARTED' ? undefined : progressPercent,
     cautionCount: status === 'NOT_STARTED' ? undefined : issueCount,
+    generalMissingCount: status === 'NOT_STARTED' ? undefined : generalMissingCount,
+    requiredMissingCount: status === 'NOT_STARTED' ? undefined : requiredMissingCount,
   }));
 
   const totalElements = allItems.length;
