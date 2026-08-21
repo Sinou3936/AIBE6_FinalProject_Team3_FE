@@ -3,10 +3,12 @@
 import { ArrowLeft, Sparkles, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
-import { regions } from '../../../data/regions_nested';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { sidoNames } from '../../../data/sido';
 import { userCurrentStageOptions, userTransactionTypeOptions } from '../../../data/user';
+import { buildInterestRegion, type ParsedLocation } from '../../../lib/interestRegion';
 import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
+import { fetchEupmyeondongOptions, fetchSigunguOptions } from '../../../services/region';
 import {
   checkNicknameAvailability,
   registerProfile,
@@ -28,6 +30,13 @@ type ProfileClientProps = {
   mode: ProfileMode;
   loadError?: string;
   nicknamePolicy: NicknamePolicyDto;
+  // 시·군·구/읍·면·동 옵션은 이제 온디맨드로 fetch하므로(app/api/regions/*), 이미 저장된
+  // interestRegion에 대응하는 값·옵션 목록은 부모(page.tsx)가 로딩 게이트 안에서 미리 받아와
+  // prop으로 넘긴다 - 그래야 이 컴포넌트가 마운트되는 순간부터 select가 깜빡임 없이 올바른
+  // 값/목록으로 렌더링된다.
+  initialLocation: ParsedLocation;
+  initialSigunguOptions: string[];
+  initialEupmyeondongOptions: string[];
 };
 
 function toFormValues(profile: UserProfile): ProfileUpdateInput {
@@ -39,74 +48,25 @@ function toFormValues(profile: UserProfile): ProfileUpdateInput {
   };
 }
 
-type ParsedLocation = { sido: string; sigungu: string; eupmyeondong: string };
-
-function uniqueNames(items: readonly { name: string }[]): string[] {
-  return Array.from(new Set(items.map((item) => item.name)));
-}
-
-function getSigunguOptions(sido: string): string[] {
-  const item = regions.find((region) => region.name === sido);
-  return item ? uniqueNames(item.sigungu) : [];
-}
-
-function getEupmyeondongOptions(sido: string, sigungu: string): string[] {
-  const sidoItem = regions.find((region) => region.name === sido);
-  const sigunguItem = sidoItem?.sigungu.find((item) => item.name === sigungu);
-  return sigunguItem ? uniqueNames(sigunguItem.eupmyeondong) : [];
-}
-
-function parseInterestRegion(interestRegion: string | null): ParsedLocation {
-  const empty: ParsedLocation = { sido: '', sigungu: '', eupmyeondong: '' };
-  if (!interestRegion) {
-    return empty;
-  }
-
-  const matchedSido = regions.find(
-    (item) => interestRegion === item.name || interestRegion.startsWith(`${item.name} `),
-  );
-  if (!matchedSido) {
-    return empty;
-  }
-
-  const rest = interestRegion.slice(matchedSido.name.length).trim();
-  for (const sigunguItem of matchedSido.sigungu) {
-    if (rest === sigunguItem.name || rest.startsWith(`${sigunguItem.name} `)) {
-      const eupPart = rest.slice(sigunguItem.name.length).trim();
-      const matchedEup = sigunguItem.eupmyeondong.find((eup) => eup.name === eupPart);
-      return { sido: matchedSido.name, sigungu: sigunguItem.name, eupmyeondong: matchedEup?.name ?? '' };
-    }
-    // 세종특별자치시처럼 시·군·구명이 시·도명과 동일해 생략된 경우, 나머지를 읍·면·동으로 바로 매칭
-    const matchedEupDirect = sigunguItem.eupmyeondong.find((eup) => eup.name === rest);
-    if (matchedEupDirect) {
-      return { sido: matchedSido.name, sigungu: sigunguItem.name, eupmyeondong: matchedEupDirect.name };
-    }
-  }
-
-  return { sido: matchedSido.name, sigungu: '', eupmyeondong: '' };
-}
-
-function buildInterestRegion(sido: string, sigungu: string, eupmyeondong: string): string {
-  if (!sido) {
-    return '';
-  }
-  const parts = [sido];
-  if (sigungu && sigungu !== sido) {
-    parts.push(sigungu);
-  }
-  if (eupmyeondong) {
-    parts.push(eupmyeondong);
-  }
-  return parts.join(' ');
-}
-
-export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: ProfileClientProps) {
+export function ProfileClient({
+  profile,
+  mode,
+  loadError,
+  nicknamePolicy,
+  initialLocation,
+  initialSigunguOptions,
+  initialEupmyeondongOptions,
+}: ProfileClientProps) {
   const router = useRouter();
   const [formValues, setFormValues] = useState<ProfileUpdateInput>(toFormValues(profile));
-  const initialLocation = parseInterestRegion(profile.interestRegion);
   const [sido, setSido] = useState(initialLocation.sido);
   const [sigungu, setSigungu] = useState(initialLocation.sigungu);
   const [eupmyeondong, setEupmyeondong] = useState(initialLocation.eupmyeondong);
+  const [sigunguOptions, setSigunguOptions] = useState(initialSigunguOptions);
+  const [eupmyeondongOptions, setEupmyeondongOptions] = useState(initialEupmyeondongOptions);
+  const [sigunguLoading, setSigunguLoading] = useState(false);
+  const [eupmyeondongLoading, setEupmyeondongLoading] = useState(false);
+  const [regionLoadError, setRegionLoadError] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string>();
   const [imagePreviewError, setImagePreviewError] = useState(false);
@@ -124,9 +84,6 @@ export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: Prof
   // nicknamePolicy.pattern은 <input pattern="...">용 비앵커 정규식이라, JS에서 전체 문자열 일치를
   // 확인하려면 브라우저가 암묵적으로 해주는 ^(?:...)$ 감싸기를 직접 재현해야 한다.
   const nicknamePattern = useMemo(() => new RegExp(`^(?:${nicknamePolicy.pattern})$`), [nicknamePolicy.pattern]);
-
-  const sigunguOptions = getSigunguOptions(sido);
-  const eupmyeondongOptions = getEupmyeondongOptions(sido, sigungu);
 
   const title = mode === 'register' ? '프로필 등록' : '프로필 수정';
   const isNicknameUnchanged = mode === 'edit' && formValues.nickname.trim() === profile.nickname;
@@ -188,17 +145,72 @@ export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: Prof
     setImageSelectError(undefined);
   };
 
+  // 시/도·시/군/구를 바꾸면 그 하위 옵션을 온디맨드로 다시 받아와야 한다(app/api/regions/*) - 사용자가
+  // 연달아 빠르게 바꾸면 먼저 보낸 요청이 나중에 응답할 수 있어, ref로 "가장 최근에 요청한 값"을
+  // 들고 있다가 응답 시점에 대조해 낡은 응답이 최신 상태를 덮어쓰지 않게 막는다.
+  const latestSidoRequestRef = useRef<string>('');
+  const latestSigunguRequestRef = useRef<string>('');
+
   const handleSidoChange = (nextSido: string) => {
+    latestSidoRequestRef.current = nextSido;
     setSido(nextSido);
     setSigungu('');
     setEupmyeondong('');
+    setSigunguOptions([]);
+    setEupmyeondongOptions([]);
     setFormValues((prev) => ({ ...prev, interestRegion: '' }));
+    setRegionLoadError(undefined);
+
+    if (!nextSido) {
+      return;
+    }
+    setSigunguLoading(true);
+    fetchSigunguOptions(nextSido)
+      .then((options) => {
+        if (latestSidoRequestRef.current === nextSido) {
+          setSigunguOptions(options);
+        }
+      })
+      .catch(() => {
+        if (latestSidoRequestRef.current === nextSido) {
+          setRegionLoadError('시·군·구 목록을 불러오지 못했습니다.');
+        }
+      })
+      .finally(() => {
+        if (latestSidoRequestRef.current === nextSido) {
+          setSigunguLoading(false);
+        }
+      });
   };
 
   const handleSigunguChange = (nextSigungu: string) => {
+    latestSigunguRequestRef.current = nextSigungu;
     setSigungu(nextSigungu);
     setEupmyeondong('');
+    setEupmyeondongOptions([]);
     setFormValues((prev) => ({ ...prev, interestRegion: '' }));
+    setRegionLoadError(undefined);
+
+    if (!nextSigungu) {
+      return;
+    }
+    setEupmyeondongLoading(true);
+    fetchEupmyeondongOptions(sido, nextSigungu)
+      .then((options) => {
+        if (latestSigunguRequestRef.current === nextSigungu) {
+          setEupmyeondongOptions(options);
+        }
+      })
+      .catch(() => {
+        if (latestSigunguRequestRef.current === nextSigungu) {
+          setRegionLoadError('읍·면·동 목록을 불러오지 못했습니다.');
+        }
+      })
+      .finally(() => {
+        if (latestSigunguRequestRef.current === nextSigungu) {
+          setEupmyeondongLoading(false);
+        }
+      });
   };
 
   const handleEupmyeondongChange = (nextEupmyeondong: string) => {
@@ -425,9 +437,9 @@ export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: Prof
                     <option value="" disabled>
                       시·도
                     </option>
-                    {regions.map((item) => (
-                      <option key={item.name} value={item.name}>
-                        {item.name}
+                    {sidoNames.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
                       </option>
                     ))}
                   </select>
@@ -439,11 +451,11 @@ export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: Prof
                     className="ansim-input disabled:cursor-not-allowed disabled:opacity-60"
                     value={sigungu}
                     onChange={(event) => handleSigunguChange(event.target.value)}
-                    disabled={!sido || sigunguOptions.length === 0}
+                    disabled={!sido || sigunguLoading || sigunguOptions.length === 0}
                     required={sigunguOptions.length > 0}
                   >
                     <option value="" disabled>
-                      시·군·구
+                      {sigunguLoading ? '불러오는 중...' : '시·군·구'}
                     </option>
                     {sigunguOptions.map((name) => (
                       <option key={name} value={name}>
@@ -459,11 +471,11 @@ export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: Prof
                     className="ansim-input disabled:cursor-not-allowed disabled:opacity-60"
                     value={eupmyeondong}
                     onChange={(event) => handleEupmyeondongChange(event.target.value)}
-                    disabled={!sigungu || eupmyeondongOptions.length === 0}
+                    disabled={!sigungu || eupmyeondongLoading || eupmyeondongOptions.length === 0}
                     required={eupmyeondongOptions.length > 0}
                   >
                     <option value="" disabled>
-                      읍·면·동
+                      {eupmyeondongLoading ? '불러오는 중...' : '읍·면·동'}
                     </option>
                     {eupmyeondongOptions.map((name) => (
                       <option key={name} value={name}>
@@ -473,6 +485,7 @@ export function ProfileClient({ profile, mode, loadError, nicknamePolicy }: Prof
                   </select>
                 </label>
               </div>
+              {regionLoadError && <p className="mt-1.5 text-sm text-red-600">{regionLoadError}</p>}
             </div>
 
             <div>
