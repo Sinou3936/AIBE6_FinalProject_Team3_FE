@@ -35,6 +35,7 @@ export type PropertySummaryDto = {
   statusTone: ApiStatusTone;
   latitude: number;
   longitude: number;
+  area: number;
 };
 
 export type ChecklistItemTypeDto = 'CHECK' | 'YES_NO' | 'DATE' | 'DOCUMENT_REQUEST' | 'MULTIPLE_CHOICE';
