@@ -353,6 +353,8 @@ export type RiskSignal = {
   reasonText: string | null;
   // SUCCESS이면서 실제 리스크가 발견됐을 때만 값 있음.
   description: string | null;
+  // 리스크가 실제로 발견된 경우에만 항목이 있고, 그 외엔 빈 배열.
+  recommendedActions: string[];
   checkedAt: string;
 };
 

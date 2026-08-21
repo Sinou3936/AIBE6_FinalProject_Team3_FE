@@ -153,6 +153,16 @@ export function RiskAnalysisClient({
                       <p className="text-xs leading-relaxed text-slate-500">
                         {signal.description ?? signal.reasonText ?? '확인된 리스크가 없어요.'}
                       </p>
+                      {signal.recommendedActions.length > 0 && (
+                        <ul className="mt-2 space-y-1">
+                          {signal.recommendedActions.map((action) => (
+                            <li key={action} className="flex items-start gap-1.5 text-xs text-slate-600">
+                              <span className="text-slate-400">·</span>
+                              {action}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   </div>
                 );

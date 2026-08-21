@@ -34,6 +34,7 @@ export function mapRiskSignalDto(dto: RiskSignalDto): RiskSignal {
     status: statusMap[dto.status],
     reasonText: dto.reason ? riskCheckReasonCopy[dto.reason] : null,
     description: dto.description,
+    recommendedActions: dto.recommendedActions,
     checkedAt: dto.checkedAt,
   };
 }
