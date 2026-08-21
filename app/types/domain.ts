@@ -196,6 +196,11 @@ export type ChecklistOverview = {
   // 시작 전이면 undefined(0%와 구분) - ChecklistProgress와 동일한 패턴.
   progressPercent?: number;
   cautionCount?: number;
+  // status가 completed여도 0보다 클 수 있다(필수 항목만 다 하면 완료로 판정되고 일반 항목은
+  // 무시되기 때문) - 시작 전이면 undefined.
+  generalMissingCount?: number;
+  // status가 completed면 정의상 항상 0 - 시작 전이면 undefined.
+  requiredMissingCount?: number;
 };
 
 // GET /checklists 페이지네이션 응답. Backend PageResponse를 그대로 옮기되 content만

@@ -17,12 +17,6 @@ const statusColorMap: Record<ChecklistOverview['status'], string> = {
   COMPLETED: 'bg-emerald-50 text-emerald-700',
 };
 
-// 완료 상태는 배지와 동일하게 emerald 톤을 써서 진행률 박스도 상태 색상과 맞춘다.
-const progressAccentColorMap: Partial<Record<ChecklistOverview['status'], { text: string; bar: string }>> = {
-  IN_PROGRESS: { text: 'text-teal-600', bar: 'bg-teal-500' },
-  COMPLETED: { text: 'text-emerald-600', bar: 'bg-emerald-500' },
-};
-
 type ChecklistOverviewClientProps = {
   checklistPage: ChecklistOverviewPage;
   loadError?: string;
@@ -71,25 +65,32 @@ export function ChecklistOverviewClient({ checklistPage, loadError }: ChecklistO
               <h2 className="mb-1 text-lg font-bold text-slate-950 group-hover:text-teal-700">
                 {overview.propertyTitle}
               </h2>
-              <p className="mb-3 flex items-center gap-1 text-sm text-slate-500">
-                <MapPin className="h-4 w-4" /> {overview.address}
-              </p>
-              {overview.progressPercent !== undefined && progressAccentColorMap[overview.status] && (
-                <div className="rounded-xl bg-slate-50 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-xs text-slate-400">체크리스트 진행률</span>
-                    <span className={`text-sm font-bold ${progressAccentColorMap[overview.status]!.text}`}>
-                      {overview.progressPercent}% 확인, 주의 {overview.cautionCount ?? 0}개
+              <p className="flex items-center justify-between gap-2 text-sm text-slate-500">
+                <span className="flex min-w-0 items-center gap-1">
+                  <MapPin className="h-4 w-4 shrink-0" /> <span className="truncate">{overview.address}</span>
+                </span>
+                {overview.status === 'IN_PROGRESS' && overview.progressPercent !== undefined && (
+                  <span className="shrink-0 text-xs font-bold text-teal-600">
+                    필수 {overview.requiredMissingCount ?? 0}개·일반 {overview.generalMissingCount ?? 0}개 남음·
+                    <span className={(overview.cautionCount ?? 0) > 0 ? 'text-orange-600' : undefined}>
+                      주의 {overview.cautionCount ?? 0}개
                     </span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-slate-200">
-                    <div
-                      className={`h-full rounded-full ${progressAccentColorMap[overview.status]!.bar}`}
-                      style={{ width: `${overview.progressPercent}%` }}
-                    />
-                  </div>
-                </div>
-              )}
+                  </span>
+                )}
+                {overview.status === 'COMPLETED' && overview.cautionCount !== undefined && (
+                  // 완료는 REQUIRED 항목만 다 하면 판정되므로, GENERAL 항목이 남아있어도 progressPercent가
+                  // 100%가 아닐 수 있다. "완료" 배지와 낮은 퍼센트가 함께 보이는 모순을 피하려고 퍼센트
+                  // 대신 개수 텍스트로만 보여준다.
+                  <span className="shrink-0 text-xs font-bold">
+                    <span className={overview.cautionCount > 0 ? 'text-orange-600' : 'text-emerald-600'}>
+                      주의 {overview.cautionCount}개
+                    </span>
+                    {overview.generalMissingCount !== undefined && overview.generalMissingCount > 0 && (
+                      <span className="text-emerald-600">·일반 {overview.generalMissingCount}개 남음</span>
+                    )}
+                  </span>
+                )}
+              </p>
             </Link>
           ))}
         </div>

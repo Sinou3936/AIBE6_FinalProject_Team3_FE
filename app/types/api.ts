@@ -103,6 +103,11 @@ export type ChecklistOverviewDto = {
   // 체크리스트를 아직 시작 안 했으면 null(0%와 구분) - GROUP BY 집계 쿼리로 N+1 없이 계산된다.
   progressPercent: number | null;
   cautionCount: number | null;
+  // status가 COMPLETED여도 0보다 클 수 있다 - refreshStatus()가 REQUIRED만 보고 완료를 판정해서
+  // GENERAL 항목은 완료 판정에서 제외되기 때문. 시작 전이면 null.
+  generalMissingCount: number | null;
+  // status가 COMPLETED면 정의상 항상 0(필수를 다 해야 완료 판정되므로). 시작 전이면 null.
+  requiredMissingCount: number | null;
 };
 
 // 계약 문구 분석 4단계 파이프라인: 입력 제출 -> OCR -> 마스킹 -> AI 분석.
