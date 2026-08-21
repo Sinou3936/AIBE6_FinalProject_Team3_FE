@@ -6,9 +6,12 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { parsePageParam } from '../../../lib/pageParam';
 import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import { getAdminUsers } from '../../../services/admin';
-import { type AdminUserListItemDto, type PageResponseDto } from '../../../types/api';
+import { type AdminRoleDto, type AdminUserListItemDto, type AdminUserStatusDto, type PageResponseDto } from '../../../types/api';
 import { useAdminCurrentUser } from '../AdminCurrentUserContext';
 import { AdminUsersClient } from './AdminUsersClient';
+
+const KNOWN_ROLES: AdminRoleDto[] = ['USER', 'ADMIN'];
+const KNOWN_STATUSES: AdminUserStatusDto[] = ['ACTIVE', 'SUSPENDED', 'WITHDRAWN'];
 
 function AdminUsersPageContent() {
   const router = useRouter();
@@ -20,8 +23,16 @@ function AdminUsersPageContent() {
   const page = parsePageParam(searchParams.get('page') ?? undefined);
   const email = searchParams.get('email') ?? undefined;
   const nickname = searchParams.get('nickname') ?? undefined;
-  const role = searchParams.get('role') ?? undefined;
-  const status = searchParams.get('status') ?? undefined;
+  // 오래된 북마크/수동으로 편집한 링크가 이제는 존재하지 않는 role/status 값(예: 예전에 있었을
+  // 수 있는 다른 권한명)을 담고 있으면, 그 값을 그대로 getAdminUsers에 넘겨 백엔드 에러로
+  // 이어지거나(2026-08-20 전수조사에서 지적), select의 value가 어떤 option과도 안 맞아 필터가
+  // 걸려 있는데도 드롭다운은 "전체"로 보이는 등 화면과 실제 필터가 어긋난다 - admin/reports/page.tsx가
+  // 이미 status에 대해 동일한 이유로 알 수 없는/빈 값을 기본값으로 되돌리는 처리를 하고 있어
+  // 같은 방식을 적용한다.
+  const role = KNOWN_ROLES.includes(searchParams.get('role') as AdminRoleDto) ? (searchParams.get('role') as AdminRoleDto) : undefined;
+  const status = KNOWN_STATUSES.includes(searchParams.get('status') as AdminUserStatusDto)
+    ? (searchParams.get('status') as AdminUserStatusDto)
+    : undefined;
 
   // 유저 상태/권한 변경으로 필터에 맞는 항목이 하나 줄면, 지금 보고 있던 페이지가 더 이상
   // 존재하지 않게 될 수 있다(예: 2페이지에 1명 남아있던 걸 정지 처리 → 2페이지는 빈 목록).
@@ -56,12 +67,27 @@ function AdminUsersPageContent() {
   // 뒤에만 state를 쓴다. useEffect의 cancelled 플래그는 loading만 지켜줄 뿐 이 함수 내부 쓰기는
   // 못 막는다(onMutated로 effect 밖에서도 호출되므로 더더욱 그렇다).
   const requestIdRef = useRef(0);
+  // 컴포넌트가 마운트된 동안 살아있는 하나의 AbortController다 - 필터가 바뀌어도 새로 만들지
+  // 않고(그 경우는 requestIdRef가 이미 처리한다), 이 페이지를 완전히 벗어날 때만(unmount) abort
+  // 시킨다. signal이 없으면 언마운트 후에도 진행 중이던 fetch가 계속 진행되다가 뒤늦게 도착해,
+  // clampToValidPage()가 이미 관심 없어진 화면 기준으로 router.replace()를 실행할 수 있었다
+  // (2026-08-20 전수조사에서 지적) - requestId 체크는 "더 최신 요청이 이미 있었는지"만 보고
+  // "이 컴포넌트가 여전히 마운트돼 있는지"는 못 막는다.
+  const abortControllerRef = useRef<AbortController | null>(null);
+  if (abortControllerRef.current === null) {
+    abortControllerRef.current = new AbortController();
+  }
+  useEffect(() => {
+    return () => abortControllerRef.current?.abort();
+  }, []);
+
   const reloadUsers = useCallback(
     (options?: { keepDataOnError?: boolean }) => {
       const requestId = ++requestIdRef.current;
-      return getAdminUsers({ page, email, nickname, role, status })
+      const signal = abortControllerRef.current?.signal;
+      return getAdminUsers({ page, email, nickname, role, status }, signal)
         .then((usersPage) => {
-          if (requestId !== requestIdRef.current) return;
+          if (requestId !== requestIdRef.current || signal?.aborted) return;
           // 지금 페이지가 이 결과 기준으로 더 이상 유효하지 않으면, 빈 목록을 잠깐 보여주는 대신
           // 유효한 페이지로 리다이렉트한다(그 리다이렉트가 URL을 바꿔 이 effect를 다시 실행시킨다).
           if (clampToValidPage(usersPage.totalPages)) return;
@@ -69,7 +95,7 @@ function AdminUsersPageContent() {
           setLoadError(undefined);
         })
         .catch((error) => {
-          if (requestId !== requestIdRef.current) return;
+          if (requestId !== requestIdRef.current || signal?.aborted) return;
           const message = resolveErrorMessage(error, '유저 목록을 불러오지 못했습니다.');
           if (options?.keepDataOnError) {
             // 역할/상태 변경이 서버에서는 이미 성공한 뒤, 그 후속 목록 재조회만 일시적으로

@@ -50,7 +50,14 @@ export class ApiError extends Error {
 export function isUnreachableError(error: unknown): boolean {
   return (
     error instanceof ApiError &&
-    (error.sessionRefreshOutcome === 'unreachable' || error.status === 0 || error.body?.code === 'NETWORK_ERROR')
+    (error.sessionRefreshOutcome === 'unreachable' ||
+      error.status === 0 ||
+      error.body?.code === 'NETWORK_ERROR' ||
+      // readApiResponse()가 응답 본문이 JSON이 아닐 때(nginx/CDN이 만든 HTML 502/503 에러 페이지 등)
+      // 만들어내는 코드도 같은 "서버와 통신할 수 없음" 부류인데 이 목록에 빠져 있었다 - 그 결과
+      // 실제로는 일시 장애인 상황이 세션만료(관리자 화면에서는 가짜 404)로 잘못 분류됐다
+      // (2026-08-20 전수조사에서 지적, app.sinou.site 502 장애 이력 참고).
+      error.body?.code === 'INVALID_RESPONSE')
   );
 }
 
@@ -367,11 +374,17 @@ async function readApiResponse<T>(response: Response): Promise<ApiResponse<T>> {
   try {
     return (await response.json()) as ApiResponse<T>;
   } catch {
+    // fetch()는 성공했지만(리버스 프록시/로드밸런서/WAF가 만든 HTML 502/503 에러 페이지 등) 응답
+    // 본문이 JSON이 아닌 경우 여기로 온다 - fetchOrThrowNetworkError의 catch(연결 자체 실패)와는
+    // 다른 경로지만 사용자 입장에선 같은 "서버와 통신할 수 없음" 상황이므로, 이 메시지는
+    // finalizeResponse를 거쳐 ApiError.message로 그대로 노출된다 - NETWORK_ERROR_MESSAGE와
+    // 다른 영어 문구를 하드코딩해두면 실제 장애 상황에서 사용자에게 영어 문구가 노출된다
+    // (2026-08-20 전수조사에서 발견, prod 502 장애 이력 참고).
     return {
       success: false,
       error: {
         code: 'INVALID_RESPONSE',
-        message: 'API response is not valid JSON.',
+        message: NETWORK_ERROR_MESSAGE,
       },
     };
   }

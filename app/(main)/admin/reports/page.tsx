@@ -62,12 +62,27 @@ function AdminReportsPageContent() {
   // 뒤에만 state를 쓴다. useEffect의 cancelled 플래그는 loading만 지켜줄 뿐 이 함수 내부 쓰기는
   // 못 막는다(onMutated로 effect 밖에서도 호출되므로 더더욱 그렇다).
   const requestIdRef = useRef(0);
+  // 컴포넌트가 마운트된 동안 살아있는 하나의 AbortController다 - 필터가 바뀌어도 새로 만들지
+  // 않고(그 경우는 requestIdRef가 이미 처리한다), 이 페이지를 완전히 벗어날 때만(unmount) abort
+  // 시킨다. signal이 없으면 언마운트 후에도 진행 중이던 fetch가 계속 진행되다가 뒤늦게 도착해,
+  // clampToValidPage()가 이미 관심 없어진 화면 기준으로 router.replace()를 실행할 수 있었다
+  // (2026-08-20 전수조사에서 지적) - requestId 체크는 "더 최신 요청이 이미 있었는지"만 보고
+  // "이 컴포넌트가 여전히 마운트돼 있는지"는 못 막는다.
+  const abortControllerRef = useRef<AbortController | null>(null);
+  if (abortControllerRef.current === null) {
+    abortControllerRef.current = new AbortController();
+  }
+  useEffect(() => {
+    return () => abortControllerRef.current?.abort();
+  }, []);
+
   const reloadReports = useCallback(
     (options?: { keepDataOnError?: boolean }) => {
       const requestId = ++requestIdRef.current;
-      return getAdminPropertyReports({ page, status: apiStatus, reason })
+      const signal = abortControllerRef.current?.signal;
+      return getAdminPropertyReports({ page, status: apiStatus, reason }, signal)
         .then((result) => {
-          if (requestId !== requestIdRef.current) return;
+          if (requestId !== requestIdRef.current || signal?.aborted) return;
           // 지금 페이지가 이 결과 기준으로 더 이상 유효하지 않으면, 빈 목록을 잠깐 보여주는 대신
           // 유효한 페이지로 리다이렉트한다(그 리다이렉트가 URL을 바꿔 이 effect를 다시 실행시킨다).
           if (clampToValidPage(result.totalPages)) return;
@@ -75,7 +90,7 @@ function AdminReportsPageContent() {
           setLoadError(undefined);
         })
         .catch((error) => {
-          if (requestId !== requestIdRef.current) return;
+          if (requestId !== requestIdRef.current || signal?.aborted) return;
           const message = resolveErrorMessage(error, '신고 목록을 불러오지 못했습니다.');
           if (options?.keepDataOnError) {
             // 신고 검토가 서버에서는 이미 성공한 뒤, 그 후속 목록 재조회만 일시적으로 실패한

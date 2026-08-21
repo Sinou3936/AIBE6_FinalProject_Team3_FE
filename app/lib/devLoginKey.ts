@@ -45,3 +45,13 @@ export function getStoredDevLoginKey(): string | null {
   if (typeof window === 'undefined') return null;
   return window.localStorage.getItem(STORAGE_KEY);
 }
+
+// 로그아웃 시 호출한다 - 안 지우면 이 값은 로그아웃/세션 만료와 무관하게 브라우저에 영구히
+// 남는다. NEXT_PUBLIC_ENABLE_DEV_LOGIN이 켜진 채로 남아있는 공유/키오스크 기기라면, 이후 그
+// 브라우저 프로필에서는 로그아웃해도 "개발자용 관리자 로그인" 버튼이 계속 다시 뜬다
+// (2026-08-20 전수조사에서 지적 - 백엔드가 DEV_LOGIN_ENABLED/시크릿 불일치를 이중으로 막아주므로
+// 보안 취약점은 아니지만, 의도치 않게 그 버튼이 안 사라지는 건 정리해야 할 잔여 상태다).
+export function clearStoredDevLoginKey(): void {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(STORAGE_KEY);
+}

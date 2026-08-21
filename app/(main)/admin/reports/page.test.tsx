@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { type AdminPropertyReportListItemDto, type PageResponseDto } from '../../../types/api';
 import { AdminCurrentUserProvider } from '../AdminCurrentUserContext';
@@ -50,6 +50,31 @@ describe('AdminReportsPage', () => {
 
     expect(getAdminPropertyReports).toHaveBeenCalledWith(
       expect.objectContaining({ status: 'RECEIVED' }),
+      expect.anything(), // AbortSignal - 이 페이지가 마운트된 동안 살아있는 signal
     );
+  });
+
+  // 회귀 테스트(2026-08-20 전수조사) - signal 없이는 이 페이지를 벗어난 뒤에도 진행 중이던
+  // fetch가 계속 진행되다 뒤늦게 도착해, clampToValidPage()가 이미 언마운트된 화면 기준으로
+  // router.replace()를 실행할 수 있었다. 언마운트 시 실제로 요청이 abort되는지 확인한다.
+  it('언마운트되면 진행 중인 조회 요청의 signal이 abort된다', async () => {
+    let capturedSignal: AbortSignal | undefined;
+    getAdminPropertyReports.mockImplementation((_params: unknown, signal?: AbortSignal) => {
+      capturedSignal = signal;
+      return new Promise(() => {}); // 응답이 영원히 도착하지 않는 상황을 흉내낸다.
+    });
+
+    const { unmount } = render(
+      <AdminCurrentUserProvider value={{ userId: 1 }}>
+        <AdminReportsPage />
+      </AdminCurrentUserProvider>,
+    );
+
+    await waitFor(() => expect(capturedSignal).toBeInstanceOf(AbortSignal));
+    expect(capturedSignal!.aborted).toBe(false);
+
+    unmount();
+
+    expect(capturedSignal!.aborted).toBe(true);
   });
 });

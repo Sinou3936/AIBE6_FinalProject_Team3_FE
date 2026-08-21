@@ -76,4 +76,21 @@ describe('SessionRecoverRetryButton', () => {
     expect(await screen.findByRole('button', { name: '다시 시도' })).not.toBeDisabled();
     expect(window.location.href).toBe('');
   });
+
+  // 회귀 테스트(2026-08-20 전수조사) - 실패하면 버튼 라벨이 "재시도 중..."에서 "다시 시도"로
+  // 조용히 되돌아갈 뿐 실패했다는 사실 자체를 알릴 방법이 전혀 없었다. 재시도를 다시 누르면
+  // 이전 실패 메시지는 사라져야 한다(다음 시도의 결과와 섞여 보이면 안 됨).
+  it('재시도가 실패하면 실패를 알리는 알림이 뜨고, 다시 누르면 사라진다', async () => {
+    getCurrentUser.mockRejectedValueOnce(new ApiError('network error', 0));
+
+    render(<SessionRecoverRetryButton next="/mypage" />);
+    fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('다시 시도했지만');
+
+    getCurrentUser.mockReturnValueOnce(new Promise(() => {})); // 다음 시도는 아직 응답 없음.
+    fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });
