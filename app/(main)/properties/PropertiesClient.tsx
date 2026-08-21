@@ -26,6 +26,9 @@ import { Badge } from '../../ui/Badge';
 import { NoticeBox } from '../../ui/NoticeBox';
 
 export type PropertiesFilter = {
+  // 메인 검색창 검색어 - 주소(도로명/지번)든 건물명(아파트/오피스텔명 등)이든 이 값 하나로 매칭된다
+  // (부분일치, 5차 멘토링 피드백 6-3). 처음엔 title을 별도 조건으로 뒀었는데, 검색창 하나에 주소든
+  // 건물명이든 입력하면 찾아지길 기대하는 UX라 region 하나로 통합함(2026-08-21).
   region?: string;
   minArea?: number;
   maxArea?: number;
@@ -215,7 +218,7 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
               <input
                 value={region}
                 onChange={(event) => setRegion(event.target.value)}
-                placeholder="지역(도로명/지번주소)으로 검색하세요"
+                placeholder="지역(도로명/지번주소) 또는 건물명으로 검색하세요"
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-4 text-slate-950 outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
               />
             </div>

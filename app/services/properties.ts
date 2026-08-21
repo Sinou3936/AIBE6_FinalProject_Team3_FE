@@ -25,8 +25,8 @@ export type GetPropertiesParams = {
   size?: number;
   // BE가 허용하는 정렬 필드는 createdAt/deposit/area 뿐이다 (PageableUtils.validateSort 참고).
   sort?: string;
-  // 아래 6개는 전부 선택값 - BE PropertySearchCondition과 1:1 대응. region은 도로명/지번주소
-  // 부분일치(LIKE) 검색이다.
+  // 아래 항목들은 전부 선택값 - BE PropertySearchCondition과 1:1 대응. region은 메인 검색창
+  // 검색어로, 도로명/지번주소든 건물명(#264 6-3)이든 부분일치(LIKE OR)하면 매칭된다.
   region?: string;
   minArea?: number;
   maxArea?: number;
@@ -116,6 +116,7 @@ export async function createProperty(request: CreatePropertyRequestDto): Promise
         radiusMeters: null,
         areaErrorRate: null,
         lookbackMonths: null,
+        samples: null,
         message: '모의 데이터 모드라 시세 비교를 제공하지 않아요.',
       },
       notice: null,

@@ -99,6 +99,19 @@ export type PropertyListPage = {
   hasNext: boolean;
 };
 
+// 기준가 산출에 실제로 쓰인 개별 실거래 표본 1건, 화면 표시용으로 가공된 형태(#264/#197, 5차
+// 멘토링 피드백 7-2).
+export type PropertyMarketComparisonSample = {
+  buildingName?: string;
+  address: string;
+  dealDateText: string;
+  depositText: string;
+  areaText?: string;
+  // 대표 5건 중 최고가/최저가로 뽑힌 표본 표시(#264 7-2 보완) - 목록은 최신순 정렬이라 이 값이
+  // 없으면 왜 이 표본이 포함됐는지 알기 어렵다. 최근순으로 뽑혔거나 표본이 5건 이하면 undefined.
+  priceHighlight?: 'HIGHEST' | 'LOWEST';
+};
+
 /**
  * BE MarketComparisonDto를 화면 표시용으로 가공한 형태. status가 UNAVAILABLE이면
  * referencePriceText 등 나머지 필드는 비어있고 message에 사유 문구만 채워진다.
@@ -115,6 +128,8 @@ export type PropertyMarketComparison = {
   areaErrorRate?: number;
   // 실거래를 조회한 개월 수.
   lookbackMonths?: number;
+  // 기준가 계산에 쓰인 개별 표본 목록, 최신 계약일 순. status가 UNAVAILABLE이면 undefined.
+  samples?: PropertyMarketComparisonSample[];
   // UNAVAILABLE일 때 사유(월세/단독다가구/좌표없음/표본부족 등)를 그대로 보여준다.
   message?: string;
 };

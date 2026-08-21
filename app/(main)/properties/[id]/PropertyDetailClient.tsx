@@ -17,6 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { apiStatusToneClassMap, getJeonseRatioTone, riskSignalTypeMeta } from '../../../data/risk-analysis';
+import { cn } from '../../../lib/cn';
 import { formatAreaWithPyeong } from '../../../lib/numberFormat';
 import { roomTypeLabelMap } from '../../../mappers/property';
 import { deleteProperty } from '../../../services/properties';
@@ -277,6 +278,48 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
                       <p className="font-semibold text-slate-800">{property.marketComparison.referenceDate}</p>
                     </div>
                   </div>
+                  {property.marketComparison.samples && property.marketComparison.samples.length > 0 && (
+                    <div className="mt-4 border-t border-slate-100 pt-4">
+                      <p className="mb-2 text-xs font-bold text-slate-600">
+                        인근 실거래 내역
+                        {typeof property.marketComparison.sampleCount === 'number' &&
+                          property.marketComparison.sampleCount > property.marketComparison.samples.length && (
+                            <span className="ml-1 font-normal text-slate-400">
+                              (총 {property.marketComparison.sampleCount}건 중 대표{' '}
+                              {property.marketComparison.samples.length}건 · 최고가·최저가·최근순)
+                            </span>
+                          )}
+                      </p>
+                      <ul className="space-y-2">
+                        {property.marketComparison.samples.map((sample, index) => (
+                          <li key={index} className="flex items-center justify-between gap-2 text-xs text-slate-500">
+                            <span className="flex min-w-0 items-center gap-1.5 truncate">
+                              {sample.priceHighlight && (
+                                <Badge
+                                  className={cn(
+                                    'shrink-0 px-1.5 py-0.5 text-[10px]',
+                                    sample.priceHighlight === 'HIGHEST'
+                                      ? 'bg-rose-50 text-rose-600'
+                                      : 'bg-blue-50 text-blue-600',
+                                  )}
+                                >
+                                  {sample.priceHighlight === 'HIGHEST' ? '최고가' : '최저가'}
+                                </Badge>
+                              )}
+                              <span className="truncate">
+                                {sample.buildingName ?? sample.address}
+                                {sample.areaText ? ` · ${sample.areaText}` : ''}
+                              </span>
+                            </span>
+                            <span className="shrink-0 font-medium text-slate-700">
+                              {sample.depositText}{' '}
+                              <span className="text-slate-400">({sample.dealDateText})</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <p className="mt-4 text-[11px] leading-relaxed text-slate-400">
                     국토교통부 실거래가 공개시스템 기준이며, 참고용 정보이니 실제 시세는 별도로 확인해보세요.
                   </p>
