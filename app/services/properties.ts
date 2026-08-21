@@ -37,6 +37,9 @@ export type GetPropertiesParams = {
   // 전세는 monthlyRent가 항상 null이라 사실상 월세 매물에만 적용된다.
   minMonthlyRent?: number;
   maxMonthlyRent?: number;
+  // true면 확인 필요 신호(checkSignalCount > 0)가 있는 매물만 반환한다(#233/#181). undefined/false면
+  // 조건 자체를 무시(기존과 동일하게 전체 목록).
+  hasSignal?: boolean;
 };
 
 // mock 모드는 페이지 개념이 없어 전체 목록을 크기 1짜리 단일 페이지로 감싼다 - 호출부가
@@ -63,6 +66,7 @@ export async function getProperties(cookieHeader?: string, params?: GetPropertie
   if (params?.maxDeposit !== undefined) query.set('maxDeposit', String(params.maxDeposit));
   if (params?.minMonthlyRent !== undefined) query.set('minMonthlyRent', String(params.minMonthlyRent));
   if (params?.maxMonthlyRent !== undefined) query.set('maxMonthlyRent', String(params.maxMonthlyRent));
+  if (params?.hasSignal !== undefined) query.set('hasSignal', String(params.hasSignal));
   const queryString = query.toString();
 
   const page = await requestJson<PageResponseDto<PropertyListItemDto>>(

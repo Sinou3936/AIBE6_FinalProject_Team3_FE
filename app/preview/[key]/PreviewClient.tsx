@@ -6,10 +6,13 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  Copy,
+  FileCheck,
   FileSearch,
   FileText,
   Home,
   HelpCircle,
+  MapPin,
   MessageSquare,
   Repeat,
   Search,
@@ -59,6 +62,17 @@ const NAV_ICONS: Record<LandingDemoKey, typeof Search> = {
 function MarketPreview() {
   return (
     <div className="space-y-6">
+      {/* 지금 무슨 매물을 비교하고 있는지가 아예 안 보이고 곧바로 비교 결과부터 나와, 예시가
+      맥락 없이 붕 떠 보인다는 피드백(2026-08-20 멘토링)을 반영해 매물 정보 카드를 맨 위에
+      추가했다. */}
+      <div className="ansim-card flex items-center justify-between p-5">
+        <div>
+          <p className="text-sm font-bold text-slate-900">역삼동 ○○아파트 84㎡</p>
+          <p className="text-xs text-slate-400">전세 · 3층/15층</p>
+        </div>
+        <p className="text-lg font-bold text-slate-950">3억 9,000만원</p>
+      </div>
+
       <div className="ansim-card p-6">
         <div className="mb-6">
           <p className="mb-1 text-sm text-slate-500">인근 실거래 12건 기준 (반경 500m)</p>
@@ -86,8 +100,10 @@ function MarketPreview() {
             ['역삼동 ○○아파트 84㎡', '3억 2,000만원', '2026-05'],
             ['역삼동 ○○빌라 82㎡', '3억 5,000만원', '2026-06'],
             ['역삼동 ○○오피스텔 80㎡', '3억 3,000만원', '2026-04'],
-          ].map(([title, price, date]) => (
-            <div key={title} className="ansim-card flex items-center justify-between p-4">
+            ['역삼동 ○○아파트 84㎡', '3억 3,500만원', '2026-03'],
+            ['역삼동 △△빌라 85㎡', '3억 4,800만원', '2026-06'],
+          ].map(([title, price, date], index) => (
+            <div key={`${title}-${index}`} className="ansim-card flex items-center justify-between p-4">
               <p className="text-sm font-semibold text-slate-800">{title}</p>
               <div className="text-right">
                 <p className="text-sm font-bold text-slate-950">{price}</p>
@@ -115,21 +131,34 @@ const CLAUSES = [
     question: '출입 전 사전 통보 조항을 추가할 수 있을까요?',
   },
   {
+    level: '확인 필요' as const,
+    quote: '임차인은 퇴거 시 입주 당시 상태로 완전히 원상복구해야 하며, 통상 마모는 포함하지 않는다는 예외 조항은 없다',
+    explanation: '통상적인 사용에 따른 마모(도배 변색, 바닥 스크래치 등)까지 배상 대상이 될 수 있어 불리합니다.',
+    question: '통상 마모는 원상복구 의무에서 제외해줄 수 있을까요?',
+  },
+  {
     level: '참고' as const,
     quote: '관리비는 별도이며 월 8만원이다',
     explanation: '일반적인 수준의 관리비 안내 조항이에요. 특별히 불리한 내용은 아니에요.',
     question: null,
   },
+  {
+    level: '참고' as const,
+    quote: '반려동물 사육 시 사전에 임대인의 동의를 받아야 한다',
+    explanation: '반려동물 동반 임대차에서 흔히 쓰이는 일반적인 조항이에요.',
+    question: null,
+  },
 ];
 
 function ContractPreview() {
+  const requiredCount = CLAUSES.filter((clause) => clause.level === '확인 필요').length;
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          ['총 조항 수', '12개'],
-          ['확인 필요', '3개'],
-          ['참고', '9개'],
+          ['총 조항 수', `${CLAUSES.length}개`],
+          ['확인 필요', `${requiredCount}개`],
+          ['참고', `${CLAUSES.length - requiredCount}개`],
           ['분석 상태', '완료'],
         ].map(([label, value]) => (
           <div key={label} className="ansim-card p-4 text-center">
@@ -179,34 +208,55 @@ function ContractPreview() {
   );
 }
 
+// 실제로 지금 켜져 있는 의심 신호 3종만 예시로 쓴다(RiskSignalType 4종 중
+// SAME_ACCOUNT_MULTIPLE은 risk-policy의 multiAccountDetectionEnabled가 기본 꺼져 있어 실제로는
+// 아직 판정되지 않는다 - 켜져 있지도 않은 기능을 예시에 넣으면 실제와 다른 걸 보여주는 셈이라
+// 제외했다).
+const DEPOSIT_SIGNALS = [
+  {
+    icon: TrendingUp,
+    iconClassName: 'bg-orange-50 text-orange-600',
+    title: '가격 이상 신호',
+    description: '주변 시세보다 15% 낮은 가격으로 등록되어 있어요.',
+  },
+  {
+    icon: Copy,
+    iconClassName: 'bg-blue-50 text-blue-600',
+    title: '중복 등록 의심',
+    description: '동일한 주소로 등록된 다른 매물이 있어요.',
+  },
+  {
+    icon: Repeat,
+    iconClassName: 'bg-slate-100 text-slate-500',
+    title: '단기 재등록 의심',
+    description: '최근 3개월 내 동일 매물이 3회 재등록됐어요.',
+  },
+];
+
 function DepositPreview() {
   return (
     <div className="space-y-6">
       <div className="ansim-card p-6">
         <div className="mb-4 flex items-center justify-between">
           <span className="text-sm font-bold text-slate-900">허위매물 의심 신호</span>
-          <Badge className="bg-orange-100 text-orange-700">2개 발견</Badge>
+          <Badge className="bg-orange-100 text-orange-700">{DEPOSIT_SIGNALS.length}개 발견</Badge>
         </div>
         <div className="space-y-3">
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-blue-50 p-2.5">
-              <Repeat className="h-4 w-4 text-blue-600" />
+          {DEPOSIT_SIGNALS.map((signal) => (
+            <div key={signal.title} className="flex items-start gap-3">
+              <div className={`rounded-xl p-2.5 ${signal.iconClassName}`}>
+                <signal.icon className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-900">{signal.title}</p>
+                <p className="text-xs text-slate-500">{signal.description}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-bold text-slate-900">단기 재등록 의심</p>
-              <p className="text-xs text-slate-500">최근 3개월 내 동일 매물이 3회 재등록됐어요.</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="rounded-xl bg-orange-50 p-2.5">
-              <TrendingUp className="h-4 w-4 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-slate-900">가격 이상 신호</p>
-              <p className="text-xs text-slate-500">주변 시세 대비 가격 변동폭이 비정상적으로 큽니다.</p>
-            </div>
-          </div>
+          ))}
         </div>
+        <p className="mt-4 text-[11px] leading-relaxed text-slate-400">
+          확정 판단이 아닌 참고용 정보이며, 법률·등기 검토를 대체하지 않습니다.
+        </p>
       </div>
 
       <div className="ansim-card p-6">
@@ -218,16 +268,30 @@ function DepositPreview() {
           전세가율이 80%를 넘으면 집이 경매로 넘어갔을 때 보증금을 온전히 돌려받지 못할 위험이 커집니다.
           선순위 권리 확인이 필요해요.
         </p>
+        <div className="mb-3 grid grid-cols-2 gap-4 border-t border-slate-100 pt-3 text-sm">
+          <div>
+            <p className="mb-1 text-xs text-slate-400">비교 표본</p>
+            <p className="font-semibold text-slate-800">인근 5건 (반경 300m)</p>
+          </div>
+          <div>
+            <p className="mb-1 text-xs text-slate-400">기준일</p>
+            <p className="font-semibold text-slate-800">2026-06</p>
+          </div>
+        </div>
         <div className="flex items-start gap-2 rounded-lg bg-orange-50 p-3">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-orange-600" />
           <p className="text-xs text-orange-800">등기부등본에서 소유자 변경 이력이 있는지 확인해 보세요.</p>
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-slate-400">기준일: 2026-06 · 참고용 정보입니다.</p>
+        <p className="mt-3 text-[11px] leading-relaxed text-slate-400">
+          확정 판단이 아닌 참고용 정보이며, 법률·등기 검토를 대체하지 않습니다.
+        </p>
       </div>
     </div>
   );
 }
 
+// 실제 체크리스트의 5개 카테고리(백엔드 ChecklistCategory 기준)를 전부 예시로 보여준다 -
+// 이전엔 3개만 있어서 실제로 몇 개 영역을 확인하는지가 축소되어 보였다.
 const CHECKLIST_GROUPS = [
   {
     category: '실내 상태',
@@ -249,6 +313,19 @@ const CHECKLIST_GROUPS = [
     category: '보안·안전',
     icon: Shield,
     items: [{ text: '현관문 잠금장치 확인', required: true, status: '완료' as const }],
+  },
+  {
+    category: '서류·행정',
+    icon: FileCheck,
+    items: [
+      { text: '등기부등본상 소유자-임대인 명의 일치 확인', required: true, status: '완료' as const },
+      { text: '확정일자 부여현황 요청', required: false, status: '미흡' as const },
+    ],
+  },
+  {
+    category: '주변 환경',
+    icon: MapPin,
+    items: [{ text: '주변 편의시설/교통 확인', required: false, status: '완료' as const }],
   },
 ];
 

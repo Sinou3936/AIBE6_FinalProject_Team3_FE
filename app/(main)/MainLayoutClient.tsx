@@ -3,7 +3,7 @@
 import { AlertCircle, Home, LogOut, Menu, Shield, User, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { navItems } from '../data/navigation';
 import { cn } from '../lib/cn';
 import { useLogout } from '../lib/useLogout';
@@ -16,12 +16,88 @@ type MainLayoutClientProps = {
   isAdmin: boolean;
 };
 
+// app/ui/Modal.tsx의 포커스 트랩과 동일한 선택자다 - 이 모바일 메뉴는 Modal처럼 가운데 카드가
+// 아니라 전체화면 슬라이드 패널이라 Modal을 그대로 재사용할 수 없어(배경 클릭으로 닫는 배경
+// 오버레이 구조 자체가 다름) 최소한의 로직만 여기 별도로 둔다.
+const FOCUSABLE_SELECTOR = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true',
+  );
+}
+
 export default function MainLayoutClient({ children, nickname, profileImageUrl, isAdmin }: MainLayoutClientProps) {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isLoggingOut, logoutError, handleLogout } = useLogout();
 
   const isActive = (path: string) => pathname === path;
+
+  // 모바일 햄버거 메뉴의 dialog 접근성 처리 - app/ui/Modal.tsx와 동일한 패턴(트리거 기억 후
+  // 다이얼로그 안으로 포커스 이동, 닫히면 트리거로 복귀 / Escape로 닫기 + Tab 포커스 트랩)이다.
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedMobileMenuTriggerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      previouslyFocusedMobileMenuTriggerRef.current = document.activeElement as HTMLElement | null;
+      const container = mobileMenuRef.current;
+      if (container) {
+        const [firstFocusable] = getFocusableElements(container);
+        (firstFocusable ?? container).focus();
+      }
+    } else {
+      previouslyFocusedMobileMenuTriggerRef.current?.focus();
+      previouslyFocusedMobileMenuTriggerRef.current = null;
+    }
+  }, [isMobileMenuOpen]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) {
+      return;
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+        return;
+      }
+
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const container = mobileMenuRef.current;
+      if (!container) {
+        return;
+      }
+
+      const focusableElements = getFocusableElements(container);
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        container.focus();
+        return;
+      }
+
+      const first = focusableElements[0];
+      const last = focusableElements[focusableElements.length - 1];
+      const active = document.activeElement;
+
+      if (event.shiftKey) {
+        if (active === first || !container.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !container.contains(active)) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileMenuOpen]);
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">
@@ -124,7 +200,14 @@ export default function MainLayoutClient({ children, nickname, profileImageUrl, 
       )}
 
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-white md:hidden">
+        <div
+          ref={mobileMenuRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="메뉴"
+          tabIndex={-1}
+          className="fixed inset-0 z-50 bg-white md:hidden"
+        >
           <div className="flex h-full flex-col p-4">
             <div className="mb-8 flex items-center justify-between">
               <span className="text-xl font-bold text-slate-950">메뉴</span>

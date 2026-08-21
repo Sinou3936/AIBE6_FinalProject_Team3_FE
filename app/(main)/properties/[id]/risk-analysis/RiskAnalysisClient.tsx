@@ -153,6 +153,16 @@ export function RiskAnalysisClient({
                       <p className="text-xs leading-relaxed text-slate-500">
                         {signal.description ?? signal.reasonText ?? '확인된 리스크가 없어요.'}
                       </p>
+                      {signal.recommendedActions.length > 0 && (
+                        <ul className="mt-2 space-y-1">
+                          {signal.recommendedActions.map((action) => (
+                            <li key={action} className="flex items-start gap-1.5 text-xs text-slate-600">
+                              <span className="text-slate-400">·</span>
+                              {action}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                     </div>
                   </div>
                 );
@@ -204,6 +214,12 @@ export function RiskAnalysisClient({
                 {depositSafety.recentOwnershipChangeWarning && (
                   <NoticeBox icon={AlertTriangle} iconClassName="text-orange-500" className="mb-4">
                     최근 소유권이 바뀐 매물이에요 — 더 꼼꼼히 확인하세요.
+                  </NoticeBox>
+                )}
+                {depositSafety.priceAnomalyWarning && (
+                  <NoticeBox icon={AlertTriangle} iconClassName="text-orange-500" className="mb-4">
+                    이 매물은 가격 자체가 시세보다 비정상적으로 낮아 의심돼요. 전세가율이 안전해 보여도 가격의
+                    신뢰도를 먼저 확인하세요.
                   </NoticeBox>
                 )}
 

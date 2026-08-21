@@ -109,7 +109,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </Link>
         </p>
 
-        <Link href="/" className="mt-6 block text-center text-xs text-slate-400 hover:text-slate-600">
+        <Link href="/" className="mt-6 block text-center text-xs text-slate-500 hover:text-slate-600">
           홈페이지로 돌아가기
         </Link>
       </div>

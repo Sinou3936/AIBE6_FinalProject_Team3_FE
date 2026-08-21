@@ -15,22 +15,23 @@ export function AdminNav() {
   const pathname = usePathname();
 
   return (
-    <div className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-200">
+    <nav aria-label="관리자 메뉴" className="mb-6 flex gap-2 overflow-x-auto border-b border-slate-200">
       {TABS.map((tab) => {
         const active = tab.href === '/admin' ? pathname === tab.href : pathname.startsWith(tab.href);
         return (
           <Link
             key={tab.href}
             href={tab.href}
+            aria-current={active ? 'page' : undefined}
             className={cn(
               'shrink-0 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-bold transition',
-              active ? 'border-slate-950 text-slate-950' : 'border-transparent text-slate-400 hover:text-slate-600',
+              active ? 'border-slate-950 text-slate-950' : 'border-transparent text-slate-500 hover:text-slate-600',
             )}
           >
             {tab.label}
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }

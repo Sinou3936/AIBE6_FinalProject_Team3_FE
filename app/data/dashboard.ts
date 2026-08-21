@@ -17,7 +17,10 @@ export const quickActions: QuickAction[] = [
     tone: 'teal',
   },
   {
-    to: '/properties/1',
+    // to는 fallback 기본값일 뿐 실제로는 항상 덮어써진다 - home/page.tsx가
+    // app/lib/riskCheckAction.ts의 getRiskCheckHref()로 매물/신호 상태에 따라 동적으로
+    // 계산한 href를 이 카드(title === '위험 신호 확인')에 주입한다(#181).
+    to: '/properties',
     icon: ShieldAlert,
     title: '위험 신호 확인',
     description: '허위매물 의심 신호와 보증금 안전성 수치를 한 번에 확인합니다.',

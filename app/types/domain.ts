@@ -205,7 +205,9 @@ export type ChecklistProgress = {
 };
 
 export type ContractClause = {
-  originalText: string;
+  // 마이페이지 계약분석 이력 상세(ContractHistoryClauseDto)는 원문을 저장하지 않는 정책이라 이
+  // 필드가 없다 - 그 경로에서 매핑된 조항은 항상 undefined, 그 외(analyzeContract 응답)엔 항상 값 있음.
+  originalText?: string;
   riskFlag: boolean;
   explanation: string;
   question: string;
@@ -234,6 +236,28 @@ export type ContractAnalysisTab = 'risk' | 'deposit' | 'missing';
 export type ContractTab = {
   key: ContractAnalysisTab;
   label: string;
+};
+
+// 마이페이지 "계약분석 이력" 섹션용. 목록 표시에만 쓰여 propertyId/status는 옮기지 않는다(status는
+// Backend에 "COMPLETED" 한 종류뿐이라 분기할 값 자체가 없음) - 원문을 저장하지 않는 정책이라
+// 클릭해도 상세로 갈 곳이 없어 id도 렌더링용이 아니라 목록 key로만 쓰인다.
+export type ContractHistoryItem = {
+  id: number;
+  inputType: 'TEXT' | 'IMAGE';
+  summary: string;
+  clauseCount: number;
+  riskCount: number;
+  // 표시용으로 이미 포맷된 문자열("2026.08.19") - mappers/property.ts의 formatDateText 재사용.
+  createdAt: string;
+};
+
+export type ContractHistoryPage = {
+  items: ContractHistoryItem[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
 };
 
 export type QuickActionTone = 'teal' | 'orange' | 'emerald' | 'blue';
@@ -329,6 +353,8 @@ export type RiskSignal = {
   reasonText: string | null;
   // SUCCESS이면서 실제 리스크가 발견됐을 때만 값 있음.
   description: string | null;
+  // 리스크가 실제로 발견된 경우에만 항목이 있고, 그 외엔 빈 배열.
+  recommendedActions: string[];
   checkedAt: string;
 };
 
@@ -358,6 +384,7 @@ export type DepositSafetyCheck = {
   calculatedAt: string | null;
   disclaimer: string;
   recentOwnershipChangeWarning: boolean;
+  priceAnomalyWarning: boolean;
   cautionFrom: number | null;
   warnFrom: number | null;
   warnTo: number | null;

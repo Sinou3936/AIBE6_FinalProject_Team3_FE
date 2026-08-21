@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import { propertyTypeLabelMap } from '../../../mappers/property';
 import { getAdminChecklistTemplateImages } from '../../../services/admin';
@@ -159,6 +160,12 @@ function toFormState(template: AdminChecklistItemTemplateDto): FormState {
   };
 }
 
+function isCodeCompatibleWithItemType(code: FormState['code'], itemType: ChecklistItemTypeDto): boolean {
+  if (!code) return true;
+  const requiredItemTypes = CODE_REQUIRED_ITEM_TYPES[code];
+  return !requiredItemTypes || requiredItemTypes.includes(itemType);
+}
+
 function toCreateRequest(form: FormState): AdminChecklistItemTemplateCreateRequestDto {
   const allPropertyTypes = [...form.applicablePropertyTypes, ...form.unknownPropertyTypeTokens];
   return {
@@ -188,9 +195,29 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   const [formError, setFormError] = useState<string | undefined>();
 
   function closeModal() {
-    if (submitting) return;
+    // 이미지 추가/삭제 요청이 진행 중일 때도 submitting과 동일하게 닫기를 막는다 - 안 막으면 그
+    // 요청의 응답이 도착했을 때 이미 사라진(보이지 않는) images/imagesError state를 조용히
+    // 갱신하게 된다.
+    if (submitting || imageActionPending) return;
     setModal(null);
     setFormError(undefined);
+  }
+
+  // Modal의 Escape/배경 클릭 핸들러는 이 함수 하나에만 연결돼 있다 - 인라인 삭제 확인이나 확대
+  // 뷰가 떠 있는 동안 Escape/배경 클릭을 누르면 모달 전체가 아니라 그 단계만 먼저 취소/닫혀야
+  // 한다(한 번 더 누르면 그때 모달이 닫힘). 삭제 확인을 확대 뷰보다 먼저 체크하는 이유는 성격이
+  // 다르기 때문이다 - 확대 뷰는 언제든 다시 열 수 있는 조회 상태지만, 삭제 확인 단계에서 배경을
+  // 잘못 클릭했다고 폼 전체가 닫혀버리면(2026-08-20 전수조사에서 지적) 입력 중이던 내용을 잃는다.
+  function handleModalClose() {
+    if (imagePendingDeleteId !== null) {
+      setImagePendingDeleteId(null);
+      return;
+    }
+    if (enlargedImageId !== null) {
+      setEnlargedImageId(null);
+      return;
+    }
+    closeModal();
   }
 
   function updateForm(patch: Partial<FormState>) {
@@ -201,7 +228,14 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   }
 
   async function submitForm() {
-    if (!modal || modal.type === 'delete') return;
+    // disabled 속성은 submitting state가 커밋된 *이후*에야 버튼에 반영되므로, 더블클릭/터치
+    // 더블탭/Enter 키 반복입력처럼 커밋 전에 두 번째 호출이 들어오면 disabled만으로는 막지
+    // 못한다 - 여기서 진행 중이면 바로 반환해 같은 액션이 중복 요청되는 걸 막는다.
+    // closeModal()과 동일한 이유로 이미지 추가/삭제가 진행 중일 때도 저장을 막는다 - 안 막으면
+    // 이 함수가 곧바로 setModal(null)로 모달을 닫아버려(아래) closeModal()의 imageActionPending
+    // 가드를 그대로 우회하고, 뒤늦게 도착한 이미지 응답이 이미 다른 문항으로 바뀐 images
+    // state를 오염시킨다(2026-08-20 전수조사에서 발견).
+    if (!modal || modal.type === 'delete' || submitting || imageActionPending) return;
     const { form } = modal;
 
     if (!form.content.trim()) {
@@ -222,6 +256,13 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
         return;
       }
     }
+    // 백엔드는 options를 자유 텍스트 컬럼으로 그대로 통과시키므로, 선택지가 비어 있어도 저장
+    // 자체는 성공한다 - "선택지 응답" 타입인데 실제 선택지가 없는 문항이 조용히 만들어지는 걸
+    // 막는다.
+    if (form.itemType === 'MULTIPLE_CHOICE' && !form.options.trim()) {
+      setFormError('선택지 응답 방식은 선택지를 최소 1개 이상 입력해주세요.');
+      return;
+    }
 
     setSubmitting(true);
     setFormError(undefined);
@@ -241,7 +282,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   }
 
   async function confirmDelete() {
-    if (!modal || modal.type !== 'delete') return;
+    if (!modal || modal.type !== 'delete' || submitting) return;
     setSubmitting(true);
     setFormError(undefined);
     try {
@@ -262,6 +303,82 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   const [imagesError, setImagesError] = useState<string | undefined>();
   const [newImageUrl, setNewImageUrl] = useState('');
   const [imageActionPending, setImageActionPending] = useState(false);
+  // 삭제는 되돌릴 수 없는데(문항/템플릿 삭제와 달리) 확인 단계 없이 버튼 하나로 바로 실행됐다 -
+  // 같은 화면의 다른 삭제(문항/템플릿)는 전부 확인 모달을 거친다. 이미 열려 있는 수정 모달 위에
+  // Modal을 하나 더 겹쳐 띄우는 대신(포커스 트랩/Escape가 두 겹으로 얽힘), 삭제 버튼을 누르면
+  // 그 자리에서 "정말 삭제?" 확인/취소로 바뀌는 인라인 2단계 확인으로 처리한다.
+  const [imagePendingDeleteId, setImagePendingDeleteId] = useState<number | null>(null);
+  // 예시 이미지를 클릭하면 확대해서 볼 수 있다 - 이전엔 작은 썸네일만 있고 확대/이전다음 자체가
+  // 없어서, 여러 장을 등록해도 하나씩 크게 볼 방법이 없었다(멘토링 피드백, 2026-08-20). 이미 수정
+  // 모달이 열려 있는 위에 Modal을 하나 더 겹쳐 띄우지 않고(포커스 트랩/Escape가 두 겹으로 얽힘 -
+  // 위 imagePendingDeleteId 인라인 확인과 같은 이유), 같은 모달 안에서 폼 내용을 확대 뷰로
+  // 덮어씌우는 방식으로 처리한다.
+  // 인덱스가 아니라 image.id로 추적한다(2026-08-20 전수조사에서 발견) - 어떤 이미지를 확대해서
+  // 보고 있는 도중, 그 목록이 다른 이유로(예: 방금 삭제 요청한 다른 이미지의 응답이 뒤늦게
+  // 도착) 바뀌면 배열이 앞으로 당겨지면서 같은 인덱스가 가리키는 이미지 자체가 조용히 바뀌거나
+  // 범위를 벗어난다 - id로 추적하면 목록 순서가 바뀌어도 사용자가 보고 있던 바로 그 사진을
+  // 계속 보여준다.
+  const [enlargedImageId, setEnlargedImageId] = useState<number | null>(null);
+  // 삭제 버튼 -> "정말 삭제할까요?" 확인/취소로 전환될 때 원래 버튼이 통째로 언마운트돼 포커스가
+  // body로 떨어지는 문제(2026-08-20 전수조사에서 발견)를 고치기 위한 포커스 이동용 참조들.
+  const confirmDeleteButtonRef = useRef<HTMLButtonElement | null>(null);
+  const deleteTriggerButtonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  // 확대 뷰를 닫을 때(X 버튼/Escape/배경 클릭) 포커스를 그 사진을 열었던 썸네일로 되돌리기
+  // 위한 참조 - 위 deleteTriggerButtonRefs와 동일한 이유(2026-08-20 전수조사에서 발견).
+  const enlargeTriggerButtonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const newImageUrlInputRef = useRef<HTMLInputElement | null>(null);
+  const previousPendingDeleteIdRef = useRef<number | null>(null);
+  const previousEnlargedImageIdRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (imagePendingDeleteId !== null) {
+      confirmDeleteButtonRef.current?.focus();
+    } else if (previousPendingDeleteIdRef.current !== null) {
+      // 취소를 눌렀으면 원래 삭제 버튼이 그대로 남아있어 그리로, 삭제가 실제로 완료됐으면 그
+      // 버튼도 같이 사라졌으니(ref가 비어있음) 목록 근처의 URL 입력창으로 대신 돌려준다.
+      const trigger = deleteTriggerButtonRefs.current.get(previousPendingDeleteIdRef.current);
+      (trigger ?? newImageUrlInputRef.current)?.focus();
+    }
+    previousPendingDeleteIdRef.current = imagePendingDeleteId;
+  }, [imagePendingDeleteId]);
+
+  // 확대 뷰가 닫힐 때(X 버튼/Escape/배경 클릭) 포커스를 그 사진을 열었던 썸네일로 되돌린다 -
+  // 위 imagePendingDeleteId 포커스 복구 effect와 동일한 패턴(2026-08-20 전수조사에서 발견).
+  useEffect(() => {
+    if (enlargedImageId === null && previousEnlargedImageIdRef.current !== null) {
+      enlargeTriggerButtonRefs.current.get(previousEnlargedImageIdRef.current)?.focus();
+    }
+    previousEnlargedImageIdRef.current = enlargedImageId;
+  }, [enlargedImageId]);
+
+  // 안전장치 - 확대 중인 이미지가 어떤 이유로든(삭제 완료 등) 목록에서 사라지면 확대 상태를
+  // 정리한다. 이게 없으면 enlargedImageId는 non-null로 남아있는데 화면엔 폼이 그려져서, Escape를
+  // 한 번 눌러도 (이미 안 보이는) 확대 뷰를 닫는 걸로 소비돼 버려 모달이 안 닫히는 것처럼
+  // 보인다(2026-08-20 전수조사에서 발견).
+  useEffect(() => {
+    if (enlargedImageId !== null && !images.some((image) => image.id === enlargedImageId)) {
+      setEnlargedImageId(null);
+    }
+  }, [enlargedImageId, images]);
+
+  // 확대 뷰가 떠 있는 동안 좌우 방향키로 이전/다음 사진을 넘길 수 있다(2026-08-20 멘토링
+  // 피드백 - 이전/다음 버튼은 이미 있었지만 키보드로는 넘길 방법이 없었다).
+  useEffect(() => {
+    if (enlargedImageId === null || images.length <= 1) return;
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      setEnlargedImageId((current) => {
+        if (current === null) return current;
+        const currentIndex = images.findIndex((image) => image.id === current);
+        if (currentIndex === -1) return current;
+        const delta = event.key === 'ArrowLeft' ? -1 : 1;
+        const nextIndex = (currentIndex + delta + images.length) % images.length;
+        return images[nextIndex].id;
+      });
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [enlargedImageId, images]);
 
   useEffect(() => {
     if (editingTemplateId === null) {
@@ -272,6 +389,8 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
       setImages([]);
       setImagesError(undefined);
       setNewImageUrl('');
+      setImagePendingDeleteId(null);
+      setEnlargedImageId(null);
       return;
     }
     let cancelled = false;
@@ -292,7 +411,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   }, [editingTemplateId]);
 
   async function handleAddImage() {
-    if (editingTemplateId === null || !newImageUrl.trim()) return;
+    if (editingTemplateId === null || !newImageUrl.trim() || imageActionPending) return;
     setImageActionPending(true);
     setImagesError(undefined);
     try {
@@ -307,7 +426,7 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
   }
 
   async function handleDeleteImage(imageId: number) {
-    if (editingTemplateId === null) return;
+    if (editingTemplateId === null || imageActionPending) return;
     setImageActionPending(true);
     setImagesError(undefined);
     try {
@@ -317,11 +436,18 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
       setImagesError(resolveErrorMessage(error, '이미지 삭제에 실패했습니다.'));
     } finally {
       setImageActionPending(false);
+      setImagePendingDeleteId(null);
     }
   }
 
+  const enlargedIndex = enlargedImageId !== null ? images.findIndex((image) => image.id === enlargedImageId) : -1;
+  const enlargedImage = enlargedIndex >= 0 ? images[enlargedIndex] : null;
+
   return (
     <div>
+      {/* 관리자 페이지 4곳의 제목 아래 간격을 h1 자체가 아니라 이 wrapper에 주는 방식으로
+      통일한다(2026-08-20 멘토링 피드백 - AdminDashboardClient.tsx 주석 참고, 원래 이 페이지만
+      이 구조였다). */}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="ansim-page-title">체크리스트 관리</h1>
         <button
@@ -338,7 +464,9 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
       </p>
 
       {loadError && (
-        <div className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>
+        <div role="alert" className="ansim-card mb-4 border-red-100 bg-red-50 p-6 text-sm text-red-700">
+          {loadError}
+        </div>
       )}
 
       {data && (
@@ -395,12 +523,22 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
         />
       )}
 
-      <Modal open={modal !== null} onClose={closeModal}>
+      <Modal
+        open={modal !== null}
+        onClose={handleModalClose}
+        // 확대 뷰는 사진을 크게 보기 위한 화면이라 폼의 기본 좁은 너비(max-w-sm)로는 "겨우 조금
+        // 커진" 수준이었다(멘토링 피드백, 2026-08-20) - 확대 중일 때만 더 넓은 너비를 쓴다.
+        maxWidthClassName={enlargedImageId !== null ? 'max-w-2xl' : undefined}
+      >
         {modal && modal.type === 'delete' && (
           <div>
             <h2 className="mb-2 text-lg font-bold text-slate-950">이 문항을 삭제할까요?</h2>
             <p className="mb-4 text-sm text-slate-500">{modal.template.content}</p>
-            {formError && <p className="mb-3 text-sm text-red-600">{formError}</p>}
+            {formError && (
+              <p className="mb-3 text-sm text-red-600" role="alert">
+                {formError}
+              </p>
+            )}
             <div className="flex justify-end gap-2">
               <button
                 onClick={closeModal}
@@ -422,246 +560,365 @@ export function AdminChecklistTemplatesClient({ data, loadError, onMutated }: Ad
 
         {modal && modal.type !== 'delete' && (
           <div>
-            <h2 className="mb-4 text-lg font-bold text-slate-950">
-              {modal.type === 'create' ? '문항 추가' : '문항 수정'}
-            </h2>
-
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <label className="text-xs font-bold text-slate-600">
-                  카테고리
-                  <select
-                    value={modal.form.category}
-                    onChange={(event) => updateForm({ category: event.target.value as ChecklistCategoryDto })}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                  >
-                    {Object.entries(CATEGORY_LABEL).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-xs font-bold text-slate-600">
-                  중요도
-                  <select
-                    value={modal.form.importance}
-                    onChange={(event) => updateForm({ importance: event.target.value as ChecklistImportanceDto })}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                  >
-                    {Object.entries(IMPORTANCE_LABEL).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <label className="block text-xs font-bold text-slate-600">
-                문항 내용 ({modal.form.content.length}/{CONTENT_MAX_LENGTH}자)
-                <input
-                  value={modal.form.content}
-                  onChange={(event) => updateForm({ content: event.target.value })}
-                  placeholder="예: 창문 잠금장치가 정상 작동하나요?"
-                  maxLength={CONTENT_MAX_LENGTH}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                />
-              </label>
-
-              <label className="block text-xs font-bold text-slate-600">
-                안내 문구 (선택 - 실무 안내, 짧게, {modal.form.guideText.length}/{GUIDE_TEXT_MAX_LENGTH}자)
-                <textarea
-                  value={modal.form.guideText}
-                  onChange={(event) => updateForm({ guideText: event.target.value })}
-                  rows={2}
-                  maxLength={GUIDE_TEXT_MAX_LENGTH}
-                  className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                />
-              </label>
-
-              <label className="block text-xs font-bold text-slate-600">
-                쉬운 설명 (선택 - 부동산 지식이 없어도 이해할 수 있게 풀어쓴 설명, 사용자 화면에 노출됨)
-                <textarea
-                  value={modal.form.helperText}
-                  onChange={(event) => updateForm({ helperText: event.target.value })}
-                  rows={4}
-                  className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                />
-              </label>
-
-              <div className="grid grid-cols-2 gap-3">
-                <label className="text-xs font-bold text-slate-600">
-                  응답 방식
-                  <select
-                    value={modal.form.itemType}
-                    onChange={(event) => updateForm({ itemType: event.target.value as ChecklistItemTypeDto })}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                  >
-                    {Object.entries(ITEM_TYPE_LABEL).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-xs font-bold text-slate-600">
-                  노출 순서
-                  <input
-                    type="number"
-                    min={1}
-                    value={modal.form.displayOrder}
-                    onChange={(event) => updateForm({ displayOrder: event.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                  />
-                </label>
-              </div>
-
-              {modal.form.itemType === 'MULTIPLE_CHOICE' && (
-                <label className="block text-xs font-bold text-slate-600">
-                  선택지 (콤마로 구분, 예: 가스보일러,기름보일러,전기보일러,지역난방)
-                  <input
-                    type="text"
-                    value={modal.form.options}
-                    onChange={(event) => updateForm({ options: event.target.value })}
-                    maxLength={OPTIONS_MAX_LENGTH}
-                    className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                  />
-                </label>
-              )}
-
-              <label className="block text-xs font-bold text-slate-600">
-                자동 판정 코드 (선택 - 특수 문항이 아니면 비워두세요)
-                <select
-                  value={modal.form.code}
-                  onChange={(event) => updateForm({ code: event.target.value as FormState['code'] })}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+            {enlargedImage ? (
+              <div className="relative flex min-h-64 flex-col items-center justify-center">
+                {/* Modal은 컨텐츠 안의 첫 heading을 찾아 dialog의 aria-labelledby로 연결한다 - 폼
+                화면(문항 수정/추가)에는 h2가 있는데 이 확대 화면엔 없으면, 전환하는 순간 dialog의
+                접근 가능한 이름이 사라진다(2026-08-20 외부 리뷰에서 지적). 시각적으로는 필요 없어
+                sr-only로 감추되, Modal이 인식할 heading 자체는 남긴다. */}
+                <h2 className="sr-only">예시 이미지 확대 보기</h2>
+                <button
+                  type="button"
+                  onClick={() => setEnlargedImageId(null)}
+                  aria-label="닫기"
+                  className="absolute right-2 top-2 z-10 rounded-full bg-slate-950/50 p-1.5 text-white transition hover:bg-slate-950/70"
                 >
-                  <option value={NONE_CODE}>없음</option>
-                  {Object.entries(CODE_LABEL).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="text-xs font-bold text-slate-600">
-                적용 매물유형 (선택 안 하면 전체 매물유형에 적용)
-                <div className="mt-1 flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                  {Object.entries(propertyTypeLabelMap).map(([value, label]) => {
-                    const propertyType = value as PropertyTypeDto;
-                    const checked = modal.form.applicablePropertyTypes.includes(propertyType);
-                    return (
-                      <label key={value} className="flex items-center gap-1.5 font-normal text-slate-700">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={(event) =>
-                            updateForm({
-                              applicablePropertyTypes: event.target.checked
-                                ? [...modal.form.applicablePropertyTypes, propertyType]
-                                : modal.form.applicablePropertyTypes.filter((t) => t !== propertyType),
-                            })
-                          }
-                        />
-                        {label}
-                      </label>
-                    );
-                  })}
-                </div>
-                {modal.form.unknownPropertyTypeTokens.length > 0 && (
-                  <p className="mt-1.5 text-xs text-amber-600">
-                    알 수 없는 매물유형 값이 있어 그대로 유지됩니다: {modal.form.unknownPropertyTypeTokens.join(', ')}
-                  </p>
-                )}
-              </div>
-
-              {modal.type === 'edit' && (
-                <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
-                  <input
-                    type="checkbox"
-                    checked={modal.form.active}
-                    onChange={(event) => updateForm({ active: event.target.checked })}
-                  />
-                  새 체크리스트 생성 시 이 문항 노출
-                </label>
-              )}
-
-              {modal.type === 'edit' && (
-                <div className="border-t border-slate-200 pt-3">
-                  <p className="mb-2 text-xs font-bold text-slate-600">
-                    예시 이미지 (선택 - 이미 S3 등에 업로드된 이미지의 URL만 등록, 파일 업로드는 지원 안 함)
-                  </p>
-                  {imagesLoading && <p className="text-xs text-slate-400">불러오는 중...</p>}
-                  {!imagesLoading && images.length === 0 && (
-                    <p className="text-xs text-slate-400">등록된 예시 이미지가 없습니다.</p>
-                  )}
-                  {images.length > 0 && (
-                    <ul className="mb-2 space-y-2">
-                      {images.map((image) => (
-                        <li key={image.id} className="flex items-center gap-2">
-                          {/* eslint-disable-next-line @next/next/no-img-element -- 관리자가 임의 URL을
-                          입력해 next.config.js 허용 호스트 목록에 없을 수 있어 next/image로 최적화 불가 */}
-                          <img
-                            src={image.imageUrl}
-                            alt=""
-                            className="h-10 w-10 shrink-0 rounded-lg border border-slate-200 object-cover"
-                          />
-                          <span className="flex-1 truncate text-xs text-slate-500">{image.imageUrl}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteImage(image.id)}
-                            disabled={imageActionPending}
-                            className="shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                          >
-                            삭제
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newImageUrl}
-                      onChange={(event) => setNewImageUrl(event.target.value)}
-                      placeholder="이미지 URL 붙여넣기"
-                      disabled={imageActionPending}
-                      className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
-                    />
+                  <X className="h-5 w-5" />
+                </button>
+                {/* eslint-disable-next-line @next/next/no-img-element -- 관리자가 임의 URL을 입력해
+                next.config.js 허용 호스트 목록에 없을 수 있어 next/image로 최적화 불가 */}
+                <img
+                  src={enlargedImage.imageUrl}
+                  alt={`예시 이미지 ${enlargedIndex + 1} 확대`}
+                  className="max-h-96 max-w-full rounded-lg object-contain"
+                />
+                {images.length > 1 && (
+                  <>
                     <button
                       type="button"
-                      onClick={handleAddImage}
-                      disabled={imageActionPending || !newImageUrl.trim()}
-                      className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                      onClick={() => setEnlargedImageId(images[(enlargedIndex - 1 + images.length) % images.length].id)}
+                      aria-label="이전 사진"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-slate-950/50 p-1.5 text-white transition hover:bg-slate-950/70"
                     >
-                      추가
+                      <ChevronLeft className="h-5 w-5" />
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setEnlargedImageId(images[(enlargedIndex + 1) % images.length].id)}
+                      aria-label="다음 사진"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-slate-950/50 p-1.5 text-white transition hover:bg-slate-950/70"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                    <p aria-live="polite" className="mt-2 text-center text-xs text-slate-400">
+                      {enlargedIndex + 1} / {images.length}
+                    </p>
+                  </>
+                )}
+              </div>
+            ) : (
+              <>
+                <h2 className="mb-4 text-lg font-bold text-slate-950">
+                  {modal.type === 'create' ? '문항 추가' : '문항 수정'}
+                </h2>
+
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="text-xs font-bold text-slate-600">
+                      카테고리
+                      <select
+                        value={modal.form.category}
+                        onChange={(event) => updateForm({ category: event.target.value as ChecklistCategoryDto })}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                      >
+                        {Object.entries(CATEGORY_LABEL).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-xs font-bold text-slate-600">
+                      중요도
+                      <select
+                        value={modal.form.importance}
+                        onChange={(event) => updateForm({ importance: event.target.value as ChecklistImportanceDto })}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                      >
+                        {Object.entries(IMPORTANCE_LABEL).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
-                  {imagesError && <p className="mt-1.5 text-xs text-red-600">{imagesError}</p>}
+
+                  <label className="block text-xs font-bold text-slate-600">
+                    문항 내용 ({modal.form.content.length}/{CONTENT_MAX_LENGTH}자)
+                    <input
+                      value={modal.form.content}
+                      onChange={(event) => updateForm({ content: event.target.value })}
+                      placeholder="예: 창문 잠금장치가 정상 작동하나요?"
+                      maxLength={CONTENT_MAX_LENGTH}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                    />
+                  </label>
+
+                  <label className="block text-xs font-bold text-slate-600">
+                    안내 문구 (선택 - 실무 안내, 짧게, {modal.form.guideText.length}/{GUIDE_TEXT_MAX_LENGTH}자)
+                    <textarea
+                      value={modal.form.guideText}
+                      onChange={(event) => updateForm({ guideText: event.target.value })}
+                      rows={2}
+                      maxLength={GUIDE_TEXT_MAX_LENGTH}
+                      className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                    />
+                  </label>
+
+                  <label className="block text-xs font-bold text-slate-600">
+                    쉬운 설명 (선택 - 부동산 지식이 없어도 이해할 수 있게 풀어쓴 설명, 사용자 화면에 노출됨)
+                    <textarea
+                      value={modal.form.helperText}
+                      onChange={(event) => updateForm({ helperText: event.target.value })}
+                      rows={4}
+                      className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                    />
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="text-xs font-bold text-slate-600">
+                      응답 방식
+                      <select
+                        value={modal.form.itemType}
+                        onChange={(event) => {
+                          const nextItemType = event.target.value as ChecklistItemTypeDto;
+                          // code는 특정 itemType에서만 쓸 수 있다(CODE_REQUIRED_ITEM_TYPES 참고) - 응답
+                          // 방식을 바꿔서 지금 선택된 code와 더 이상 호환되지 않으면, 저장 시점에야
+                          // 에러로 알리는 대신 여기서 바로 "없음"으로 되돌려 애초에 비호환 조합이
+                          // 화면에 남지 않게 한다.
+                          const codeStillValid = isCodeCompatibleWithItemType(modal.form.code, nextItemType);
+                          updateForm({ itemType: nextItemType, code: codeStillValid ? modal.form.code : NONE_CODE });
+                        }}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                      >
+                        {Object.entries(ITEM_TYPE_LABEL).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-xs font-bold text-slate-600">
+                      노출 순서
+                      <input
+                        type="number"
+                        min={1}
+                        value={modal.form.displayOrder}
+                        onChange={(event) => updateForm({ displayOrder: event.target.value })}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                      />
+                    </label>
+                  </div>
+
+                  {modal.form.itemType === 'MULTIPLE_CHOICE' && (
+                    <label className="block text-xs font-bold text-slate-600">
+                      선택지 (콤마로 구분, 예: 가스보일러,기름보일러,전기보일러,지역난방)
+                      <input
+                        type="text"
+                        value={modal.form.options}
+                        onChange={(event) => updateForm({ options: event.target.value })}
+                        maxLength={OPTIONS_MAX_LENGTH}
+                        className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                      />
+                    </label>
+                  )}
+
+                  <label className="block text-xs font-bold text-slate-600">
+                    자동 판정 코드 (선택 - 특수 문항이 아니면 비워두세요)
+                    <select
+                      value={modal.form.code}
+                      onChange={(event) => updateForm({ code: event.target.value as FormState['code'] })}
+                      className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                    >
+                      <option value={NONE_CODE}>없음</option>
+                      {Object.entries(CODE_LABEL).map(([value, label]) => {
+                        const code = value as ChecklistItemCodeDto;
+                        const compatible = isCodeCompatibleWithItemType(code, modal.form.itemType);
+                        return (
+                          <option key={value} value={value} disabled={!compatible}>
+                            {compatible
+                              ? label
+                              : `${label} (응답 방식을 ${CODE_REQUIRED_ITEM_TYPES[code]!.map((type) => ITEM_TYPE_LABEL[type]).join('/')}(으)로 바꿔야 선택 가능)`}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+
+                  <fieldset className="m-0 border-0 p-0 text-xs font-bold text-slate-600">
+                    <legend className="p-0 text-xs font-bold text-slate-600">
+                      적용 매물유형 (선택 안 하면 전체 매물유형에 적용)
+                    </legend>
+                    <div className="mt-1 flex flex-wrap gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      {Object.entries(propertyTypeLabelMap).map(([value, label]) => {
+                        const propertyType = value as PropertyTypeDto;
+                        const checked = modal.form.applicablePropertyTypes.includes(propertyType);
+                        return (
+                          <label key={value} className="flex items-center gap-1.5 font-normal text-slate-700">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(event) =>
+                                updateForm({
+                                  applicablePropertyTypes: event.target.checked
+                                    ? [...modal.form.applicablePropertyTypes, propertyType]
+                                    : modal.form.applicablePropertyTypes.filter((t) => t !== propertyType),
+                                })
+                              }
+                            />
+                            {label}
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {modal.form.unknownPropertyTypeTokens.length > 0 && (
+                      <p className="mt-1.5 text-xs text-amber-700" role="alert">
+                        알 수 없는 매물유형 값이 있어 그대로 유지됩니다:{' '}
+                        {modal.form.unknownPropertyTypeTokens.join(', ')}
+                      </p>
+                    )}
+                  </fieldset>
+
+                  {modal.type === 'edit' && (
+                    <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+                      <input
+                        type="checkbox"
+                        checked={modal.form.active}
+                        onChange={(event) => updateForm({ active: event.target.checked })}
+                      />
+                      새 체크리스트 생성 시 이 문항 노출
+                    </label>
+                  )}
+
+                  {modal.type === 'edit' && (
+                    <div className="border-t border-slate-200 pt-3">
+                      <p className="mb-2 text-xs font-bold text-slate-600">
+                        예시 이미지 (선택 - 이미 S3 등에 업로드된 이미지의 URL만 등록, 파일 업로드는 지원 안 함)
+                      </p>
+                      {imagesLoading && <p className="text-xs text-slate-400">불러오는 중...</p>}
+                      {!imagesLoading && images.length === 0 && (
+                        <p className="text-xs text-slate-400">등록된 예시 이미지가 없습니다.</p>
+                      )}
+                      {images.length > 0 && (
+                        <ul className="mb-2 space-y-2">
+                          {images.map((image, index) => (
+                            <li key={image.id} className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                ref={(el) => {
+                                  if (el) enlargeTriggerButtonRefs.current.set(image.id, el);
+                                  else enlargeTriggerButtonRefs.current.delete(image.id);
+                                }}
+                                onClick={() => setEnlargedImageId(image.id)}
+                                // 삭제 요청이 진행 중인 동안 다른 사진을 확대하면, 그 요청이 끝나
+                                // 목록이 바뀌었을 때 확대 뷰가 예상 밖으로 갱신될 여지가 생긴다
+                                // (id 기반 추적으로 실제 오동작은 막혀 있지만, 애초에 진행 중인
+                                // 변경이 끝날 때까지 새 확대를 막는 편이 더 안전하다).
+                                disabled={imageActionPending}
+                                aria-label={`예시 이미지 ${index + 1} 확대`}
+                                className="shrink-0 disabled:opacity-50"
+                              >
+                                {/* eslint-disable-next-line @next/next/no-img-element -- 관리자가 임의 URL을
+                            입력해 next.config.js 허용 호스트 목록에 없을 수 있어 next/image로 최적화 불가 */}
+                                <img
+                                  src={image.imageUrl}
+                                  alt={`예시 이미지 ${index + 1}`}
+                                  className="h-10 w-10 rounded-lg border border-slate-200 object-cover"
+                                />
+                              </button>
+                              <span className="flex-1 truncate text-xs text-slate-500">{image.imageUrl}</span>
+                              {imagePendingDeleteId === image.id ? (
+                                <span className="flex shrink-0 items-center gap-1">
+                                  <span className="text-xs font-bold text-red-600">정말 삭제할까요?</span>
+                                  <button
+                                    type="button"
+                                    ref={confirmDeleteButtonRef}
+                                    onClick={() => handleDeleteImage(image.id)}
+                                    disabled={imageActionPending}
+                                    className="shrink-0 rounded-lg bg-red-600 px-2 py-1 text-xs font-bold text-white disabled:opacity-50"
+                                  >
+                                    삭제
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setImagePendingDeleteId(null)}
+                                    disabled={imageActionPending}
+                                    className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                                  >
+                                    취소
+                                  </button>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  ref={(el) => {
+                                    if (el) deleteTriggerButtonRefs.current.set(image.id, el);
+                                    else deleteTriggerButtonRefs.current.delete(image.id);
+                                  }}
+                                  onClick={() => setImagePendingDeleteId(image.id)}
+                                  disabled={imageActionPending}
+                                  className="shrink-0 rounded-lg border border-red-200 px-2 py-1 text-xs font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                >
+                                  삭제
+                                </button>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          ref={newImageUrlInputRef}
+                          value={newImageUrl}
+                          onChange={(event) => setNewImageUrl(event.target.value)}
+                          placeholder="이미지 URL 붙여넣기"
+                          disabled={imageActionPending}
+                          className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddImage}
+                          disabled={imageActionPending || !newImageUrl.trim()}
+                          className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                        >
+                          추가
+                        </button>
+                      </div>
+                      {imagesError && (
+                        <p className="mt-1.5 text-xs text-red-600" role="alert">
+                          {imagesError}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
+                {formError && (
+                  <p className="mt-3 text-sm text-red-600" role="alert">
+                    {formError}
+                  </p>
+                )}
 
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                onClick={closeModal}
-                disabled={submitting}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
-              >
-                취소
-              </button>
-              <button
-                onClick={submitForm}
-                disabled={submitting}
-                className="ansim-button-primary px-4 py-2 text-sm disabled:opacity-50"
-              >
-                저장
-              </button>
-            </div>
+                <div className="mt-4 flex justify-end gap-2">
+                  <button
+                    onClick={closeModal}
+                    disabled={submitting || imageActionPending}
+                    className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 disabled:opacity-50"
+                  >
+                    취소
+                  </button>
+                  <button
+                    onClick={submitForm}
+                    disabled={submitting || imageActionPending}
+                    className="ansim-button-primary px-4 py-2 text-sm disabled:opacity-50"
+                  >
+                    저장
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </Modal>

@@ -17,6 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { apiStatusToneClassMap, getJeonseRatioTone, riskSignalTypeMeta } from '../../../data/risk-analysis';
+import { formatAreaWithPyeong } from '../../../lib/numberFormat';
 import { roomTypeLabelMap } from '../../../mappers/property';
 import { deleteProperty } from '../../../services/properties';
 import { type DepositSafetyCheck, type PropertyDetail, type RiskSignalList } from '../../../types/domain';
@@ -210,7 +211,7 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
 
             <div className="mb-10 grid grid-cols-2 gap-6 md:grid-cols-3">
               {[
-                [Maximize, '전용면적', property.area ? `${property.area}㎡` : '정보 없음'],
+                [Maximize, '전용면적', property.area ? formatAreaWithPyeong(property.area) : '정보 없음'],
                 [Calendar, '등록일', property.createdAt ?? '정보 없음'],
               ].map(([Icon, label, value]) => {
                 const TypedIcon = Icon as typeof Maximize;

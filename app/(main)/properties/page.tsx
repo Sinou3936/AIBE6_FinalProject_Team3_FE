@@ -47,6 +47,7 @@ function PropertiesPageContent() {
   const minMonthlyRent = searchParams.get('minMonthlyRent') ?? undefined;
   const maxMonthlyRent = searchParams.get('maxMonthlyRent') ?? undefined;
   const sortParam = searchParams.get('sort') ?? undefined;
+  const hasSignalParam = searchParams.get('hasSignal') ?? undefined;
   const pageParam = searchParams.get('page') ?? undefined;
 
   // 잘못되거나 없는 page 값은 0페이지로 취급 - URL을 직접 건드려도 안전하게 첫 페이지를 보여준다.
@@ -69,6 +70,8 @@ function PropertiesPageContent() {
     minMonthlyRent: parsePositiveNumber(minMonthlyRent),
     maxMonthlyRent: parsePositiveNumber(maxMonthlyRent),
     sort: sortParam && VALID_SORT_VALUES.includes(sortParam) ? sortParam : undefined,
+    // false는 "필터 없음"과 동일하게 취급 - true일 때만 조건으로 넘긴다.
+    hasSignal: hasSignalParam === 'true' ? true : undefined,
   };
 
   const [propertyPage, setPropertyPage] = useState<PropertyListPage>(emptyPage);

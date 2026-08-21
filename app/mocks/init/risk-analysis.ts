@@ -9,6 +9,14 @@ export const initRiskSignalListDto: RiskSignalListDto = {
       status: 'SUCCESS',
       reason: null,
       description: '주변 시세보다 15% 낮은 가격으로 등록되어 있어요.',
+      // Backend RiskSignalResponse.PRICE_ANOMALY_ACTIONS와 동일한 문구를 그대로 흉내낸다.
+      recommendedActions: [
+        '동일 지역 최근 실거래가 확인',
+        '등기부등본 확인',
+        '주변 동일 면적 매물 가격 비교',
+        '중개사에게 가격이 낮은 이유 확인',
+        '옵션/관리비 등 추가 비용 확인',
+      ],
       checkedAt: '2026-07-30T09:00:00',
     },
     {
@@ -16,6 +24,7 @@ export const initRiskSignalListDto: RiskSignalListDto = {
       status: 'SUCCESS',
       reason: null,
       description: '동일한 주소로 등록된 다른 매물이 있어요.',
+      recommendedActions: [],
       checkedAt: '2026-07-30T09:00:00',
     },
     {
@@ -26,6 +35,7 @@ export const initRiskSignalListDto: RiskSignalListDto = {
       status: 'SUCCESS',
       reason: null,
       description: null,
+      recommendedActions: [],
       checkedAt: '2026-07-30T09:00:00',
     },
     {
@@ -33,6 +43,7 @@ export const initRiskSignalListDto: RiskSignalListDto = {
       status: 'UNDETERMINABLE',
       reason: 'ADDRESS_INFO_MISSING',
       description: null,
+      recommendedActions: [],
       checkedAt: '2026-07-30T09:00:00',
     },
   ],
@@ -54,6 +65,9 @@ export const initDepositSafetyCheckDto: DepositSafetyCheckDto = {
   calculatedAt: '2026-07-30T09:00:00',
   disclaimer: '확정 판단이 아닌 참고용 정보이며, 법률·등기 검토를 대체하지 않습니다.',
   recentOwnershipChangeWarning: true,
+  // 위 initRiskSignalListDto에 PRICE_ANOMALY 신호가 이미 있어, 목업 모드에서도 이 경고가
+  // 실제로 렌더링되는 걸 확인할 수 있도록 true로 채운다.
+  priceAnomalyWarning: true,
   cautionFrom: 80,
   warnFrom: 100,
   warnTo: 150,

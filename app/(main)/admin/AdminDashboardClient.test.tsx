@@ -1,10 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { type AdminDashboardStatsDto } from '../../types/api';
 import { AdminDashboardClient, buildTrendData } from './AdminDashboardClient';
 
+const push = vi.fn();
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push }),
 }));
 
 // Recharts의 ResponsiveContainer가 jsdom에 없는 ResizeObserver를 요구한다 - 이 파일에서만
@@ -97,5 +98,57 @@ describe('AdminDashboardClient', () => {
     );
 
     expect(screen.queryByText('선택한 기간에 가입한 사람이 없습니다.')).not.toBeInTheDocument();
+  });
+
+  it('선택한 기간에 접수된 신고가 없으면 막대그래프 대신 빈 상태 안내를 보여준다', () => {
+    render(
+      <AdminDashboardClient stats={stats({ byReportReason: [] })} startDate="2026-01-01" endDate="2026-01-14" />,
+    );
+
+    expect(screen.getByText('신고 데이터가 없습니다.')).toBeInTheDocument();
+  });
+
+  it('신고 데이터가 있으면 빈 상태 안내 대신 막대그래프를 보여준다', () => {
+    render(
+      <AdminDashboardClient
+        stats={stats({ byReportReason: [{ reason: 'PRICE_MISMATCH', count: 3 }] })}
+        startDate="2026-01-01"
+        endDate="2026-01-14"
+      />,
+    );
+
+    expect(screen.queryByText('신고 데이터가 없습니다.')).not.toBeInTheDocument();
+  });
+
+  it('로딩 실패 시 loadError 메시지를 보여주고 통계 영역은 렌더링하지 않는다', () => {
+    render(<AdminDashboardClient loadError="통계를 불러오지 못했습니다." startDate="2026-01-01" endDate="2026-01-14" />);
+
+    expect(screen.getByText('통계를 불러오지 못했습니다.')).toBeInTheDocument();
+    expect(screen.queryByText('신규 가입자')).not.toBeInTheDocument();
+  });
+
+  it('기간을 바꾸고 조회를 누르면 startDate/endDate 쿼리로 /admin에 push한다', () => {
+    render(<AdminDashboardClient stats={stats()} startDate="2026-01-01" endDate="2026-01-14" />);
+
+    fireEvent.change(screen.getByLabelText('시작일'), { target: { value: '2026-02-01' } });
+    fireEvent.change(screen.getByLabelText('종료일'), { target: { value: '2026-02-14' } });
+    fireEvent.click(screen.getByRole('button', { name: '조회' }));
+
+    expect(push).toHaveBeenCalledWith('/admin?startDate=2026-02-01&endDate=2026-02-14');
+  });
+
+  // 뒤로가기/앞으로가기로 startDate/endDate prop만 바뀌고 컴포넌트가 언마운트되지 않는 경우를
+  // 재현한다 - 날짜 입력창의 로컬 state가 새 prop으로 재동기화돼야 한다.
+  it('startDate/endDate prop이 바뀌면(뒤로가기 등) 날짜 입력창 값도 갱신된다', () => {
+    const { rerender } = render(
+      <AdminDashboardClient stats={stats()} startDate="2026-01-01" endDate="2026-01-14" />,
+    );
+
+    expect((screen.getByLabelText('시작일') as HTMLInputElement).value).toBe('2026-01-01');
+
+    rerender(<AdminDashboardClient stats={stats()} startDate="2026-02-01" endDate="2026-02-14" />);
+
+    expect((screen.getByLabelText('시작일') as HTMLInputElement).value).toBe('2026-02-01');
+    expect((screen.getByLabelText('종료일') as HTMLInputElement).value).toBe('2026-02-14');
   });
 });

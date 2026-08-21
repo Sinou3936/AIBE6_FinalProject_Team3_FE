@@ -34,6 +34,7 @@ export function mapRiskSignalDto(dto: RiskSignalDto): RiskSignal {
     status: statusMap[dto.status],
     reasonText: dto.reason ? riskCheckReasonCopy[dto.reason] : null,
     description: dto.description,
+    recommendedActions: dto.recommendedActions,
     checkedAt: dto.checkedAt,
   };
 }
@@ -69,6 +70,7 @@ export function mapDepositSafetyCheckDto(dto: DepositSafetyCheckDto): DepositSaf
     calculatedAt: dto.calculatedAt,
     disclaimer: dto.disclaimer,
     recentOwnershipChangeWarning: dto.recentOwnershipChangeWarning,
+    priceAnomalyWarning: dto.priceAnomalyWarning,
     cautionFrom: dto.cautionFrom,
     warnFrom: dto.warnFrom,
     warnTo: dto.warnTo,

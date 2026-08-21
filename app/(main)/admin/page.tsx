@@ -32,11 +32,25 @@ function AdminPageContent() {
   const [loadError, setLoadError] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
 
+  // URL을 직접 조작(예: ?startDate=2026-09-01&endDate=2026-08-01)하면 폼의 min/max 검증을 거치지
+  // 않고 이 값이 바로 여기까지 들어온다 - 검증 없이 그대로 조회하면 eachDate()의 while(cursor <= end)
+  // 조건이 첫 반복부터 거짓이 되어 추이/분포가 전부 빈 배열로 나오고, 화면은 이걸 "그 기간에 데이터
+  // 없음"과 구분 없이 똑같이 보여준다 - 관리자는 기간 자체가 잘못됐다는 걸 알 방법이 없다.
+  const invalidRange = startDate > endDate;
+
   useEffect(() => {
     let cancelled = false;
+    if (invalidRange) {
+      // startDate/endDate가 바뀌어 이 effect가 재실행될 때만 의미 있는 재설정이다 - 잘못된 기간을
+      // 알려야 하므로 의도적으로 동기 호출한다.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoadError('조회 시작일이 종료일보다 늦습니다. 기간을 다시 선택해주세요.');
+      setStats(undefined);
+      setLoading(false);
+      return;
+    }
     // startDate/endDate가 바뀌어 이 effect가 재실행될 때만 의미 있는 재설정이다(최초 실행 시
     // 초기값과 동일) - 조회 기간 변경 시 새 로딩 상태를 보여줘야 하므로 의도적으로 동기 호출한다.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     getAdminDashboardStats({ startDate, endDate })
       .then((data) => {
@@ -55,12 +69,13 @@ function AdminPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [startDate, endDate]);
+  }, [startDate, endDate, invalidRange]);
 
   if (loading) {
     return (
       <div className="flex min-h-[30vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+        <span className="sr-only">로딩 중</span>
       </div>
     );
   }
@@ -74,6 +89,7 @@ export default function AdminPage() {
       fallback={
         <div className="flex min-h-[30vh] items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+          <span className="sr-only">로딩 중</span>
         </div>
       }
     >

@@ -121,6 +121,19 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
     }
   };
 
+  // 인증 완료 후 readOnly가 되는 이메일 입력은 사용자가 직접 값을 고칠 방법이 없다 - 오타 있는
+  // 주소를 인증까지 마쳐버리면(예: jane@gmial.com처럼 패턴 자체는 유효한 오타) 새로고침 말고는
+  // 되돌릴 방법이 없어 비밀번호/닉네임 입력값까지 다 날아갔다. 인증 상태만 초기화해 입력을 다시
+  // 열어준다 - 다른 필드 값은 그대로 둔다.
+  const handleChangeEmail = () => {
+    verifiedEmailRef.current = '';
+    codeTargetEmailRef.current = '';
+    setEmailVerificationStatus('idle');
+    setEmailVerificationError(undefined);
+    setVerificationCode('');
+    setResendCooldown(0);
+  };
+
   const handleConfirmEmailVerification = async () => {
     if (verificationCode.trim().length !== 6 || emailVerificationStatus === 'verifying') return;
 
@@ -239,6 +252,7 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
               value={verificationCode}
               onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="6자리 인증번호"
+              autoComplete="one-time-code"
               maxLength={6}
             />
             <button
@@ -252,9 +266,22 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
           </div>
         )}
         {emailVerificationStatus === 'verified' && (
-          <p className="mt-1.5 text-sm font-bold text-teal-700">이메일 인증이 완료되었습니다.</p>
+          <p className="mt-1.5 flex items-center gap-2 text-sm font-bold text-teal-700" role="alert">
+            이메일 인증이 완료되었습니다.
+            <button
+              type="button"
+              onClick={handleChangeEmail}
+              className="font-bold text-slate-500 underline hover:text-slate-700"
+            >
+              이메일 변경
+            </button>
+          </p>
         )}
-        {emailVerificationError && <p className="mt-1.5 text-sm text-red-600">{emailVerificationError}</p>}
+        {emailVerificationError && (
+          <p className="mt-1.5 text-sm text-red-600" role="alert">
+            {emailVerificationError}
+          </p>
+        )}
       </label>
       <label className="block">
         <span className="mb-1.5 block text-sm font-bold text-slate-700">비밀번호</span>
@@ -284,7 +311,11 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
           autoComplete="new-password"
           required
         />
-        {passwordMismatch && <p className="mt-1 text-sm text-red-600">비밀번호가 일치하지 않습니다.</p>}
+        {passwordMismatch && (
+          <p role="alert" className="mt-1 text-sm text-red-600">
+            비밀번호가 일치하지 않습니다.
+          </p>
+        )}
       </label>
       <label className="block">
         <span className="mb-1.5 block text-sm font-bold text-slate-700">닉네임</span>
@@ -315,21 +346,45 @@ export function SignupFormClient({ passwordPolicy, nicknamePolicy }: SignupFormC
           </button>
         </div>
         {nicknameCheckStatus === 'available' && (
-          <p className="mt-1.5 text-sm font-bold text-teal-700">사용 가능한 닉네임입니다.</p>
+          <p className="mt-1.5 text-sm font-bold text-teal-700" role="alert">
+            사용 가능한 닉네임입니다.
+          </p>
         )}
         {nicknameCheckStatus === 'duplicate' && (
-          <p className="mt-1.5 text-sm font-bold text-red-600">이미 사용 중인 닉네임입니다.</p>
+          <p className="mt-1.5 text-sm font-bold text-red-600" role="alert">
+            이미 사용 중인 닉네임입니다.
+          </p>
         )}
-        {nicknameCheckStatus === 'invalid' && <p className="mt-1.5 text-sm text-red-600">{nicknamePolicy.message}</p>}
+        {nicknameCheckStatus === 'invalid' && (
+          <p className="mt-1.5 text-sm text-red-600" role="alert">
+            {nicknamePolicy.message}
+          </p>
+        )}
         {nicknameCheckStatus === 'error' && (
-          <p className="mt-1.5 text-sm text-red-600">닉네임 확인에 실패했습니다. 다시 시도해 주세요.</p>
+          <p className="mt-1.5 text-sm text-red-600" role="alert">
+            닉네임 확인에 실패했습니다. 다시 시도해 주세요.
+          </p>
         )}
         {nicknameRequiredError && nicknameCheckStatus === 'idle' && (
-          <p className="mt-1.5 text-sm font-bold text-red-600">닉네임 중복 확인을 먼저 진행해 주세요.</p>
+          <p className="mt-1.5 text-sm font-bold text-red-600" role="alert">
+            닉네임 중복 확인을 먼저 진행해 주세요.
+          </p>
+        )}
+        {/* 회귀 테스트(2026-08-20) - 중복확인이 진행 중(checking)일 때 바로 회원가입을 누르면
+            handleSubmit이 제출은 막지만, 안내 문구는 idle 상태에서만 렌더링돼 아무 설명 없이
+            버튼만 조용히 무반응이었다. checking 상태 전용 문구를 추가해 이 경우도 알려준다. */}
+        {nicknameRequiredError && nicknameCheckStatus === 'checking' && (
+          <p className="mt-1.5 text-sm font-bold text-red-600" role="alert">
+            닉네임 중복 확인이 끝난 후 다시 시도해 주세요.
+          </p>
         )}
       </label>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      )}
 
       <button
         type="submit"

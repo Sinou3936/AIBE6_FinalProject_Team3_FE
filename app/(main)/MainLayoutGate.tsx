@@ -35,39 +35,65 @@ export default function MainLayoutGate({ children }: { children: ReactNode }) {
     locationRef.current = { pathname, searchParams };
   }, [pathname, searchParams]);
 
+  // 뒤로가기/앞으로가기가 항상 이 컴포넌트를 새로 마운트시키는 건 아니다 - 일부 브라우저는
+  // bfcache로 페이지 전체(JS 힙 포함)를 그대로 보존했다가 복원한다(pageshow의
+  // event.persisted === true). 이 컴포넌트는 마운트당 1회만 확인하도록 설계돼 있어(위 주석
+  // 참고), bfcache로 복원되면 그 사이 다른 탭에서 로그아웃했거나 세션이 만료됐어도 재확인 없이
+  // 낡은 'ready' 상태를 그대로 보여준다 - pageshow에서 한 번 더 확인해 이 간극을 막는다.
+  const checkControllerRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     let cancelled = false;
-    // 뒤로가기 등으로 이 컴포넌트 자체가 언마운트되면 진행 중이던 GET /auth/me(및 401 이후의
-    // refresh-then-retry)를 실제로 중단시킨다. abort하지 않으면 이미 이 화면을 떠난 뒤에도 응답이
-    // 뒤늦게 도착해 requestJson 내부에서 redirectToSessionRecover()가 실행 시점의
-    // window.location(=이미 이동해버린 새 페이지)을 그대로 읽어 그 페이지를 강제로 세션 만료
-    // 처리해버리는 문제가 있었다.
-    const controller = new AbortController();
 
-    getCurrentUser(undefined, controller.signal)
-      .then((me) => {
-        if (cancelled) return;
-        setState({ status: 'ready', nickname: me.nickname, profileImageUrl: me.profileImageUrl, isAdmin: me.role === 'ADMIN' });
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        // 'rejected'(세션이 확실히 무효) 케이스는 requestJson이 이미 window.location.href로
-        // session-recover로 이동시키는 중이라 여기 도달하지 않는다(다시는 resolve/reject되지
-        // 않는 Promise). 여기 도달하는 건 최초 GET /auth/me 자체가 실패했거나(네트워크 오류,
-        // CORS 차단 등 - refresh 단계까지 가지도 못함) 401 이후 refresh 시도가 막힌 경우뿐이다 -
-        // 둘 다 isUnreachableError로 함께 판단해야 진짜 네트워크 장애를 "세션 만료"로 잘못
-        // 안내하지 않는다.
-        const { pathname: currentPathname, searchParams: currentSearchParams } = locationRef.current;
-        const next = currentPathname + (currentSearchParams.toString() ? `?${currentSearchParams.toString()}` : '');
-        const errorParam = isUnreachableError(error) ? 'session_unavailable' : 'session_expired';
-        window.location.href = `/login?error=${errorParam}&next=${encodeURIComponent(next)}`;
-      });
+    function checkSession() {
+      // 뒤로가기 등으로 이 컴포넌트 자체가 언마운트되면(또는 bfcache 복원으로 재확인이 시작되면)
+      // 진행 중이던 GET /auth/me(및 401 이후의 refresh-then-retry)를 실제로 중단시킨다. abort하지
+      // 않으면 이미 이 화면을 떠난 뒤에도 응답이 뒤늦게 도착해 requestJson 내부에서
+      // redirectToSessionRecover()가 실행 시점의 window.location(=이미 이동해버린 새 페이지)을
+      // 그대로 읽어 그 페이지를 강제로 세션 만료 처리해버리는 문제가 있었다.
+      checkControllerRef.current?.abort();
+      const controller = new AbortController();
+      checkControllerRef.current = controller;
+      // bfcache 복원으로 재확인이 시작되면(이미 'ready' 상태였더라도) 확인이 끝날 때까지 낡은
+      // 화면 대신 로딩 상태를 보여준다 - 재확인 자체가 짧게 끝나는 정상 케이스가 대부분이라
+      // 깜빡임은 미미하지만, 그 사이 세션이 실제로 바뀌었을 가능성을 놓치지 않는 쪽을 택한다.
+      setState((current) => (current.status === 'ready' ? { status: 'checking' } : current));
+
+      getCurrentUser(undefined, controller.signal)
+        .then((me) => {
+          if (cancelled || controller.signal.aborted) return;
+          setState({ status: 'ready', nickname: me.nickname, profileImageUrl: me.profileImageUrl, isAdmin: me.role === 'ADMIN' });
+        })
+        .catch((error) => {
+          if (cancelled || controller.signal.aborted) return;
+          // 'rejected'(세션이 확실히 무효) 케이스는 requestJson이 이미 window.location.href로
+          // session-recover로 이동시키는 중이라 여기 도달하지 않는다(다시는 resolve/reject되지
+          // 않는 Promise). 여기 도달하는 건 최초 GET /auth/me 자체가 실패했거나(네트워크 오류,
+          // CORS 차단 등 - refresh 단계까지 가지도 못함) 401 이후 refresh 시도가 막힌 경우뿐이다 -
+          // 둘 다 isUnreachableError로 함께 판단해야 진짜 네트워크 장애를 "세션 만료"로 잘못
+          // 안내하지 않는다.
+          const { pathname: currentPathname, searchParams: currentSearchParams } = locationRef.current;
+          const next = currentPathname + (currentSearchParams.toString() ? `?${currentSearchParams.toString()}` : '');
+          const errorParam = isUnreachableError(error) ? 'session_unavailable' : 'session_expired';
+          window.location.href = `/login?error=${errorParam}&next=${encodeURIComponent(next)}`;
+        });
+    }
+
+    function handlePageShow(event: PageTransitionEvent) {
+      if (event.persisted) {
+        checkSession();
+      }
+    }
+
+    checkSession();
+    window.addEventListener('pageshow', handlePageShow);
 
     return () => {
       cancelled = true;
-      controller.abort();
+      window.removeEventListener('pageshow', handlePageShow);
+      checkControllerRef.current?.abort();
     };
-    // 의도적으로 마운트당 1회만 실행한다(위 주석 참고) - pathname/searchParams는 실패 시에만
+    // 의도적으로 마운트당 1회만 리스너를 건다(위 주석 참고) - pathname/searchParams는 실패 시에만
     // locationRef로 읽으므로 의존성에 넣을 필요가 없다.
   }, []);
 
@@ -75,6 +101,7 @@ export default function MainLayoutGate({ children }: { children: ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
+        <span className="sr-only">로그인 확인 중</span>
       </div>
     );
   }

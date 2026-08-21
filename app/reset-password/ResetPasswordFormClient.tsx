@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { resolveErrorMessage } from '../lib/resolveErrorMessage';
 import { confirmPasswordReset } from '../services/auth';
 import { type PasswordPolicyDto } from '../types/api';
@@ -17,6 +17,7 @@ export function ResetPasswordFormClient({ token, passwordPolicy }: ResetPassword
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string>();
+  const confirmPasswordRef = useRef<HTMLInputElement>(null);
 
   const passwordMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
 
@@ -24,7 +25,12 @@ export function ResetPasswordFormClient({ token, passwordPolicy }: ResetPassword
     event.preventDefault();
     if (isSubmitting) return;
 
-    if (newPassword !== confirmPassword) return;
+    if (newPassword !== confirmPassword) {
+      // 폼의 암묵적 제출(입력란에서 Enter) 경로는 브라우저가 포커스를 되돌릴 수 있어,
+      // 다음 tick으로 미뤄야 포커스 이동이 안정적으로 적용된다(SignupFormClient와 동일한 패턴).
+      setTimeout(() => confirmPasswordRef.current?.focus(), 0);
+      return;
+    }
 
     setIsSubmitting(true);
     setError(undefined);
@@ -63,6 +69,7 @@ export function ResetPasswordFormClient({ token, passwordPolicy }: ResetPassword
       <label className="block">
         <span className="mb-1.5 block text-sm font-bold text-slate-700">새 비밀번호 확인</span>
         <input
+          ref={confirmPasswordRef}
           className="ansim-input w-full"
           type="password"
           value={confirmPassword}
@@ -71,10 +78,18 @@ export function ResetPasswordFormClient({ token, passwordPolicy }: ResetPassword
           autoComplete="new-password"
           required
         />
-        {passwordMismatch && <p className="mt-1 text-sm text-red-600">비밀번호가 일치하지 않습니다.</p>}
+        {passwordMismatch && (
+          <p role="alert" className="mt-1 text-sm text-red-600">
+            비밀번호가 일치하지 않습니다.
+          </p>
+        )}
       </label>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       <button
         type="submit"

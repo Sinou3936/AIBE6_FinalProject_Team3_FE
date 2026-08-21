@@ -38,6 +38,8 @@ export type PropertiesFilter = {
   // "field,direction" 형태의 Spring Pageable Sort 문법 그대로 사용한다. 생략하면 BE 기본값인
   // createdAt,desc(최신순)로 처리된다.
   sort?: string;
+  // true면 확인 필요 신호(checkSignalCount > 0)가 있는 매물만 보여준다(#233/#181).
+  hasSignal?: boolean;
 };
 
 type SortOption = { label: string; value?: string };
@@ -71,13 +73,19 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
   const [propertyType, setPropertyType] = useState<PropertyTypeDto | undefined>(filter.propertyType);
   const [minArea, setMinArea] = useState(filter.minArea !== undefined ? String(filter.minArea) : '');
   const [maxArea, setMaxArea] = useState(filter.maxArea !== undefined ? String(filter.maxArea) : '');
-  const [minDeposit, setMinDeposit] = useState(filter.minDeposit !== undefined ? String(filter.minDeposit) : '');
-  const [maxDeposit, setMaxDeposit] = useState(filter.maxDeposit !== undefined ? String(filter.maxDeposit) : '');
+  // 보증금/월세 필터도 등록/수정 폼과 동일하게 만원 단위로 다룬다(#175) - filter(원 단위, URL
+  // 쿼리 기반)를 화면 표시용 만원으로 나눠서 보여주고, 제출 시 buildQuery에서 다시 원 단위로 곱한다.
+  const [minDeposit, setMinDeposit] = useState(
+    filter.minDeposit !== undefined ? String(Math.round(filter.minDeposit / 10_000)) : '',
+  );
+  const [maxDeposit, setMaxDeposit] = useState(
+    filter.maxDeposit !== undefined ? String(Math.round(filter.maxDeposit / 10_000)) : '',
+  );
   const [minMonthlyRent, setMinMonthlyRent] = useState(
-    filter.minMonthlyRent !== undefined ? String(filter.minMonthlyRent) : '',
+    filter.minMonthlyRent !== undefined ? String(Math.round(filter.minMonthlyRent / 10_000)) : '',
   );
   const [maxMonthlyRent, setMaxMonthlyRent] = useState(
-    filter.maxMonthlyRent !== undefined ? String(filter.maxMonthlyRent) : '',
+    filter.maxMonthlyRent !== undefined ? String(Math.round(filter.maxMonthlyRent / 10_000)) : '',
   );
 
   // 월세 금액 범위는 전세 매물엔 의미가 없어(monthlyRent가 항상 null) 거래유형이 월세일 때만 보여준다.
@@ -93,7 +101,8 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
     filter.maxDeposit !== undefined ||
     filter.minMonthlyRent !== undefined ||
     filter.maxMonthlyRent !== undefined ||
-    Boolean(filter.sort);
+    Boolean(filter.sort) ||
+    Boolean(filter.hasSignal);
 
   // 현재 폼 상태(+ overrides로 넘긴 값)를 쿼리파라미터로 직렬화한다. page는 여기서 다루지 않고
   // buildPageHref가 별도로 붙인다 - 필터가 바뀌면 항상 0페이지부터 다시 보는 게 맞기 때문.
@@ -104,11 +113,13 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
       maxArea: maxArea ? Number(maxArea) : undefined,
       transactionType: filter.transactionType,
       propertyType,
-      minDeposit: minDeposit ? Number(minDeposit) : undefined,
-      maxDeposit: maxDeposit ? Number(maxDeposit) : undefined,
-      minMonthlyRent: minMonthlyRent ? Number(minMonthlyRent) : undefined,
-      maxMonthlyRent: maxMonthlyRent ? Number(maxMonthlyRent) : undefined,
+      // 입력은 만원 단위라 BE로 보내기 전에 원 단위로 환산한다.
+      minDeposit: minDeposit ? Number(minDeposit) * 10_000 : undefined,
+      maxDeposit: maxDeposit ? Number(maxDeposit) * 10_000 : undefined,
+      minMonthlyRent: minMonthlyRent ? Number(minMonthlyRent) * 10_000 : undefined,
+      maxMonthlyRent: maxMonthlyRent ? Number(maxMonthlyRent) * 10_000 : undefined,
       sort: filter.sort,
+      hasSignal: filter.hasSignal,
       ...overrides,
     };
 
@@ -133,6 +144,8 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
     if (next.maxMonthlyRent !== undefined && !Number.isNaN(next.maxMonthlyRent))
       params.set('maxMonthlyRent', String(next.maxMonthlyRent));
     if (next.sort) params.set('sort', next.sort);
+    // false/undefined는 필터 없음과 동일하게 취급해 URL을 깔끔하게 유지한다.
+    if (next.hasSignal) params.set('hasSignal', 'true');
     return params;
   }
 
@@ -239,7 +252,7 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
                 </div>
               </label>
               <label className="block sm:col-span-2 lg:col-span-2">
-                <span className="mb-2 block text-xs font-bold text-slate-600">보증금 (원)</span>
+                <span className="mb-2 block text-xs font-bold text-slate-600">보증금 (만원)</span>
                 <div className="flex items-center gap-2">
                   <input
                     value={minDeposit}
@@ -260,7 +273,7 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
               </label>
               {isMonthlyRentFilter && (
                 <label className="block sm:col-span-2 lg:col-span-2">
-                  <span className="mb-2 block text-xs font-bold text-slate-600">월세 (원)</span>
+                  <span className="mb-2 block text-xs font-bold text-slate-600">월세 (만원)</span>
                   <div className="flex items-center gap-2">
                     <input
                       value={minMonthlyRent}
@@ -314,6 +327,15 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
                 {pill.label}
               </button>
             ))}
+            <button
+              onClick={() => applyFilter({ hasSignal: filter.hasSignal ? undefined : true })}
+              className={cn(
+                'ansim-filter-pill flex items-center gap-1',
+                filter.hasSignal ? 'bg-orange-600 text-white' : 'ansim-filter-pill-muted',
+              )}
+            >
+              <AlertTriangle className="h-3.5 w-3.5" /> 확인 필요 신호만
+            </button>
           </div>
           <label className="flex shrink-0 items-center gap-2 text-sm font-medium text-slate-600">
             <ArrowUpDown className="h-4 w-4 text-slate-400" />
@@ -394,7 +416,7 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="rounded-xl bg-slate-50 p-4">
-                    <p className="mb-1 text-xs text-slate-400">가격</p>
+                    <p className="mb-1 text-xs text-slate-400">보증금</p>
                     <p className="font-bold text-slate-950">{property.deposit}</p>
                     <p className="mt-1 text-xs text-slate-500">{property.maintenance ?? '관리비 정보 없음'}</p>
                   </div>

@@ -23,7 +23,7 @@ export function SummaryCard({
   return (
     <div className={cn('ansim-card p-5', isOrange && 'border-orange-100 bg-orange-50/50', className)}>
       {Icon && <Icon className="mb-3 h-5 w-5 text-teal-600" />}
-      <p className={cn('mb-1 text-xs font-bold', isOrange ? 'text-orange-600' : 'text-slate-400')}>{label}</p>
+      <p className={cn('mb-1 text-xs font-bold', isOrange ? 'text-orange-600' : 'text-slate-500')}>{label}</p>
       <p className={cn('text-xl font-bold', isOrange ? 'text-orange-950' : 'text-slate-950', valueClassName)}>
         {value}
       </p>

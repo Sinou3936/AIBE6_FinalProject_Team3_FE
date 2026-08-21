@@ -1,5 +1,6 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../../lib/api/http';
 import AdminLayout from './layout';
 
 let mockPathname = '/admin';
@@ -105,5 +106,42 @@ describe('AdminLayout', () => {
     );
 
     await waitFor(() => expect(screen.getByText('페이지를 찾을 수 없습니다.')).toBeInTheDocument());
+  });
+
+  // 실제 권한 없음(forbidden)과 일시적 네트워크/CORS 오류(unreachable)를 구분해야 한다 - 후자까지
+  // 404로 접으면 진짜 관리자도 일시 장애 때 재시도해야 한다는 사실조차 알 수 없다.
+  it('일시적 오류(unreachable)면 404 대신 재시도 안내를 보여준다', async () => {
+    getCurrentUser.mockRejectedValueOnce(new ApiError('network error', 0));
+
+    render(
+      <AdminLayout>
+        <div data-testid="page-content">대시보드</div>
+      </AdminLayout>,
+    );
+
+    expect(await screen.findByText('일시적인 오류로 페이지를 확인할 수 없습니다.')).toBeInTheDocument();
+    expect(screen.queryByText('페이지를 찾을 수 없습니다.')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '다시 시도' })).toBeInTheDocument();
+  });
+
+  // "다시 시도" 버튼은 setState('checking')만으로는 pathname이 안 바뀌어 effect가 재실행되지
+  // 않는다 - retryToken을 늘려 재조회를 강제하는지 확인한다.
+  it('"다시 시도" 버튼을 누르면 인가 확인을 다시 시도하고, 성공하면 정상 화면을 보여준다', async () => {
+    getCurrentUser.mockRejectedValueOnce(new ApiError('network error', 0));
+
+    render(
+      <AdminLayout>
+        <div data-testid="page-content">대시보드</div>
+      </AdminLayout>,
+    );
+
+    await screen.findByRole('button', { name: '다시 시도' });
+    expect(getCurrentUser).toHaveBeenCalledTimes(1);
+
+    getCurrentUser.mockResolvedValueOnce({ userId: 1, role: 'ADMIN' });
+    fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
+
+    await waitFor(() => expect(getCurrentUser).toHaveBeenCalledTimes(2));
+    await screen.findByTestId('page-content');
   });
 });

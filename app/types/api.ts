@@ -153,6 +153,9 @@ export type ContractMaskingReviewPayload = {
   uncertainFields: ContractOcrUncertainField[];
   // OCR 응답의 shortTextWarning 그대로 - 텍스트 직접 입력 경로는 OCR을 안 거치므로 항상 false다.
   shortTextWarning: boolean;
+  // upload 화면에서 실제로 선택한 입력 경로 그대로("TEXT"/"IMAGE") - analyzeContract 요청에도
+  // 그대로 실어 보낸다.
+  inputType: ContractInputType;
   propertyId?: number;
 };
 
@@ -169,6 +172,7 @@ export type ContractMaskingResponseDto = {
 export type ContractAnalyzeRequestDto = {
   maskedText: string;
   userConfirmed: boolean;
+  inputType: ContractInputType;
   propertyId?: number;
 };
 
@@ -196,15 +200,17 @@ export type ContractChatClauseContext = {
   explanation: string;
 };
 
-export type ContractChatHistoryEntry = {
-  question: string;
-  answer: string;
+// Backend ContractAnalysisChatMessage(role/content만 받음)와 동일한 형태 - 한 번의 질문/답변
+// 턴이 "user" 메시지 하나 + "assistant" 메시지 하나로 나뉘어 시간순으로 배열에 들어간다.
+export type ContractChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
 };
 
 export type ContractChatRequestDto = {
   clause: ContractChatClauseContext;
   question: string;
-  history?: ContractChatHistoryEntry[];
+  history?: ContractChatMessage[];
 };
 
 // 응답 형태는 명세받은 게 없어 analyzeContract 응답(ContractAnalysisResultDto)과 같은 패턴으로
@@ -214,6 +220,47 @@ export type ContractChatResponseDto = {
   answer: string;
   aiGeneratedNotice: string;
   disclaimer: string;
+};
+
+// GET /users/me/contract-history 응답 목록 원소 하나(PageResponseDto<ContractHistoryItemDto>로 감싸짐).
+// 분석 성공 후에만 생성되는 불변 기록 - status는 Backend에 "COMPLETED" 한 종류뿐이라 FE에서 옮기지
+// 않는다. propertyId는 매물과 연결하지 않고 분석했으면 null.
+export type ContractHistoryItemDto = {
+  id: number;
+  propertyId: number | null;
+  inputType: ContractInputType;
+  summary: string;
+  clauseCount: number;
+  riskCount: number;
+  status: string;
+  createdAt: string;
+};
+
+// GET /users/me/contract-history/{id} 응답의 조항 하나. 원문(originalText)은 계약 원문을 DB에
+// 남기지 않는 정책상 애초에 저장되지 않아 이 응답엔 없다 - analyze 응답의 ContractClauseDto와
+// 다른 점(originalText 유무)이 이 타입을 따로 둔 이유다.
+export type ContractHistoryClauseDto = {
+  riskFlag: boolean;
+  explanation: string;
+  question: string;
+  suggestedText: string;
+};
+
+// GET /users/me/contract-history/{id} 응답. 목록(ContractHistoryItemDto)과 겹치는 필드에
+// disclaimer/aiGeneratedNotice/clauses가 추가된 형태 - 이 화면(마이페이지 이력 아코디언)은
+// clauses만 쓰므로 서비스 계층에서 나머지는 버린다.
+export type ContractHistoryDetailDto = {
+  id: number;
+  propertyId: number | null;
+  inputType: ContractInputType;
+  summary: string;
+  clauseCount: number;
+  riskCount: number;
+  disclaimer: string;
+  aiGeneratedNotice: string;
+  status: string;
+  createdAt: string;
+  clauses: ContractHistoryClauseDto[];
 };
 
 export type ActivityHistoryItemDto = {
@@ -690,6 +737,9 @@ export type RiskSignalDto = {
   status: RiskCheckStatusDto;
   reason: RiskCheckReasonDto | null;
   description: string | null; // SUCCESS이면서 리스크가 실제로 발견된 경우에만 값 있음
+  // (2026-08-20) 리스크가 실제로 발견된 경우에만 값 있음, 그 외엔 빈 배열(null 아님).
+  // 현재는 PRICE_ANOMALY만 실제 값을 채워주고 나머지 신호 타입은 항상 빈 배열.
+  recommendedActions: string[];
   checkedAt: string;
 };
 
@@ -734,6 +784,7 @@ export type DepositSafetyCheckDto = {
   calculatedAt: string | null;
   disclaimer: string;
   recentOwnershipChangeWarning: boolean;
+  priceAnomalyWarning: boolean; // 같은 매물에 PRICE_ANOMALY(시세 이상 저가) 신호가 있으면 true - 전세가율 구간과 무관
   cautionFrom: number | null; // 전세가율 판정 기준값(%) - 이 값부터 "주의". 계산 여부와 무관하게 항상 내려옴
   warnFrom: number | null; // 이 값부터 "위험"
   warnTo: number | null; // 이 값을 넘으면 "입력값 재확인 안내"
