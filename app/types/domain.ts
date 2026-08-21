@@ -107,6 +107,9 @@ export type PropertyMarketComparisonSample = {
   dealDateText: string;
   depositText: string;
   areaText?: string;
+  // 대표 5건 중 최고가/최저가로 뽑힌 표본 표시(#264 7-2 보완) - 목록은 최신순 정렬이라 이 값이
+  // 없으면 왜 이 표본이 포함됐는지 알기 어렵다. 최근순으로 뽑혔거나 표본이 5건 이하면 undefined.
+  priceHighlight?: 'HIGHEST' | 'LOWEST';
 };
 
 /**

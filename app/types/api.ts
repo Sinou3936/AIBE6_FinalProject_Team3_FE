@@ -430,6 +430,11 @@ export type MarketTransactionSampleDto = {
   dealDate: string; // yyyy-MM-dd
   depositWon: number;
   areaSqm: number | null;
+  // 표본이 대표 5건으로 추려질 때 이 표본이 최고가/최저가로 뽑혔는지 표시(#264 7-2 보완).
+  // 목록 자체는 항상 최신 계약일순으로 정렬되는데, 최고가/최저가로 뽑힌 표본이 목록 중간에
+  // 섞여 있으면 왜 포함됐는지 알기 어려워 배지로 알려주기 위함. 최근순으로 뽑혔거나(대표 5건 중
+  // 나머지), 표본이 5건 이하라 전부 노출된 경우엔 null.
+  priceHighlight: 'HIGHEST' | 'LOWEST' | null;
 };
 
 export type MarketComparisonDto = {

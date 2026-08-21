@@ -173,6 +173,7 @@ function mapMarketComparisonSampleDto(dto: MarketTransactionSampleDto): Property
     dealDateText: formatDateText(dto.dealDate),
     depositText: formatManwon(dto.depositWon),
     areaText: dto.areaSqm !== null ? formatAreaWithPyeong(dto.areaSqm) : undefined,
+    priceHighlight: dto.priceHighlight ?? undefined,
   };
 }
 
@@ -263,6 +264,7 @@ export function mapPropertySummaryToMockDetail(property: PropertySummary): Prope
           dealDateText: '2026.06.20',
           depositText: '1억 8,500만원',
           areaText: '33.2㎡ (10.0평)',
+          priceHighlight: 'HIGHEST',
         },
         {
           buildingName: '힐스테이트',
@@ -270,6 +272,7 @@ export function mapPropertySummaryToMockDetail(property: PropertySummary): Prope
           dealDateText: '2026.05.28',
           depositText: '1억 7,800만원',
           areaText: '32.5㎡ (9.8평)',
+          priceHighlight: 'LOWEST',
         },
       ],
     },

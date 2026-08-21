@@ -17,6 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { apiStatusToneClassMap, getJeonseRatioTone, riskSignalTypeMeta } from '../../../data/risk-analysis';
+import { cn } from '../../../lib/cn';
 import { formatAreaWithPyeong } from '../../../lib/numberFormat';
 import { roomTypeLabelMap } from '../../../mappers/property';
 import { deleteProperty } from '../../../services/properties';
@@ -292,9 +293,23 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
                       <ul className="space-y-2">
                         {property.marketComparison.samples.map((sample, index) => (
                           <li key={index} className="flex items-center justify-between gap-2 text-xs text-slate-500">
-                            <span className="truncate">
-                              {sample.buildingName ?? sample.address}
-                              {sample.areaText ? ` · ${sample.areaText}` : ''}
+                            <span className="flex min-w-0 items-center gap-1.5 truncate">
+                              {sample.priceHighlight && (
+                                <Badge
+                                  className={cn(
+                                    'shrink-0 px-1.5 py-0.5 text-[10px]',
+                                    sample.priceHighlight === 'HIGHEST'
+                                      ? 'bg-rose-50 text-rose-600'
+                                      : 'bg-blue-50 text-blue-600',
+                                  )}
+                                >
+                                  {sample.priceHighlight === 'HIGHEST' ? '최고가' : '최저가'}
+                                </Badge>
+                              )}
+                              <span className="truncate">
+                                {sample.buildingName ?? sample.address}
+                                {sample.areaText ? ` · ${sample.areaText}` : ''}
+                              </span>
                             </span>
                             <span className="shrink-0 font-medium text-slate-700">
                               {sample.depositText}{' '}
