@@ -22,6 +22,8 @@ export type PropertySummary = {
   address: string;
   type: PropertyTradeType;
   deposit: string;
+  // 정렬 기준(면적 좁은순/넓은순)을 카드에서 눈으로 확인할 수 있도록 전용면적(㎡)을 노출한다(#195).
+  area: number;
   propertyType?: string;
   // checkSignalCount/signalSummary/jeonseRatio는 risk-analysis를 한 번도 안 돌린 매물이면
   // undefined(0건과 구분됨) - PropertyListResponse가 null로 내려주는 걸 매퍼가 undefined로 바꾼다.

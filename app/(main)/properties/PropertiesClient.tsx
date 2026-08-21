@@ -12,12 +12,14 @@ import {
   ImageOff,
   MapPin,
   Plus,
+  Ruler,
   Search,
   SlidersHorizontal,
   X,
 } from 'lucide-react';
 import { propertyTransactionTypeOptions, propertyTypeOptions } from '../../data/property-register';
 import { cn } from '../../lib/cn';
+import { formatAreaWithPyeong } from '../../lib/numberFormat';
 import { type PropertyTransactionTypeDto, type PropertyTypeDto } from '../../types/api';
 import { type PropertyListPage } from '../../types/domain';
 import { Badge } from '../../ui/Badge';
@@ -65,7 +67,7 @@ const transactionTypePills: Array<{ label: string; value?: PropertyTransactionTy
 ];
 
 export function PropertiesClient({ propertyPage, loadError, notice, filter }: PropertiesClientProps) {
-  const { items: properties, page, totalPages, hasNext } = propertyPage;
+  const { items: properties, page, totalPages } = propertyPage;
   const router = useRouter();
 
   const [region, setRegion] = useState(filter.region ?? '');
@@ -176,6 +178,20 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
     params.set('page', String(targetPage));
     return `/properties?${params.toString()}`;
   }
+
+  // 네이버 카페 스타일 페이지네이션(#195/6-2) - 이전엔 이전/다음 한 페이지씩만 이동할 수 있어
+  // 뒷페이지로 갈수록 클릭 수가 늘어나는 문제가 있었다. 페이지 번호를 5개씩 묶어서 보여주고,
+  // "이전"/"다음"은 그 묶음(그룹) 단위로 이동한다. totalPages는 이미 PageResponse가 내려주므로
+  // BE 변경은 필요 없다.
+  const pageGroupSize = 5;
+  const currentGroupStart = Math.floor(page / pageGroupSize) * pageGroupSize;
+  const currentGroupEnd = Math.min(currentGroupStart + pageGroupSize - 1, totalPages - 1);
+  const pageNumbers = Array.from(
+    { length: currentGroupEnd - currentGroupStart + 1 },
+    (_, index) => currentGroupStart + index,
+  );
+  const hasPrevGroup = currentGroupStart > 0;
+  const hasNextGroup = currentGroupEnd < totalPages - 1;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -395,6 +411,11 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
                       {property.propertyType && (
                         <Badge className="bg-slate-100 text-slate-600">{property.propertyType}</Badge>
                       )}
+                      {/* 정렬 기준(면적 좁은순/넓은순)을 카드에서 바로 확인할 수 있도록 전용면적을 뱃지로
+                          노출한다(#195) - 기존엔 주소 아래 옅은 회색 텍스트라 눈에 잘 안 띄어서 상단 뱃지 줄로 옮김. */}
+                      <Badge className="flex items-center gap-1 bg-sky-50 text-sky-700">
+                        <Ruler className="h-3 w-3" /> {formatAreaWithPyeong(property.area)}
+                      </Badge>
                       {property.checkSignalCount !== undefined ? (
                         <Badge className={property.statusColor}>확인 필요 신호 {property.checkSignalCount}개</Badge>
                       ) : (
@@ -456,34 +477,72 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
         </div>
 
         {!loadError && totalPages > 1 && (
-          <div className="mt-6 flex items-center justify-center gap-4">
-            {page > 0 ? (
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+            <Link
+              href={buildPageHref(0)}
+              aria-disabled={page === 0}
+              className={cn(
+                'rounded-xl border px-3 py-2 text-sm font-bold transition',
+                page === 0
+                  ? 'pointer-events-none border-slate-100 text-slate-300'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+              )}
+            >
+              처음
+            </Link>
+            <Link
+              href={buildPageHref(currentGroupStart - 1)}
+              aria-disabled={!hasPrevGroup}
+              className={cn(
+                'flex items-center gap-1 rounded-xl border px-3 py-2 text-sm font-bold transition',
+                hasPrevGroup
+                  ? 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  : 'pointer-events-none border-slate-100 text-slate-300',
+              )}
+            >
+              <ChevronLeft className="h-4 w-4" /> 이전
+            </Link>
+
+            {pageNumbers.map((pageNumber) => (
               <Link
-                href={buildPageHref(page - 1)}
-                className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+                key={pageNumber}
+                href={buildPageHref(pageNumber)}
+                aria-current={pageNumber === page ? 'page' : undefined}
+                className={cn(
+                  'flex h-9 w-9 items-center justify-center rounded-xl border text-sm font-bold transition',
+                  pageNumber === page
+                    ? 'border-slate-950 bg-slate-950 text-white'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                )}
               >
-                <ChevronLeft className="h-4 w-4" /> 이전
+                {pageNumber + 1}
               </Link>
-            ) : (
-              <span className="flex items-center gap-1 rounded-xl border border-slate-100 px-4 py-2 text-sm font-bold text-slate-300">
-                <ChevronLeft className="h-4 w-4" /> 이전
-              </span>
-            )}
-            <span className="text-sm text-slate-500">
-              {page + 1} / {totalPages} 페이지
-            </span>
-            {hasNext ? (
-              <Link
-                href={buildPageHref(page + 1)}
-                className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
-              >
-                다음 <ChevronRight className="h-4 w-4" />
-              </Link>
-            ) : (
-              <span className="flex items-center gap-1 rounded-xl border border-slate-100 px-4 py-2 text-sm font-bold text-slate-300">
-                다음 <ChevronRight className="h-4 w-4" />
-              </span>
-            )}
+            ))}
+
+            <Link
+              href={buildPageHref(currentGroupEnd + 1)}
+              aria-disabled={!hasNextGroup}
+              className={cn(
+                'flex items-center gap-1 rounded-xl border px-3 py-2 text-sm font-bold transition',
+                hasNextGroup
+                  ? 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                  : 'pointer-events-none border-slate-100 text-slate-300',
+              )}
+            >
+              다음 <ChevronRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href={buildPageHref(totalPages - 1)}
+              aria-disabled={page === totalPages - 1}
+              className={cn(
+                'rounded-xl border px-3 py-2 text-sm font-bold transition',
+                page === totalPages - 1
+                  ? 'pointer-events-none border-slate-100 text-slate-300'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+              )}
+            >
+              마지막
+            </Link>
           </div>
         )}
 

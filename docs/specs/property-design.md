@@ -42,7 +42,8 @@
 | 지역/면적/거래유형/주택유형/가격 범위로 검색 | ✅ `PropertiesClient`의 지역 검색창(region, 도로명/지번주소 부분일치) + 거래유형 필터 칩(전체/전세/월세) + "상세 필터" 패널(매물유형/면적범위/보증금범위, 거래유형이 월세일 때만 월세금액범위도 노출)이 URL 쿼리파라미터로 `getProperties`에 전달되고, BE `PropertySearchCondition`으로 실제 서버사이드 필터링됨. 기존엔 클라이언트에서 현재 페이지 내용만 걸러내던 방식이었는데 서버사이드로 전환됨 |
 | 정렬 조건 적용 | ~~❌ 정렬 기능 없음 — Backend가 내려준 순서(최근 등록순으로 추정) 그대로 표시~~ — ✅ **(2026-08-12 정정)** 정렬 UI가 이미 있음. `PropertiesClient.tsx`의 `sortOptions`(최신순/보증금 낮은순/보증금 높은순/면적 좁은순/면적 넓은순) select가 `sort` 쿼리파라미터로 BE에 전달됨(아래 "전수조사 결과" 버그/정확성 1번 참고) |
 | 삭제된 매물 제외 | Backend 책임(ACTIVE 상태만 응답) — FE는 별도 필터링 없이 그대로 신뢰 |
-| 페이지네이션 | ✅ BE가 `PageResponse`로 응답이 바뀌면서 `getProperties(cookieHeader, { page })`가 `page`/`size`/`sort` 쿼리 파라미터를 지원하게 됨. `PropertiesClient`에 이전/다음 페이지 링크(`?page=N`) 추가, 페이지 이동 시 현재 필터 조건도 그대로 유지됨(`buildPageHref`) |
+| 페이지네이션 | ✅ BE가 `PageResponse`로 응답이 바뀌면서 `getProperties(cookieHeader, { page })`가 `page`/`size`/`sort` 쿼리 파라미터를 지원하게 됨. `PropertiesClient`에 이전/다음 페이지 링크(`?page=N`) 추가, 페이지 이동 시 현재 필터 조건도 그대로 유지됨(`buildPageHref`) — **(2026-08-21 개선, #195)** 이전엔 이전/다음 한 페이지씩만 이동 가능했는데, `처음 \| 이전 \| 1 2 3 4 5 \| 다음 \| 마지막` 형태로 페이지 번호를 5개씩 묶어 한 번에 보여주고 "이전"/"다음"은 그룹 단위로 이동하도록 개선(BE 응답의 `totalPages`만 사용, BE 변경 없음) |
+| 정렬 기준을 카드에서 확인 가능 | ✅ **(2026-08-21 추가, #195)** "면적 좁은순/넓은순" 정렬은 있었지만 카드에 실제 면적이 안 보여 정렬이 맞게 됐는지 확인할 수 없었음 — `PropertyListItemDto.area`(이미 응답에 존재, BE 변경 불필요)를 매물 카드에 "전용면적 33.2㎡ (10.0평)" 형태로 노출(`formatAreaWithPyeong` 재사용, #175와 동일 병기 방식) |
 | 성공: 목록 + 지도 마커 | ⚠️ 목록 카드는 나오지만 지도 마커 표시는 이 화면에 없음(상세 화면에만 `KakaoMap` 있음) |
 | 확인 필요 신호 개수 / 전세가율 배지 | ✅ `PropertiesClient`/`PropertyListItem`의 조건부 렌더링은 이전부터 있었으나, BE 응답(`PropertyListItemDto`)에 필드 자체가 없어 항상 "준비 중"만 보였음 — BE에 `checkSignalCount`/`signalSummary`/`jeonseRatio` 필드가 추가되면서 실제 값으로 연동됨. `jeonseRatio`는 BE가 percent 정수만 내려주는 컨벤션이라 FE 타입을 `string`→`number`로 정정하고 "%" 포맷팅을 FE에서 붙이도록 수정(`getJeonseRatioDisplay`) |
 | 검색 결과 없음 → 빈 목록 | ✅ "조건에 맞는 매물이 없습니다" 문구 |
