@@ -422,6 +422,16 @@ export type PropertyAddressDto = {
   longitude: number;
 };
 
+// 기준가(중앙값) 산출에 실제로 쓰인 개별 실거래 표본 1건(#264/#197, 5차 멘토링 피드백 7-2).
+// 국토부 실거래가 공개시스템이 원래도 공개하는 공공데이터라 별도 개인정보 이슈는 없다.
+export type MarketTransactionSampleDto = {
+  buildingName: string | null;
+  address: string;
+  dealDate: string; // yyyy-MM-dd
+  depositWon: number;
+  areaSqm: number | null;
+};
+
 export type MarketComparisonDto = {
   status: 'UNAVAILABLE' | 'AVAILABLE';
   referencePrice: number | null;
@@ -434,6 +444,8 @@ export type MarketComparisonDto = {
   areaErrorRate: number | null;
   // 실거래를 조회한 개월 수. status가 UNAVAILABLE이면 null.
   lookbackMonths: number | null;
+  // 기준가 계산에 쓰인 개별 표본 목록, 최신 계약일 순. status가 UNAVAILABLE이면 null.
+  samples: MarketTransactionSampleDto[] | null;
   // UNAVAILABLE 사유를 사람이 읽을 수 있는 문장으로 내려준다(월세/단독다가구/좌표없음/표본부족 등).
   // AVAILABLE이면 null.
   message: string | null;

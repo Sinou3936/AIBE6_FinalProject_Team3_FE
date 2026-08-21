@@ -277,6 +277,25 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
                       <p className="font-semibold text-slate-800">{property.marketComparison.referenceDate}</p>
                     </div>
                   </div>
+                  {property.marketComparison.samples && property.marketComparison.samples.length > 0 && (
+                    <div className="mt-4 border-t border-slate-100 pt-4">
+                      <p className="mb-2 text-xs font-bold text-slate-600">실거래 내역</p>
+                      <ul className="space-y-2">
+                        {property.marketComparison.samples.map((sample, index) => (
+                          <li key={index} className="flex items-center justify-between gap-2 text-xs text-slate-500">
+                            <span className="truncate">
+                              {sample.buildingName ?? sample.address}
+                              {sample.areaText ? ` · ${sample.areaText}` : ''}
+                            </span>
+                            <span className="shrink-0 font-medium text-slate-700">
+                              {sample.depositText}{' '}
+                              <span className="text-slate-400">({sample.dealDateText})</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <p className="mt-4 text-[11px] leading-relaxed text-slate-400">
                     국토교통부 실거래가 공개시스템 기준이며, 참고용 정보이니 실제 시세는 별도로 확인해보세요.
                   </p>
