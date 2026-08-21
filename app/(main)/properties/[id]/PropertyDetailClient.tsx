@@ -281,7 +281,7 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
                   {property.marketComparison.samples && property.marketComparison.samples.length > 0 && (
                     <div className="mt-4 border-t border-slate-100 pt-4">
                       <p className="mb-2 text-xs font-bold text-slate-600">
-                        인근 실거래가 내역
+                        인근 실거래 내역
                         {typeof property.marketComparison.sampleCount === 'number' &&
                           property.marketComparison.sampleCount > property.marketComparison.samples.length && (
                             <span className="ml-1 font-normal text-slate-400">
