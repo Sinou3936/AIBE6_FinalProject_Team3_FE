@@ -279,7 +279,16 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
                   </div>
                   {property.marketComparison.samples && property.marketComparison.samples.length > 0 && (
                     <div className="mt-4 border-t border-slate-100 pt-4">
-                      <p className="mb-2 text-xs font-bold text-slate-600">실거래 내역</p>
+                      <p className="mb-2 text-xs font-bold text-slate-600">
+                        실거래 내역
+                        {typeof property.marketComparison.sampleCount === 'number' &&
+                          property.marketComparison.sampleCount > property.marketComparison.samples.length && (
+                            <span className="ml-1 font-normal text-slate-400">
+                              (총 {property.marketComparison.sampleCount}건 중 대표{' '}
+                              {property.marketComparison.samples.length}건 · 최고가·최저가·최근순)
+                            </span>
+                          )}
+                      </p>
                       <ul className="space-y-2">
                         {property.marketComparison.samples.map((sample, index) => (
                           <li key={index} className="flex items-center justify-between gap-2 text-xs text-slate-500">
