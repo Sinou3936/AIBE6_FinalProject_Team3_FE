@@ -737,6 +737,9 @@ export type RiskSignalDto = {
   status: RiskCheckStatusDto;
   reason: RiskCheckReasonDto | null;
   description: string | null; // SUCCESS이면서 리스크가 실제로 발견된 경우에만 값 있음
+  // (2026-08-20) 리스크가 실제로 발견된 경우에만 값 있음, 그 외엔 빈 배열(null 아님).
+  // 현재는 PRICE_ANOMALY만 실제 값을 채워주고 나머지 신호 타입은 항상 빈 배열.
+  recommendedActions: string[];
   checkedAt: string;
 };
 
