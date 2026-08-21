@@ -384,6 +384,7 @@ export type DepositSafetyCheck = {
   calculatedAt: string | null;
   disclaimer: string;
   recentOwnershipChangeWarning: boolean;
+  priceAnomalyWarning: boolean;
   cautionFrom: number | null;
   warnFrom: number | null;
   warnTo: number | null;

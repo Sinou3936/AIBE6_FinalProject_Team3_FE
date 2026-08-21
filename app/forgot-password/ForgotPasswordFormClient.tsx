@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { resolveErrorMessage } from '../lib/resolveErrorMessage';
 import { requestPasswordReset } from '../services/auth';
 
@@ -12,6 +12,15 @@ export function ForgotPasswordFormClient() {
   // 이 안내만 보여준다(재요청은 쿨다운이 있으니 같은 이메일로 반복 제출하지 못하게 막을 필요는
   // 없지만, 이미 보낸 뒤 폼을 계속 노출해봐야 혼란만 준다).
   const [submitted, setSubmitted] = useState(false);
+  const successMessageRef = useRef<HTMLParagraphElement>(null);
+
+  // 제출에 성공하면 포커스를 갖고 있던 제출 버튼이 통째로 언마운트되고 안내문으로 바뀐다 -
+  // role="status"만으로는 스크린리더가 그 순간 포커스를 안내문으로 옮겨주지 않아, 계속 읽던
+  // 화면 위치와 새로 나타난 안내문이 멀리 떨어져 있으면 놓치기 쉽다(2026-08-20 전수조사에서
+  // 지적). 포커스를 명시적으로 옮겨 바로 그 자리에서 읽히게 한다.
+  useEffect(() => {
+    if (submitted) successMessageRef.current?.focus();
+  }, [submitted]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -31,7 +40,7 @@ export function ForgotPasswordFormClient() {
 
   if (submitted) {
     return (
-      <p className="text-sm text-slate-700">
+      <p ref={successMessageRef} role="status" tabIndex={-1} className="text-sm text-slate-700 outline-none">
         입력하신 이메일이 가입된 계정이라면, 비밀번호 재설정 링크를 보내드렸어요. 메일함(스팸함 포함)을 확인해 주세요.
       </p>
     );

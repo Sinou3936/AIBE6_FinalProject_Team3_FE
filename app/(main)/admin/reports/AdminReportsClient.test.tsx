@@ -233,6 +233,40 @@ describe('AdminReportsClient', () => {
     expect(screen.queryByText('신고 #1')).not.toBeInTheDocument();
   });
 
+  // 회귀 테스트(2026-08-20 전수조사) - Modal은 컨텐츠 안의 첫 heading을 찾아 dialog의
+  // aria-labelledby로 연결하는데, 로딩 중("불러오는 중...") 화면에는 heading이 없어 스크린리더가
+  // 그 순간 목적 없이 그냥 "dialog"라고만 안내했다.
+  it('상세 로딩 중에는 dialog에 접근 가능한 이름이 있다', async () => {
+    let resolveDetail: (value: AdminPropertyReportDetailDto) => void = () => {};
+    getAdminPropertyReportDetail.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveDetail = resolve;
+      }),
+    );
+
+    render(<AdminReportsClient data={page([reportRow()])} filters={filters} currentUserId={999} />);
+    fireEvent.click(screen.getByRole('button', { name: '상세보기' }));
+
+    expect(await screen.findByText('불러오는 중...')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('신고 상세 불러오는 중');
+
+    await act(async () => {
+      resolveDetail(reportDetail());
+    });
+  });
+
+  // 회귀 테스트(2026-08-20 전수조사) - 위와 동일한 이유로, 상세 조회가 실패한 화면도 heading이
+  // 없어 dialog의 접근 가능한 이름이 없었다.
+  it('상세 조회 실패 시에도 dialog에 접근 가능한 이름이 있다', async () => {
+    getAdminPropertyReportDetail.mockRejectedValueOnce(new Error('신고 상세를 불러오지 못했습니다.'));
+
+    render(<AdminReportsClient data={page([reportRow()])} filters={filters} currentUserId={999} />);
+    fireEvent.click(screen.getByRole('button', { name: '상세보기' }));
+
+    expect(await screen.findByText('신고 상세를 불러오지 못했습니다.')).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toHaveAccessibleName('신고 상세를 불러오지 못했습니다');
+  });
+
   // 뒤로가기/앞으로가기로 filters prop만 바뀌고 컴포넌트가 언마운트되지 않는 경우를 재현한다 -
   // 상태/사유 드롭다운의 로컬 state가 새 prop으로 재동기화돼야 한다.
   it('filters prop이 바뀌면(뒤로가기 등) 상태/사유 드롭다운 값도 갱신된다', () => {

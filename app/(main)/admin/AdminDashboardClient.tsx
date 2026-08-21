@@ -157,11 +157,17 @@ export function AdminDashboardClient({ stats, loadError, startDate, endDate }: A
 
   return (
     <div>
-      <h1 className="ansim-page-title mb-6">대시보드</h1>
+      {/* 관리자 페이지 4곳(대시보드/유저/신고/체크리스트)의 제목 아래 간격을 h1 자체가 아니라
+      이 wrapper에 주는 방식으로 통일한다(2026-08-20 멘토링 피드백 - 체크리스트만 "문항 추가"
+      버튼 때문에 wrapper에 mb-6가 있고 나머지 3곳은 h1에 직접 있어, 겉보기엔 같은 간격이지만
+      구조가 달라 나중에 제목 옆에 버튼을 추가하는 등의 수정에서 조용히 어긋나기 쉬웠다). */}
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="ansim-page-title">대시보드</h1>
+      </div>
 
       {rangeForm}
 
-      <p className="mb-4 text-xs text-slate-500">
+      <p className="mb-4 text-sm text-slate-500">
         아래 통계는 {formatDate(startDate)}~{formatDate(endDate)} 기간 기준입니다.
       </p>
 

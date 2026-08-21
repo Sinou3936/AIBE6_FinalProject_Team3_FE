@@ -784,6 +784,7 @@ export type DepositSafetyCheckDto = {
   calculatedAt: string | null;
   disclaimer: string;
   recentOwnershipChangeWarning: boolean;
+  priceAnomalyWarning: boolean; // 같은 매물에 PRICE_ANOMALY(시세 이상 저가) 신호가 있으면 true - 전세가율 구간과 무관
   cautionFrom: number | null; // 전세가율 판정 기준값(%) - 이 값부터 "주의". 계산 여부와 무관하게 항상 내려옴
   warnFrom: number | null; // 이 값부터 "위험"
   warnTo: number | null; // 이 값을 넘으면 "입력값 재확인 안내"

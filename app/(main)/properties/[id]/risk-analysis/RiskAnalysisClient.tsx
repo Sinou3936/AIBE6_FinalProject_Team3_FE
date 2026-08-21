@@ -216,6 +216,12 @@ export function RiskAnalysisClient({
                     최근 소유권이 바뀐 매물이에요 — 더 꼼꼼히 확인하세요.
                   </NoticeBox>
                 )}
+                {depositSafety.priceAnomalyWarning && (
+                  <NoticeBox icon={AlertTriangle} iconClassName="text-orange-500" className="mb-4">
+                    이 매물은 가격 자체가 시세보다 비정상적으로 낮아 의심돼요. 전세가율이 안전해 보여도 가격의
+                    신뢰도를 먼저 확인하세요.
+                  </NoticeBox>
+                )}
 
                 <div className="rounded-xl border border-slate-200 p-4">
                   <div className="mb-3 flex items-center gap-1">

@@ -65,6 +65,9 @@ export const initDepositSafetyCheckDto: DepositSafetyCheckDto = {
   calculatedAt: '2026-07-30T09:00:00',
   disclaimer: '확정 판단이 아닌 참고용 정보이며, 법률·등기 검토를 대체하지 않습니다.',
   recentOwnershipChangeWarning: true,
+  // 위 initRiskSignalListDto에 PRICE_ANOMALY 신호가 이미 있어, 목업 모드에서도 이 경고가
+  // 실제로 렌더링되는 걸 확인할 수 있도록 true로 채운다.
+  priceAnomalyWarning: true,
   cautionFrom: 80,
   warnFrom: 100,
   warnTo: 150,
