@@ -26,9 +26,10 @@ import { Badge } from '../../ui/Badge';
 import { NoticeBox } from '../../ui/NoticeBox';
 
 export type PropertiesFilter = {
+  // 메인 검색창 검색어 - 주소(도로명/지번)든 건물명(아파트/오피스텔명 등)이든 이 값 하나로 매칭된다
+  // (부분일치, 5차 멘토링 피드백 6-3). 처음엔 title을 별도 조건으로 뒀었는데, 검색창 하나에 주소든
+  // 건물명이든 입력하면 찾아지길 기대하는 UX라 region 하나로 통합함(2026-08-21).
   region?: string;
-  // 건물명(아파트/오피스텔명 등) 부분일치 검색(#264 6-3). region(주소)과 별개 조건.
-  title?: string;
   minArea?: number;
   maxArea?: number;
   transactionType?: PropertyTransactionTypeDto;
@@ -73,7 +74,6 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
   const router = useRouter();
 
   const [region, setRegion] = useState(filter.region ?? '');
-  const [title, setTitle] = useState(filter.title ?? '');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [propertyType, setPropertyType] = useState<PropertyTypeDto | undefined>(filter.propertyType);
   const [minArea, setMinArea] = useState(filter.minArea !== undefined ? String(filter.minArea) : '');
@@ -98,7 +98,6 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
 
   const hasActiveFilter =
     Boolean(filter.region) ||
-    Boolean(filter.title) ||
     filter.minArea !== undefined ||
     filter.maxArea !== undefined ||
     Boolean(filter.transactionType) ||
@@ -115,7 +114,6 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
   function buildQuery(overrides: Partial<PropertiesFilter> = {}) {
     const next: PropertiesFilter = {
       region,
-      title,
       minArea: minArea ? Number(minArea) : undefined,
       maxArea: maxArea ? Number(maxArea) : undefined,
       transactionType: filter.transactionType,
@@ -138,7 +136,6 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
 
     const params = new URLSearchParams();
     if (next.region) params.set('region', next.region);
-    if (next.title) params.set('title', next.title);
     if (next.minArea !== undefined && !Number.isNaN(next.minArea)) params.set('minArea', String(next.minArea));
     if (next.maxArea !== undefined && !Number.isNaN(next.maxArea)) params.set('maxArea', String(next.maxArea));
     if (next.transactionType) params.set('transactionType', next.transactionType);
@@ -169,7 +166,6 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
 
   function handleReset() {
     setRegion('');
-    setTitle('');
     setPropertyType(undefined);
     setMinArea('');
     setMaxArea('');
@@ -222,7 +218,7 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
               <input
                 value={region}
                 onChange={(event) => setRegion(event.target.value)}
-                placeholder="지역(도로명/지번주소)으로 검색하세요"
+                placeholder="지역(도로명/지번주소) 또는 건물명으로 검색하세요"
                 className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-12 pr-4 text-slate-950 outline-none transition focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
               />
             </div>
@@ -237,15 +233,6 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
 
           {showAdvanced && (
             <div className="mt-4 grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="block">
-                <span className="mb-2 block text-xs font-bold text-slate-600">건물명</span>
-                <input
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  placeholder="예: 래미안, 힐스테이트"
-                  className="ansim-input"
-                />
-              </label>
               <label className="block">
                 <span className="mb-2 block text-xs font-bold text-slate-600">매물 유형</span>
                 <select
