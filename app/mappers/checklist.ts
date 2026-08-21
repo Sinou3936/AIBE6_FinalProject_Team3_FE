@@ -91,5 +91,7 @@ export function mapChecklistOverviewDto(dto: ChecklistOverviewDto): ChecklistOve
     lastCheckedAt: formatDateText(dto.lastCheckedAt),
     progressPercent: dto.progressPercent ?? undefined,
     cautionCount: dto.cautionCount ?? undefined,
+    generalMissingCount: dto.generalMissingCount ?? undefined,
+    requiredMissingCount: dto.requiredMissingCount ?? undefined,
   };
 }
