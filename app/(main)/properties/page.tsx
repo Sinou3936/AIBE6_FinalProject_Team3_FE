@@ -38,6 +38,7 @@ function PropertiesPageContent() {
   const searchParams = useSearchParams();
   const notice = searchParams.get('notice') ?? undefined;
   const region = searchParams.get('region') ?? undefined;
+  const title = searchParams.get('title') ?? undefined;
   const minArea = searchParams.get('minArea') ?? undefined;
   const maxArea = searchParams.get('maxArea') ?? undefined;
   const transactionTypeParam = searchParams.get('transactionType') ?? undefined;
@@ -57,6 +58,7 @@ function PropertiesPageContent() {
   // URL 쿼리로 넘어온 enum 값이 BE가 허용하지 않는 값이면(직접 URL 조작 등) 조건 자체를 무시한다.
   const filter: PropertiesFilter = {
     region: region?.trim() ? region.trim() : undefined,
+    title: title?.trim() ? title.trim() : undefined,
     minArea: parsePositiveNumber(minArea),
     maxArea: parsePositiveNumber(maxArea),
     transactionType: VALID_TRANSACTION_TYPES.includes(transactionTypeParam as PropertyTransactionTypeDto)

@@ -25,9 +25,10 @@ export type GetPropertiesParams = {
   size?: number;
   // BE가 허용하는 정렬 필드는 createdAt/deposit/area 뿐이다 (PageableUtils.validateSort 참고).
   sort?: string;
-  // 아래 6개는 전부 선택값 - BE PropertySearchCondition과 1:1 대응. region은 도로명/지번주소
-  // 부분일치(LIKE) 검색이다.
+  // 아래 항목들은 전부 선택값 - BE PropertySearchCondition과 1:1 대응. region은 도로명/지번주소,
+  // title은 건물명(#264 6-3)에 대한 부분일치(LIKE) 검색이다.
   region?: string;
+  title?: string;
   minArea?: number;
   maxArea?: number;
   transactionType?: PropertyTransactionTypeDto;
@@ -58,6 +59,7 @@ export async function getProperties(cookieHeader?: string, params?: GetPropertie
   if (params?.size !== undefined) query.set('size', String(params.size));
   if (params?.sort) query.set('sort', params.sort);
   if (params?.region) query.set('region', params.region);
+  if (params?.title) query.set('title', params.title);
   if (params?.minArea !== undefined) query.set('minArea', String(params.minArea));
   if (params?.maxArea !== undefined) query.set('maxArea', String(params.maxArea));
   if (params?.transactionType) query.set('transactionType', params.transactionType);
