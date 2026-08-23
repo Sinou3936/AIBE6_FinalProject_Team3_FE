@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ImageOff,
+  Loader2,
   MapPin,
   Plus,
   Ruler,
@@ -62,6 +63,10 @@ type PropertiesClientProps = {
   loadError?: string;
   notice?: string;
   filter: PropertiesFilter;
+  // 검색어/필터/페이지 변경으로 재조회 중일 때 true. 최초 진입 로딩과 달리, 이 상태에서는
+  // 검색창·필터 패널은 그대로 두고 결과 영역만 로딩 표시로 바꾼다(5차 멘토링 피드백 5번 -
+  // 예전엔 page.tsx가 이 컴포넌트 자체를 언마운트해서 화면 전체가 리로드되는 것처럼 보였음).
+  loading?: boolean;
 };
 
 const transactionTypePills: Array<{ label: string; value?: PropertyTransactionTypeDto }> = [
@@ -69,7 +74,7 @@ const transactionTypePills: Array<{ label: string; value?: PropertyTransactionTy
   ...propertyTransactionTypeOptions.map((option) => ({ label: option.label, value: option.value })),
 ];
 
-export function PropertiesClient({ propertyPage, loadError, notice, filter }: PropertiesClientProps) {
+export function PropertiesClient({ propertyPage, loadError, notice, filter, loading }: PropertiesClientProps) {
   const { items: properties, page, totalPages } = propertyPage;
   const router = useRouter();
 
@@ -380,104 +385,118 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
 
         {loadError && <div className="ansim-card border-red-100 bg-red-50 p-6 text-sm text-red-700">{loadError}</div>}
 
-        {!loadError && properties.length === 0 && (
-          <div className="ansim-card p-6 text-sm text-slate-500">조건에 맞는 매물이 없습니다.</div>
-        )}
+        {/* 검색/필터 재조회 중에는 이전 결과를 흐리게 유지한 채 로딩 인디케이터만 겹쳐 보여준다 -
+            검색창/필터 패널까지 같이 사라지는 대신 결과 영역만 갱신되는 것처럼 느껴지게 하기 위함
+            (5차 멘토링 피드백 5번). aria-busy로 스크린리더에도 로딩 중임을 알린다. */}
+        <div
+          aria-busy={loading}
+          className={cn('relative transition-opacity', loading && 'pointer-events-none opacity-50')}
+        >
+          {loading && (
+            <div className="absolute inset-x-0 top-0 z-10 flex justify-center pt-10">
+              <Loader2 className="h-6 w-6 animate-spin text-teal-600" />
+            </div>
+          )}
 
-        <div className="grid grid-cols-1 gap-5">
-          {properties.map((property) => (
-            <Link
-              key={property.id}
-              href={`/properties/${property.id}`}
-              className="ansim-card group block p-6 transition hover:border-teal-200"
-            >
-              <div>
-                <div className="mb-4 flex gap-4">
-                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-24 sm:w-24">
-                    {property.representativeImageUrl ? (
-                      <Image
-                        src={property.representativeImageUrl}
-                        alt={property.title}
-                        fill
-                        sizes="96px"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-slate-300">
-                        <ImageOff className="h-6 w-6" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-3 flex flex-wrap items-center gap-2">
-                      <Badge className="bg-teal-50 text-teal-700">{property.type}</Badge>
-                      {property.propertyType && (
-                        <Badge className="bg-slate-100 text-slate-600">{property.propertyType}</Badge>
-                      )}
-                      {/* 정렬 기준(면적 좁은순/넓은순)을 카드에서 바로 확인할 수 있도록 전용면적을 뱃지로
-                          노출한다(#195) - 기존엔 주소 아래 옅은 회색 텍스트라 눈에 잘 안 띄어서 상단 뱃지 줄로 옮김. */}
-                      <Badge className="flex items-center gap-1 bg-sky-50 text-sky-700">
-                        <Ruler className="h-3 w-3" /> {formatAreaWithPyeong(property.area)}
-                      </Badge>
-                      {property.checkSignalCount !== undefined ? (
-                        <Badge className={property.statusColor}>확인 필요 신호 {property.checkSignalCount}개</Badge>
+          {!loadError && properties.length === 0 && (
+            <div className="ansim-card p-6 text-sm text-slate-500">조건에 맞는 매물이 없습니다.</div>
+          )}
+
+          <div className="grid grid-cols-1 gap-5">
+            {properties.map((property) => (
+              <Link
+                key={property.id}
+                href={`/properties/${property.id}`}
+                className="ansim-card group block p-6 transition hover:border-teal-200"
+              >
+                <div>
+                  <div className="mb-4 flex gap-4">
+                    <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100 sm:h-24 sm:w-24">
+                      {property.representativeImageUrl ? (
+                        <Image
+                          src={property.representativeImageUrl}
+                          alt={property.title}
+                          fill
+                          sizes="96px"
+                          className="object-cover"
+                        />
                       ) : (
-                        <Badge className="bg-slate-100 text-slate-500">신호 확인 준비 중</Badge>
-                      )}
-                      {property.jeonseRatio !== undefined ? (
-                        <Badge className="bg-slate-100 text-slate-600">전세가율 {property.jeonseRatio}%</Badge>
-                      ) : (
-                        <Badge className="bg-slate-100 text-slate-500">전세가율 준비 중</Badge>
+                        <div className="flex h-full w-full items-center justify-center text-slate-300">
+                          <ImageOff className="h-6 w-6" />
+                        </div>
                       )}
                     </div>
-                    <h2 className="mb-2 truncate text-xl font-bold text-slate-950 group-hover:text-teal-700">
-                      {property.title}
-                    </h2>
-                    <p className="flex items-center gap-1 truncate text-sm text-slate-500">
-                      <MapPin className="h-4 w-4 shrink-0" /> {property.address}
-                      {property.detailAddress && ` ${property.detailAddress}`}
-                    </p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div className="rounded-xl bg-slate-50 p-4">
-                    <p className="mb-1 text-xs text-slate-400">보증금</p>
-                    <p className="font-bold text-slate-950">{property.deposit}</p>
-                    <p className="mt-1 text-xs text-slate-500">{property.maintenance ?? '관리비 정보 없음'}</p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 p-4">
-                    <p className="mb-1 text-xs text-slate-400">시세 대비</p>
-                    {property.marketDelta !== undefined ? (
-                      <p
-                        className={cn(
-                          'font-bold',
-                          property.marketDelta.startsWith('+') ? 'text-orange-600' : 'text-emerald-600',
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <Badge className="bg-teal-50 text-teal-700">{property.type}</Badge>
+                        {property.propertyType && (
+                          <Badge className="bg-slate-100 text-slate-600">{property.propertyType}</Badge>
                         )}
-                      >
-                        {property.marketDelta}
+                        {/* 정렬 기준(면적 좁은순/넓은순)을 카드에서 바로 확인할 수 있도록 전용면적을 뱃지로
+                          노출한다(#195) - 기존엔 주소 아래 옅은 회색 텍스트라 눈에 잘 안 띄어서 상단 뱃지 줄로 옮김. */}
+                        <Badge className="flex items-center gap-1 bg-sky-50 text-sky-700">
+                          <Ruler className="h-3 w-3" /> {formatAreaWithPyeong(property.area)}
+                        </Badge>
+                        {property.checkSignalCount !== undefined ? (
+                          <Badge className={property.statusColor}>확인 필요 신호 {property.checkSignalCount}개</Badge>
+                        ) : (
+                          <Badge className="bg-slate-100 text-slate-500">신호 확인 준비 중</Badge>
+                        )}
+                        {property.jeonseRatio !== undefined ? (
+                          <Badge className="bg-slate-100 text-slate-600">전세가율 {property.jeonseRatio}%</Badge>
+                        ) : (
+                          <Badge className="bg-slate-100 text-slate-500">전세가율 준비 중</Badge>
+                        )}
+                      </div>
+                      <h2 className="mb-2 truncate text-xl font-bold text-slate-950 group-hover:text-teal-700">
+                        {property.title}
+                      </h2>
+                      <p className="flex items-center gap-1 truncate text-sm text-slate-500">
+                        <MapPin className="h-4 w-4 shrink-0" /> {property.address}
+                        {property.detailAddress && ` ${property.detailAddress}`}
                       </p>
-                    ) : (
-                      <p className="font-bold text-slate-400">준비 중</p>
-                    )}
-                    <p className="mt-1 text-xs text-slate-500">
-                      {property.marketDelta !== undefined ? '최근 실거래가 기준' : '실거래가 연동 예정'}
-                    </p>
+                    </div>
                   </div>
-                  <div className="rounded-xl bg-slate-50 p-4">
-                    <p className="mb-1 text-xs text-slate-400">체크리스트</p>
-                    {property.checklist !== undefined ? (
-                      <p className="font-bold text-slate-950">{property.checklist}% 완료</p>
-                    ) : (
-                      <p className="font-bold text-slate-400">준비 중</p>
-                    )}
-                    <p className="mt-1 text-xs text-slate-500">
-                      {property.checklist !== undefined ? '방문 확인 진행률' : '체크리스트 연동 예정'}
-                    </p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl bg-slate-50 p-4">
+                      <p className="mb-1 text-xs text-slate-400">보증금</p>
+                      <p className="font-bold text-slate-950">{property.deposit}</p>
+                      <p className="mt-1 text-xs text-slate-500">{property.maintenance ?? '관리비 정보 없음'}</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-4">
+                      <p className="mb-1 text-xs text-slate-400">시세 대비</p>
+                      {property.marketDelta !== undefined ? (
+                        <p
+                          className={cn(
+                            'font-bold',
+                            property.marketDelta.startsWith('+') ? 'text-orange-600' : 'text-emerald-600',
+                          )}
+                        >
+                          {property.marketDelta}
+                        </p>
+                      ) : (
+                        <p className="font-bold text-slate-400">준비 중</p>
+                      )}
+                      <p className="mt-1 text-xs text-slate-500">
+                        {property.marketDelta !== undefined ? '최근 실거래가 기준' : '실거래가 연동 예정'}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-4">
+                      <p className="mb-1 text-xs text-slate-400">체크리스트</p>
+                      {property.checklist !== undefined ? (
+                        <p className="font-bold text-slate-950">{property.checklist}% 완료</p>
+                      ) : (
+                        <p className="font-bold text-slate-400">준비 중</p>
+                      )}
+                      <p className="mt-1 text-xs text-slate-500">
+                        {property.checklist !== undefined ? '방문 확인 진행률' : '체크리스트 연동 예정'}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))}
+          </div>
         </div>
 
         {!loadError && totalPages > 1 && (
