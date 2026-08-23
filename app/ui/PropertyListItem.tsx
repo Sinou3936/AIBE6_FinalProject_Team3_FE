@@ -62,6 +62,7 @@ export function PropertyListItem({ property, checklistProgress }: PropertyListIt
           <h3 className="mb-1 truncate font-bold text-slate-950">{property.title}</h3>
           <p className="flex items-center gap-1 truncate text-sm text-slate-500">
             <MapPin className="h-4 w-4 shrink-0" /> {property.address}
+            {property.detailAddress && ` ${property.detailAddress}`}
           </p>
         </div>
       </div>

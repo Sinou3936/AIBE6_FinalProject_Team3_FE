@@ -382,6 +382,9 @@ export type PropertyImageDto = {
 export type CreatePropertyRequestDto = {
   title: string;
   address: string;
+  // 선택 입력 - 동/호수 등 상세주소(5차 멘토링 피드백 3번). address(도로명/지번)와 달리 Kakao
+  // 지오코딩 대상이 아닌 순수 표시·식별용 값이라 형식 검증이 없다.
+  detailAddress?: string | null;
   propertyType: PropertyTypeDto;
   transactionType: PropertyTransactionTypeDto;
   deposit: number;
@@ -425,6 +428,8 @@ export type PropertyAddressDto = {
   jibunAddress: string | null;
   latitude: number;
   longitude: number;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번) - 사용자 입력 텍스트, 없으면 null.
+  detailAddress: string | null;
 };
 
 // 기준가(중앙값) 산출에 실제로 쓰인 개별 실거래 표본 1건(#264/#197, 5차 멘토링 피드백 7-2).
@@ -481,6 +486,9 @@ export type PropertyListItemDto = {
   maintenanceFee: number | null;
   roadAddress: string | null;
   jibunAddress: string | null;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번) - 같은 건물 안 여러 매물을 목록에서도 구분할 수
+  // 있도록 노출된다. 없으면 null.
+  detailAddress: string | null;
   status: PropertyStatusDto;
   createdAt: string;
   // 체크리스트를 아예 시작 안 했으면 null(분모가 없음), 시작했으면 0~100 사이 정수(반올림).
@@ -501,6 +509,8 @@ export type PropertyDetailAddressDto = {
   jibunAddress: string | null;
   latitude: number | null;
   longitude: number | null;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번) - 사용자 입력 텍스트, 없으면 null.
+  detailAddress: string | null;
 };
 
 // GET /properties/{id} 응답. 목록과 달리 설명/이미지/전체 주소/시세비교까지 포함한다.
@@ -532,6 +542,9 @@ export type PropertyDetailResponseDto = {
 // 기존 이미지를 전부 지우고 통째로 교체한다 - BE PropertyUpdateRequest 주석 참고.
 export type UpdatePropertyRequestDto = {
   title: string;
+  // 선택 입력 - 등록 때와 동일하게 형식 검증이 없다. roadAddress/jibunAddress와 달리 등록 이후에도
+  // 예외적으로 수정 가능한 필드다(5차 멘토링 피드백 3번, BE PropertyUpdateRequest 주석 참고).
+  detailAddress?: string | null;
   deposit: number;
   monthlyRent?: number | null;
   area: number;

@@ -106,6 +106,7 @@ export async function createProperty(request: CreatePropertyRequestDto): Promise
         jibunAddress: request.address,
         latitude: 0,
         longitude: 0,
+        detailAddress: request.detailAddress ?? null,
       },
       marketComparison: {
         status: 'UNAVAILABLE',

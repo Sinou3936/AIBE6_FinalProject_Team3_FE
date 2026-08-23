@@ -201,6 +201,7 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
               <h1 className="mb-2 text-2xl font-bold text-slate-950 md:text-3xl">{property.title}</h1>
               <p className="flex items-center gap-1 text-slate-500">
                 <Building2 className="h-4 w-4" /> {property.address}
+                {property.detailAddress && ` ${property.detailAddress}`}
               </p>
               <div className="mt-6 flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-teal-600">{property.deposit}</span>
