@@ -23,6 +23,7 @@ export default function Page() {
 
   const [title, setTitle] = useState('');
   const [address, setAddress] = useState('');
+  const [detailAddress, setDetailAddress] = useState('');
   const [propertyType, setPropertyType] = useState<PropertyTypeDto>('OFFICETEL');
   const [transactionType, setTransactionType] = useState<PropertyTransactionTypeDto>('JEONSE');
   const [deposit, setDeposit] = useState('');
@@ -83,6 +84,7 @@ export default function Page() {
       const response = await createProperty({
         title: title.trim(),
         address: address.trim(),
+        detailAddress: detailAddress.trim().length > 0 ? detailAddress.trim() : null,
         propertyType,
         transactionType,
         deposit: depositNumber,
@@ -143,6 +145,20 @@ export default function Page() {
               <span className="mb-2 block text-sm font-bold text-slate-700">주소</span>
               <AddressSearchField value={address} onChange={setAddress} disabled={isSubmitting} />
             </div>
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-slate-700">상세주소 (선택)</span>
+              <input
+                value={detailAddress}
+                onChange={(event) => setDetailAddress(event.target.value)}
+                disabled={isSubmitting}
+                className="ansim-input disabled:opacity-60"
+                placeholder="예: 101동 302호"
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                같은 건물이라도 동/호수가 다르면 다른 매물이에요. 구분이 필요하면 입력해주세요.
+              </p>
+            </label>
 
             <div>
               <span className="mb-2 block text-sm font-bold text-slate-700">매물 유형</span>

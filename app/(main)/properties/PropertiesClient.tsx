@@ -435,6 +435,7 @@ export function PropertiesClient({ propertyPage, loadError, notice, filter }: Pr
                     </h2>
                     <p className="flex items-center gap-1 truncate text-sm text-slate-500">
                       <MapPin className="h-4 w-4 shrink-0" /> {property.address}
+                      {property.detailAddress && ` ${property.detailAddress}`}
                     </p>
                   </div>
                 </div>

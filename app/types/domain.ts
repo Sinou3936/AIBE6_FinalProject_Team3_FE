@@ -20,6 +20,9 @@ export type PropertySummary = {
   id: number;
   title: string;
   address: string;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번) - 같은 건물 안 여러 매물을 구분하기 위한 사용자
+  // 입력 텍스트. 없으면 undefined(BE가 null로 내려주는 걸 매퍼가 변환).
+  detailAddress?: string;
   type: PropertyTradeType;
   deposit: string;
   // 정렬 기준(면적 좁은순/넓은순)을 카드에서 눈으로 확인할 수 있도록 전용면적(㎡)을 노출한다(#195).
@@ -54,6 +57,9 @@ export type PropertyDetail = {
   title: string;
   type: PropertyTradeType;
   address: string;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번). roadAddress/jibunAddress와 달리 등록 후에도
+  // 수정 가능한 필드라 수정 폼에서 별도 입력란으로 다룬다.
+  detailAddress?: string;
   deposit: string;
   propertyType?: string;
   // 수정 폼 입력값 프리필용 원시 금액(원 단위). 실제 API는 항상 채워지고, mock은 표시용 문자열만
