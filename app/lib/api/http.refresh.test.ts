@@ -294,4 +294,64 @@ describe('이미 다른 요청이 refresh를 끝낸 뒤 늦게 도착한 401', (
     // B 때문에 refresh가 한 번 더 나가면 안 된다 - A의 refresh 성공 결과를 그대로 재사용해야 한다.
     expect(refreshCallCount).toBe(1);
   });
+
+  // 회귀 테스트(2026-08-24) - 위 테스트는 `setTimeout(5)`로 requestStartedAt과 lastRefreshSucceededAt이
+  // 같은 밀리초로 찍히는 경우를 일부러 피해갔다. 실제로는 두 값이 동률(tie)일 수 있는데,
+  // `requestStartedAt < lastRefreshSucceededAt`(엄격한 비교)이면 이 동률에서 false가 되어 B가
+  // 불필요한 두 번째 refresh를 또 시작한다 - 여기서는 Date.now()를 고정해 동률을 강제로 재현하고,
+  // `<=`로 바뀐 뒤에는 refresh가 여전히 한 번만 나가는지 검증한다.
+  it('requestStartedAt과 lastRefreshSucceededAt이 같은 밀리초여도 refresh를 중복 호출하지 않는다', async () => {
+    const fixedNow = 1_700_000_000_000;
+    vi.spyOn(Date, 'now').mockReturnValue(fixedNow);
+
+    let resolveBFirstResponse: (response: Response) => void;
+    const bFirstResponsePromise = new Promise<Response>((resolve) => {
+      resolveBFirstResponse = resolve;
+    });
+    let refreshCallCount = 0;
+    let protectedCallCount = 0;
+
+    const fetchMock = vi.fn((url: unknown) => {
+      const href = String(url);
+      if (href.endsWith('/auth/refresh')) {
+        refreshCallCount += 1;
+        return Promise.resolve(new Response(null, { status: 200 }));
+      }
+      protectedCallCount += 1;
+      if (protectedCallCount === 1) {
+        return bFirstResponsePromise;
+      }
+      if (protectedCallCount === 2) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ success: false, error: { code: 'AUTH_TOKEN_EXPIRED', message: 'expired' } }), {
+            status: 401,
+          }),
+        );
+      }
+      return Promise.resolve(new Response(JSON.stringify({ success: true, data: { who: 'retry' } }), { status: 200 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { requestJson } = await import('./http');
+
+    // B의 requestStartedAt과 A의 refresh 성공 시각(lastRefreshSucceededAt)이 fixedNow로 완전히 같다.
+    const bPromise = requestJson<{ who: string }>('/some/protected/path-b');
+    await vi.waitFor(() => expect(protectedCallCount).toBe(1));
+
+    const aResult = await requestJson<{ who: string }>('/some/protected/path-a');
+    expect(aResult).toEqual({ who: 'retry' });
+    expect(refreshCallCount).toBe(1);
+
+    resolveBFirstResponse!(
+      new Response(JSON.stringify({ success: false, error: { code: 'AUTH_TOKEN_EXPIRED', message: 'expired' } }), {
+        status: 401,
+      }),
+    );
+
+    const bResult = await bPromise;
+    expect(bResult).toEqual({ who: 'retry' });
+    // 동률이어도 B가 refresh를 또 트리거하면 안 된다 - 트리거했다면 토큰 회전 경합으로 정상
+    // 세션인데 강제 로그아웃되는 시나리오로 이어진다.
+    expect(refreshCallCount).toBe(1);
+  });
 });

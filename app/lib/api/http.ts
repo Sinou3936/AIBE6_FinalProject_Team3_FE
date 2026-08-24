@@ -118,7 +118,12 @@ export async function requestJson<T>(path: string, init?: RequestInit): Promise<
     // refresh를 또 시작할 필요 없이 바로 재시도만 하면 된다. (동시에 나간 A/B 요청 중 A가 refresh를
     // 끝낸 뒤에야 B의 401이 뒤늦게 도착하는 경우 — 안 그러면 이미 성공한 refresh 직후에 불필요한
     // 재-rotate가 한 번 더 일어난다.)
-    if (requestStartedAt < lastRefreshSucceededAt) {
+    // Date.now()는 1ms 해상도라 이 요청의 시작 시각과 방금 성공한 refresh 시각이 같은 밀리초로
+    // 관측될 수 있다 - 엄격한 `<`만 쓰면 그 동률(tie)에서 false가 되어, 이미 끝난 refresh를 재사용
+    // 하지 않고 불필요한 두 번째 /auth/refresh를 또 시작해버린다(그 두 번째 refresh가 토큰 회전
+    // 특성상 다른 동시 refresh와 경합해 진짜 401을 받으면, 세션이 멀쩡한데도 강제 로그아웃됨).
+    // `<=`로 동률도 "이미 성공한 refresh 이후"로 간주해 재사용한다.
+    if (requestStartedAt <= lastRefreshSucceededAt) {
       const retryResponse = await fetchOrThrowNetworkError(path, { ...init, credentials: 'include', headers });
       return finalizeResponse<T>(retryResponse, await readApiResponse<T>(retryResponse));
     }
