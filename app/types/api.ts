@@ -300,7 +300,6 @@ export type UserProfileDto = {
   status: string;
   interestRegion: string | null;
   transactionType: UserTransactionTypeDto | null;
-  currentStage: string | null;
   hasPassword: boolean;
 };
 
@@ -308,7 +307,6 @@ export type ProfileUpdateRequestDto = {
   nickname?: string;
   interestRegion?: string;
   transactionType?: UserTransactionTypeDto;
-  currentStage?: string;
 };
 
 // POST /users/me/profile-image/presign 요청/응답. S3에 직접 PUT하기 전 업로드용 presigned URL과
@@ -337,7 +335,6 @@ export type ProfileImageConfirmRequestDto = {
 export type ProfileRegisterRequestDto = {
   interestRegion: string;
   transactionType: UserTransactionTypeDto;
-  currentStage?: string;
 };
 
 export type NicknameCheckResponseDto = {

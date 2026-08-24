@@ -10,7 +10,6 @@ import { useLogout } from '../../lib/useLogout';
 import { logout } from '../../services/auth';
 import { withdraw } from '../../services/user';
 import { type ChecklistProgress, type PropertySummary, type UserProfile } from '../../types/domain';
-import { Badge } from '../../ui/Badge';
 import { InfoRow } from '../../ui/InfoRow';
 import { ContractHistorySection } from './ContractHistorySection';
 import { PropertyListSection } from './PropertyListSection';
@@ -97,9 +96,8 @@ export function MyPageClient({
               <div>
                 <div className="mb-1 flex items-center gap-2">
                   <p className="font-bold text-slate-950">{profile.nickname || nickname}</p>
-                  {profile.currentStage && <Badge className="bg-teal-50 text-teal-700">{profile.currentStage}</Badge>}
                 </div>
-                {!profile.currentStage && <p className="text-sm text-slate-500">프로필 정보를 등록해 주세요</p>}
+                {!isRegistered && <p className="text-sm text-slate-500">프로필 정보를 등록해 주세요</p>}
               </div>
             </div>
             <Link

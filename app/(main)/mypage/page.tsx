@@ -22,7 +22,6 @@ const emptyProfile: UserProfile = {
   profileImageUrl: null,
   interestRegion: null,
   transactionType: null,
-  currentStage: null,
   hasPassword: false,
 };
 
@@ -54,15 +53,13 @@ export default function Page() {
       // 호출 하나 수준으로 줄어든다. "계약분석 이력"(ContractHistorySection.tsx)은 이 배치에 없고
       // 그 컴포넌트가 자기 자신의 page state로 따로 불러온다 - 마이페이지 전체 URL을 그 섹션 하나의
       // 페이지네이션에 묶고 싶지 않기 때문(ContractHistorySection.tsx 주석 참고).
-      const [currentUserResult, propertiesResult, checklistOverviewsResult, profileResult] = await Promise.allSettled(
-        [
-          getCurrentUser(),
-          // 홈 화면과 동일한 이유(app/(main)/home/page.tsx 참고)로 최대 페이지 크기(100)만큼 가져온다.
-          getProperties(undefined, { size: 100 }),
-          getMyChecklistOverviews(),
-          getMyProfile(),
-        ],
-      );
+      const [currentUserResult, propertiesResult, checklistOverviewsResult, profileResult] = await Promise.allSettled([
+        getCurrentUser(),
+        // 홈 화면과 동일한 이유(app/(main)/home/page.tsx 참고)로 최대 페이지 크기(100)만큼 가져온다.
+        getProperties(undefined, { size: 100 }),
+        getMyChecklistOverviews(),
+        getMyProfile(),
+      ]);
 
       const nickname = currentUserResult.status === 'fulfilled' ? currentUserResult.value.nickname : '';
       // 닉네임은 화면 상단 인사말에만 쓰이므로 실패해도 빈 채로 넘어간다.

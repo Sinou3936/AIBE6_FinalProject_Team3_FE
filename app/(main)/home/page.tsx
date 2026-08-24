@@ -31,7 +31,6 @@ const emptyProfile: UserProfile = {
   profileImageUrl: null,
   interestRegion: null,
   transactionType: null,
-  currentStage: null,
   hasPassword: false,
 };
 
@@ -81,8 +80,8 @@ function HomePageContent() {
     // 넷 다 서로 의존관계가 없는 조회라 병렬로 묶는다 - 예전엔 순차 await라 하나당 왕복 시간이
     // 그대로 누적됐는데(넷의 합만큼 대기), allSettled로 묶으면 개별 실패가 나머지에 영향을 주지
     // 않으면서도 총 대기 시간은 가장 느린 호출 하나 수준으로 줄어든다.
-    const [profileResult, propertiesResult, contractHistoryResult, checklistOverviewsResult] =
-      await Promise.allSettled([
+    const [profileResult, propertiesResult, contractHistoryResult, checklistOverviewsResult] = await Promise.allSettled(
+      [
         getMyProfile(),
         // 백엔드가 허용하는 최대 페이지 크기(100, PropertyController@PageableDefault 검증 로직 참고)만큼
         // 한 번에 가져온다. interestedPropertyCount/hasProperty는 아래에서 totalElements를 쓰므로
@@ -94,7 +93,8 @@ function HomePageContent() {
         // 그보다 오래된 건은 이 알림에 반영되지 않지만, 전체 개수(totalElements)는 정확하다.
         getMyContractHistory({ size: 20 }),
         getMyChecklistOverviews(),
-      ]);
+      ],
+    );
 
     let profile = emptyProfile;
     if (profileResult.status === 'fulfilled') {
@@ -191,7 +191,6 @@ function HomePageContent() {
   const hasProperty = data.propertiesTotalCount > 0;
 
   const priorityAction = getPriorityAction({
-    currentStage: data.profile.currentStage,
     hasProperty,
     propertiesLoadFailed: data.propertiesLoadFailed,
     checklistOverviews: data.checklistOverviews,
