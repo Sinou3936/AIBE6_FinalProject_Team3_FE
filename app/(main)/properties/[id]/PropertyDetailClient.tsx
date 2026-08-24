@@ -17,6 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { apiStatusToneClassMap, getJeonseRatioTone, riskSignalTypeMeta } from '../../../data/risk-analysis';
+import { cn } from '../../../lib/cn';
 import { formatAreaWithPyeong } from '../../../lib/numberFormat';
 import { roomTypeLabelMap } from '../../../mappers/property';
 import { deleteProperty } from '../../../services/properties';
@@ -54,6 +55,10 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isJeonseRatioHelpOpen, setIsJeonseRatioHelpOpen] = useState(false);
   const [reportSuccess, setReportSuccess] = useState(false);
+  // 신고 제출 직후 즉시 눈에 띄는 완료 알림(멘토 정리 4 / 우선순위 3) - 신고 버튼이 화면 하단
+  // NoticeBox까지 스크롤되지 않으면 신고가 됐는지 알 수 없던 문제 개선. 체크리스트 완료 모달
+  // (ChecklistClient.tsx)과 동일한 패턴을 재사용한다.
+  const [isReportCompleteModalOpen, setIsReportCompleteModalOpen] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
 
   if (loadError || !property) {
@@ -200,6 +205,7 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
               <h1 className="mb-2 text-2xl font-bold text-slate-950 md:text-3xl">{property.title}</h1>
               <p className="flex items-center gap-1 text-slate-500">
                 <Building2 className="h-4 w-4" /> {property.address}
+                {property.detailAddress && ` ${property.detailAddress}`}
               </p>
               <div className="mt-6 flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-teal-600">{property.deposit}</span>
@@ -277,6 +283,48 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
                       <p className="font-semibold text-slate-800">{property.marketComparison.referenceDate}</p>
                     </div>
                   </div>
+                  {property.marketComparison.samples && property.marketComparison.samples.length > 0 && (
+                    <div className="mt-4 border-t border-slate-100 pt-4">
+                      <p className="mb-2 text-xs font-bold text-slate-600">
+                        인근 실거래 내역
+                        {typeof property.marketComparison.sampleCount === 'number' &&
+                          property.marketComparison.sampleCount > property.marketComparison.samples.length && (
+                            <span className="ml-1 font-normal text-slate-400">
+                              (총 {property.marketComparison.sampleCount}건 중 대표{' '}
+                              {property.marketComparison.samples.length}건 · 최고가·최저가·최근순)
+                            </span>
+                          )}
+                      </p>
+                      <ul className="space-y-2">
+                        {property.marketComparison.samples.map((sample, index) => (
+                          <li key={index} className="flex items-center justify-between gap-2 text-xs text-slate-500">
+                            <span className="flex min-w-0 items-center gap-1.5 truncate">
+                              {sample.priceHighlight && (
+                                <Badge
+                                  className={cn(
+                                    'shrink-0 px-1.5 py-0.5 text-[10px]',
+                                    sample.priceHighlight === 'HIGHEST'
+                                      ? 'bg-rose-50 text-rose-600'
+                                      : 'bg-blue-50 text-blue-600',
+                                  )}
+                                >
+                                  {sample.priceHighlight === 'HIGHEST' ? '최고가' : '최저가'}
+                                </Badge>
+                              )}
+                              <span className="truncate">
+                                {sample.buildingName ?? sample.address}
+                                {sample.areaText ? ` · ${sample.areaText}` : ''}
+                              </span>
+                            </span>
+                            <span className="shrink-0 font-medium text-slate-700">
+                              {sample.depositText}{' '}
+                              <span className="text-slate-400">({sample.dealDateText})</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   <p className="mt-4 text-[11px] leading-relaxed text-slate-400">
                     국토교통부 실거래가 공개시스템 기준이며, 참고용 정보이니 실제 시세는 별도로 확인해보세요.
                   </p>
@@ -451,7 +499,10 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
         propertyId={property.id}
         open={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
-        onSuccess={() => setReportSuccess(true)}
+        onSuccess={() => {
+          setReportSuccess(true);
+          setIsReportCompleteModalOpen(true);
+        }}
       />
 
       <PropertyDeleteConfirmModal
@@ -461,6 +512,18 @@ export function PropertyDetailClient({ property, loadError, riskSignals, deposit
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
       />
+
+      <Modal open={isReportCompleteModalOpen} onClose={() => setIsReportCompleteModalOpen(false)}>
+        <h2 className="mb-2 text-lg font-bold text-slate-950">신고가 접수됐어요</h2>
+        <p className="mb-5 text-sm text-slate-500">검토 후 반영할게요. 알려주셔서 감사해요.</p>
+        <button
+          type="button"
+          onClick={() => setIsReportCompleteModalOpen(false)}
+          className="ansim-button-primary w-full py-3"
+        >
+          확인
+        </button>
+      </Modal>
 
       <Modal open={isJeonseRatioHelpOpen} onClose={() => setIsJeonseRatioHelpOpen(false)}>
         <h3 className="mb-3 text-base font-bold text-slate-950">전세가율이 뭔가요?</h3>

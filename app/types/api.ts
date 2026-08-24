@@ -35,6 +35,7 @@ export type PropertySummaryDto = {
   statusTone: ApiStatusTone;
   latitude: number;
   longitude: number;
+  area: number;
 };
 
 export type ChecklistItemTypeDto = 'CHECK' | 'YES_NO' | 'DATE' | 'DOCUMENT_REQUEST' | 'MULTIPLE_CHOICE';
@@ -102,6 +103,11 @@ export type ChecklistOverviewDto = {
   // 체크리스트를 아직 시작 안 했으면 null(0%와 구분) - GROUP BY 집계 쿼리로 N+1 없이 계산된다.
   progressPercent: number | null;
   cautionCount: number | null;
+  // status가 COMPLETED여도 0보다 클 수 있다 - refreshStatus()가 REQUIRED만 보고 완료를 판정해서
+  // GENERAL 항목은 완료 판정에서 제외되기 때문. 시작 전이면 null.
+  generalMissingCount: number | null;
+  // status가 COMPLETED면 정의상 항상 0(필수를 다 해야 완료 판정되므로). 시작 전이면 null.
+  requiredMissingCount: number | null;
 };
 
 // 계약 문구 분석 4단계 파이프라인: 입력 제출 -> OCR -> 마스킹 -> AI 분석.
@@ -383,6 +389,9 @@ export type PropertyImageDto = {
 export type CreatePropertyRequestDto = {
   title: string;
   address: string;
+  // 선택 입력 - 동/호수 등 상세주소(5차 멘토링 피드백 3번). address(도로명/지번)와 달리 Kakao
+  // 지오코딩 대상이 아닌 순수 표시·식별용 값이라 형식 검증이 없다.
+  detailAddress?: string | null;
   propertyType: PropertyTypeDto;
   transactionType: PropertyTransactionTypeDto;
   deposit: number;
@@ -426,6 +435,23 @@ export type PropertyAddressDto = {
   jibunAddress: string | null;
   latitude: number;
   longitude: number;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번) - 사용자 입력 텍스트, 없으면 null.
+  detailAddress: string | null;
+};
+
+// 기준가(중앙값) 산출에 실제로 쓰인 개별 실거래 표본 1건(#264/#197, 5차 멘토링 피드백 7-2).
+// 국토부 실거래가 공개시스템이 원래도 공개하는 공공데이터라 별도 개인정보 이슈는 없다.
+export type MarketTransactionSampleDto = {
+  buildingName: string | null;
+  address: string;
+  dealDate: string; // yyyy-MM-dd
+  depositWon: number;
+  areaSqm: number | null;
+  // 표본이 대표 5건으로 추려질 때 이 표본이 최고가/최저가로 뽑혔는지 표시(#264 7-2 보완).
+  // 목록 자체는 항상 최신 계약일순으로 정렬되는데, 최고가/최저가로 뽑힌 표본이 목록 중간에
+  // 섞여 있으면 왜 포함됐는지 알기 어려워 배지로 알려주기 위함. 최근순으로 뽑혔거나(대표 5건 중
+  // 나머지), 표본이 5건 이하라 전부 노출된 경우엔 null.
+  priceHighlight: 'HIGHEST' | 'LOWEST' | null;
 };
 
 export type MarketComparisonDto = {
@@ -440,6 +466,8 @@ export type MarketComparisonDto = {
   areaErrorRate: number | null;
   // 실거래를 조회한 개월 수. status가 UNAVAILABLE이면 null.
   lookbackMonths: number | null;
+  // 기준가 계산에 쓰인 개별 표본 목록, 최신 계약일 순. status가 UNAVAILABLE이면 null.
+  samples: MarketTransactionSampleDto[] | null;
   // UNAVAILABLE 사유를 사람이 읽을 수 있는 문장으로 내려준다(월세/단독다가구/좌표없음/표본부족 등).
   // AVAILABLE이면 null.
   message: string | null;
@@ -465,6 +493,9 @@ export type PropertyListItemDto = {
   maintenanceFee: number | null;
   roadAddress: string | null;
   jibunAddress: string | null;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번) - 같은 건물 안 여러 매물을 목록에서도 구분할 수
+  // 있도록 노출된다. 없으면 null.
+  detailAddress: string | null;
   status: PropertyStatusDto;
   createdAt: string;
   // 체크리스트를 아예 시작 안 했으면 null(분모가 없음), 시작했으면 0~100 사이 정수(반올림).
@@ -485,6 +516,8 @@ export type PropertyDetailAddressDto = {
   jibunAddress: string | null;
   latitude: number | null;
   longitude: number | null;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번) - 사용자 입력 텍스트, 없으면 null.
+  detailAddress: string | null;
 };
 
 // GET /properties/{id} 응답. 목록과 달리 설명/이미지/전체 주소/시세비교까지 포함한다.
@@ -516,6 +549,9 @@ export type PropertyDetailResponseDto = {
 // 기존 이미지를 전부 지우고 통째로 교체한다 - BE PropertyUpdateRequest 주석 참고.
 export type UpdatePropertyRequestDto = {
   title: string;
+  // 선택 입력 - 등록 때와 동일하게 형식 검증이 없다. roadAddress/jibunAddress와 달리 등록 이후에도
+  // 예외적으로 수정 가능한 필드다(5차 멘토링 피드백 3번, BE PropertyUpdateRequest 주석 참고).
+  detailAddress?: string | null;
   deposit: number;
   monthlyRent?: number | null;
   area: number;
@@ -744,6 +780,9 @@ export type RiskSignalDto = {
   status: RiskCheckStatusDto;
   reason: RiskCheckReasonDto | null;
   description: string | null; // SUCCESS이면서 리스크가 실제로 발견된 경우에만 값 있음
+  // (2026-08-20) 리스크가 실제로 발견된 경우에만 값 있음, 그 외엔 빈 배열(null 아님).
+  // 현재는 PRICE_ANOMALY만 실제 값을 채워주고 나머지 신호 타입은 항상 빈 배열.
+  recommendedActions: string[];
   checkedAt: string;
 };
 

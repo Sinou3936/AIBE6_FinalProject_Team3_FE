@@ -16,6 +16,7 @@ export const initPropertySummaryDtos: PropertySummaryDto[] = [
     statusTone: 'orange',
     latitude: 37.4842,
     longitude: 126.9295,
+    area: 33.2,
   },
   {
     id: 2,
@@ -32,6 +33,7 @@ export const initPropertySummaryDtos: PropertySummaryDto[] = [
     statusTone: 'emerald',
     latitude: 37.4824,
     longitude: 126.9416,
+    area: 26.4,
   },
   {
     id: 3,
@@ -48,5 +50,6 @@ export const initPropertySummaryDtos: PropertySummaryDto[] = [
     statusTone: 'red',
     latitude: 37.481,
     longitude: 126.9527,
+    area: 44.8,
   },
 ];

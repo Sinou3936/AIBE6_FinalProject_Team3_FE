@@ -20,6 +20,7 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
   const router = useRouter();
 
   const [title, setTitle] = useState(property?.title ?? '');
+  const [detailAddress, setDetailAddress] = useState(property?.detailAddress ?? '');
   // 보증금/월세는 화면에서 만원 단위로 다루므로, BE가 내려준 원 단위 값을 만원으로 나눠서 프리필한다(#175).
   // 이 기능 이전에 등록된 매물은 만원 단위로 딱 안 떨어질 수도 있어 반올림한다 - 이후 수정 저장 시
   // 반올림된 만원 값이 그대로 원 단위로 환산되어 저장되므로, 그 경우 소수점 이하 원 단위는 사라진다.
@@ -97,6 +98,7 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
     try {
       await updateProperty(propertyId, {
         title: title.trim(),
+        detailAddress: detailAddress.trim().length > 0 ? detailAddress.trim() : null,
         deposit: depositNumber,
         monthlyRent: monthlyRentNumber,
         area: areaNumber,
@@ -156,6 +158,20 @@ export function PropertyEditClient({ propertyId, property, loadError }: Property
               />
               <p className="mt-2 text-xs text-slate-500">
                 이름이 없는 건물이라면 비워두세요. &ldquo;{property.propertyType}&rdquo;로 표시돼요.
+              </p>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-bold text-slate-700">상세주소 (선택)</span>
+              <input
+                value={detailAddress}
+                onChange={(event) => setDetailAddress(event.target.value)}
+                disabled={isSubmitting}
+                className="ansim-input disabled:opacity-60"
+                placeholder="예: 101동 302호"
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                주소와 달리 상세주소(동/호수)는 등록 이후에도 수정할 수 있어요.
               </p>
             </label>
 

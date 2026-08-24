@@ -75,51 +75,57 @@ function HomePageContent() {
   const fetchHomeData = useCallback(async (): Promise<PageData> => {
     let loadError: string | undefined;
     let profileNotFound = false;
+    let propertiesLoadFailed = false;
+
+    // 넷 다 서로 의존관계가 없는 조회라 병렬로 묶는다 - 예전엔 순차 await라 하나당 왕복 시간이
+    // 그대로 누적됐는데(넷의 합만큼 대기), allSettled로 묶으면 개별 실패가 나머지에 영향을 주지
+    // 않으면서도 총 대기 시간은 가장 느린 호출 하나 수준으로 줄어든다.
+    const [profileResult, propertiesResult, activityHistoryResult, checklistOverviewsResult] =
+      await Promise.allSettled([
+        getMyProfile(),
+        // 백엔드가 허용하는 최대 페이지 크기(100, PropertyController@PageableDefault 검증 로직 참고)만큼
+        // 한 번에 가져온다. interestedPropertyCount/hasProperty는 아래에서 totalElements를 쓰므로
+        // 매물이 100개를 넘어도 정확하지만, "중요 확인사항" 위젯(signalProperties)과 신호/체크리스트
+        // 기반 카운트는 이 items 배열(최대 100개, createdAt DESC)만 보므로 101번째 이후 오래된 매물의
+        // 신호는 반영되지 않는다. 실사용 규모상 무시 가능하다고 판단해 별도 페이지 순회는 하지 않는다.
+        getProperties(undefined, { size: 100 }),
+        getActivityHistory(),
+        getMyChecklistOverviews(),
+      ]);
 
     let profile = emptyProfile;
-    try {
-      profile = await getMyProfile();
-    } catch (error) {
-      if (classifyProfileLoadError(error) === 'not-found') {
-        profileNotFound = true;
-      } else {
-        // 실패 시 개인화 우선순위 카드는 미등록 상태 기준으로 표시하고, 아래 배너로 실패 사실을 알린다.
-        loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
-      }
+    if (profileResult.status === 'fulfilled') {
+      profile = profileResult.value;
+    } else if (classifyProfileLoadError(profileResult.reason) === 'not-found') {
+      profileNotFound = true;
+    } else {
+      // 실패 시 개인화 우선순위 카드는 미등록 상태 기준으로 표시하고, 아래 배너로 실패 사실을 알린다.
+      loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
     }
 
     let properties: PropertySummary[] = [];
     let propertiesTotalCount = 0;
-    let propertiesLoadFailed = false;
-    try {
-      // 백엔드가 허용하는 최대 페이지 크기(100, PropertyController@PageableDefault 검증 로직 참고)만큼
-      // 한 번에 가져온다. interestedPropertyCount/hasProperty는 아래에서 totalElements를 쓰므로
-      // 매물이 100개를 넘어도 정확하지만, "중요 확인사항" 위젯(signalProperties)과 신호/체크리스트
-      // 기반 카운트는 이 items 배열(최대 100개, createdAt DESC)만 보므로 101번째 이후 오래된 매물의
-      // 신호는 반영되지 않는다. 실사용 규모상 무시 가능하다고 판단해 별도 페이지 순회는 하지 않는다.
-      const propertiesPage = await getProperties(undefined, { size: 100 });
-      properties = propertiesPage.items;
-      propertiesTotalCount = propertiesPage.totalElements;
-    } catch {
+    if (propertiesResult.status === 'fulfilled') {
+      properties = propertiesResult.value.items;
+      propertiesTotalCount = propertiesResult.value.totalElements;
+    } else {
       // 실패 시 "매물이 없다"고 단정하지 않도록 propertiesLoadFailed로 별도 표시하고,
       // 아래 배너로도 실패 사실을 알린다.
       propertiesLoadFailed = true;
       loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
     }
 
-    let activityHistory: ActivityHistoryItem[] = [];
-    try {
-      activityHistory = await getActivityHistory();
-    } catch {
-      // 백엔드에 이 엔드포인트가 아직 없어 항상 실패한다(app/services/activityHistory.ts 참고) -
-      // 일시적 오류가 아니라 상시 상태라 배너로 알리지 않고, 분석한 특약사항 카운트/알림만 조용히
-      // 빈 상태로 둔다. 엔드포인트가 실제로 생기면 이 catch에서도 loadError를 다시 세팅할 것.
-    }
+    // 백엔드에 이 엔드포인트가 아직 없어, ENABLE_ANALYSIS_HISTORY가 꺼져 있는 동안은
+    // getActivityHistory()가 호출조차 하지 않고 빈 배열을 바로 반환한다(app/services/activityHistory.ts
+    // 참고) - 항상 fulfilled이므로 여기서 배너로 알릴 실패 자체가 없다. 분석한 특약사항 카운트/알림도
+    // 자연히 빈 상태. 엔드포인트가 실제로 생겨 플래그를 켜면, 그때부터는 진짜 실패 시 이 분기에서
+    // loadError를 세팅하도록 고칠 것.
+    const activityHistory = activityHistoryResult.status === 'fulfilled' ? activityHistoryResult.value : [];
 
     let checklistOverviews: ChecklistOverview[] = [];
-    try {
-      checklistOverviews = (await getMyChecklistOverviews()).items;
-    } catch {
+    if (checklistOverviewsResult.status === 'fulfilled') {
+      checklistOverviews = checklistOverviewsResult.value.items;
+    } else {
       // 실패 시 개인화 우선순위 카드는 "불러오지 못함" 상태로 표시하고, 아래 배너로도 실패 사실을 알린다.
       loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
     }

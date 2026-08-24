@@ -77,6 +77,10 @@ function PropertiesPageContent() {
   const [propertyPage, setPropertyPage] = useState<PropertyListPage>(emptyPage);
   const [loadError, setLoadError] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  // 최초 진입(아직 보여줄 데이터가 하나도 없음)에만 전체화면 스피너를 쓰고, 그 이후 검색/필터/
+  // 페이지 변경으로 인한 재조회는 hasLoadedOnce가 true라 PropertiesClient를 언마운트하지 않는다 -
+  // 검색창/필터 패널까지 통째로 사라졌다 다시 나타나는 것처럼 보이는 문제 개선(5차 멘토링 피드백 5번).
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   const filterKey = JSON.stringify(filter);
 
@@ -110,7 +114,10 @@ function PropertiesPageContent() {
         }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setHasLoadedOnce(true);
+        }
       });
 
     return () => {
@@ -119,7 +126,7 @@ function PropertiesPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, filterKey]);
 
-  if (loading) {
+  if (!hasLoadedOnce && loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-teal-600" />
@@ -127,7 +134,15 @@ function PropertiesPageContent() {
     );
   }
 
-  return <PropertiesClient propertyPage={propertyPage} loadError={loadError} notice={notice} filter={filter} />;
+  return (
+    <PropertiesClient
+      propertyPage={propertyPage}
+      loadError={loadError}
+      notice={notice}
+      filter={filter}
+      loading={loading}
+    />
+  );
 }
 
 export default function Page() {

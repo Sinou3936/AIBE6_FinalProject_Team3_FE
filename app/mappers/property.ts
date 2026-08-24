@@ -1,6 +1,7 @@
 import {
   type ApiStatusTone,
   type MarketComparisonDto,
+  type MarketTransactionSampleDto,
   type PropertyDetailResponseDto,
   type PropertyImageDto,
   type PropertyListItemDto,
@@ -13,9 +14,11 @@ import {
   type PropertyDetail,
   type PropertyImage,
   type PropertyMarketComparison,
+  type PropertyMarketComparisonSample,
   type PropertySummary,
   type PropertyTradeType,
 } from '../types/domain';
+import { formatAreaWithPyeong } from '../lib/numberFormat';
 
 const propertyStatusColorMap: Record<ApiStatusTone, string> = {
   orange: 'bg-orange-100 text-orange-700',
@@ -31,6 +34,7 @@ export function mapPropertySummaryDto(dto: PropertySummaryDto): PropertySummary 
     address: dto.address,
     type: dto.tradeType,
     deposit: dto.depositText,
+    area: dto.area,
     maintenance: dto.maintenanceText,
     marketDelta: dto.marketDelta,
     checkSignalCount: dto.checkSignalCount,
@@ -125,8 +129,10 @@ export function mapPropertyListItemDto(dto: PropertyListItemDto): PropertySummar
     id: dto.propertyId,
     title: dto.title,
     address: dto.roadAddress ?? dto.jibunAddress ?? '주소 정보 없음',
+    detailAddress: dto.detailAddress ?? undefined,
     type: propertyTransactionTypeLabelMap[dto.transactionType],
     deposit: formatDepositText(dto.transactionType, dto.deposit, dto.monthlyRent),
+    area: dto.area,
     propertyType: propertyTypeLabelMap[dto.propertyType],
     maintenance: formatMaintenanceText(dto.maintenanceFee),
     checklist: dto.checklistProgress ?? undefined,
@@ -160,6 +166,18 @@ function formatMarketDelta(differenceRate: number): string {
   return percent >= 0 ? `+${percent}%` : `${percent}%`;
 }
 
+// 기준가 계산에 쓰인 개별 실거래 표본 1건 -> 화면 표시용 변환(#264/#197, 5차 멘토링 피드백 7-2).
+function mapMarketComparisonSampleDto(dto: MarketTransactionSampleDto): PropertyMarketComparisonSample {
+  return {
+    buildingName: dto.buildingName ?? undefined,
+    address: dto.address,
+    dealDateText: formatDateText(dto.dealDate),
+    depositText: formatManwon(dto.depositWon),
+    areaText: dto.areaSqm !== null ? formatAreaWithPyeong(dto.areaSqm) : undefined,
+    priceHighlight: dto.priceHighlight ?? undefined,
+  };
+}
+
 /**
  * BE MarketComparisonDto -> 화면 표시용 PropertyMarketComparison 변환. status와 무관하게
  * 항상 객체를 만든다 - UNAVAILABLE이어도 사유(message)를 보여줘야 하기 때문에 "값이 없으면
@@ -175,6 +193,7 @@ function mapMarketComparisonDto(dto: MarketComparisonDto): PropertyMarketCompari
     radiusMeters: dto.radiusMeters ?? undefined,
     areaErrorRate: dto.areaErrorRate ?? undefined,
     lookbackMonths: dto.lookbackMonths ?? undefined,
+    samples: dto.samples ? dto.samples.map(mapMarketComparisonSampleDto) : undefined,
     message: dto.message ?? undefined,
   };
 }
@@ -190,6 +209,7 @@ export function mapPropertyDetailResponseDto(dto: PropertyDetailResponseDto): Pr
     id: dto.propertyId,
     title: dto.title,
     address: dto.address.roadAddress ?? dto.address.jibunAddress ?? '주소 정보 없음',
+    detailAddress: dto.address.detailAddress ?? undefined,
     type: propertyTransactionTypeLabelMap[dto.transactionType],
     deposit: formatDepositText(dto.transactionType, dto.deposit, dto.monthlyRent),
     propertyType: propertyTypeLabelMap[dto.propertyType],
@@ -239,6 +259,24 @@ export function mapPropertySummaryToMockDetail(property: PropertySummary): Prope
       radiusMeters: 300,
       areaErrorRate: 0.2,
       lookbackMonths: 6,
+      samples: [
+        {
+          buildingName: '래미안 강남',
+          address: '서울특별시 강남구 역삼동 123-4',
+          dealDateText: '2026.06.20',
+          depositText: '1억 8,500만원',
+          areaText: '33.2㎡ (10.0평)',
+          priceHighlight: 'HIGHEST',
+        },
+        {
+          buildingName: '힐스테이트',
+          address: '서울특별시 강남구 역삼동 456-7',
+          dealDateText: '2026.05.28',
+          depositText: '1억 7,800만원',
+          areaText: '32.5㎡ (9.8평)',
+          priceHighlight: 'LOWEST',
+        },
+      ],
     },
   };
 }
