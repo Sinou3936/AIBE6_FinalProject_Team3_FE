@@ -58,18 +58,31 @@ export function ContractHistorySection() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   // 아코디언이 열릴 때 그 카드로 스크롤을 따라가기 위한 항목별 ref - ContractResultClient.tsx의
-  // chatContainerRefs와 동일한 패턴.
+  // chatContainerRefs와 동일한 패턴. itemBodyRefs는 실제로 펼침/접힘을 트랜지션하는 grid 래퍼
+  // (아래 JSX의 grid-rows 요소) - transitionend를 감지하려면 이 요소를 따로 참조해야 한다.
   const itemRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const itemBodyRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  // block:'nearest'는 이 effect가 실행되는 시점(grid-rows 트랜지션이 막 시작해 카드가 아직 접힌
-  // 높이)엔 카드가 "이미 보인다"고 판단해 스크롤을 안 움직인다 - 'start'로 항상 카드 상단을
-  // 뷰포트 상단에 맞춰서 펼쳐지는 내용이 보일 자리를 확보한다(ContractClauseAccordionCard.tsx와
-  // 동일한 수정).
+  // isExpanded가 바뀌는 즉시 scrollIntoView를 부르면 grid-rows 트랜지션이 막 시작해 카드 높이가
+  // 계속 바뀌는 도중이라, 브라우저의 smooth 스크롤이 "움직이는 목표"를 쫓다가 트랜지션과 서로
+  // 간섭해 스크롤이 아예 안 움직이는 문제가 있었다(ContractClauseAccordionCard.tsx와 동일한 원인) -
+  // 카드 높이가 최종 값으로 자리잡은 뒤(트랜지션 종료 후)에 스크롤해야 안정적으로 동작한다.
   useEffect(() => {
     if (expandedHistoryId == null) {
       return;
     }
-    itemRefs.current.get(expandedHistoryId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const bodyElement = itemBodyRefs.current.get(expandedHistoryId);
+    if (!bodyElement) {
+      return;
+    }
+
+    const scrollCardIntoView = (event: TransitionEvent) => {
+      if (event.propertyName === 'grid-template-rows') {
+        itemRefs.current.get(expandedHistoryId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+    bodyElement.addEventListener('transitionend', scrollCardIntoView);
+    return () => bodyElement.removeEventListener('transitionend', scrollCardIntoView);
   }, [expandedHistoryId]);
 
   useEffect(() => {
@@ -304,6 +317,13 @@ export function ContractHistorySection() {
                       </button>
 
                       <div
+                        ref={(el) => {
+                          if (el) {
+                            itemBodyRefs.current.set(item.id, el);
+                          } else {
+                            itemBodyRefs.current.delete(item.id);
+                          }
+                        }}
                         aria-hidden={!isExpanded}
                         className={cn(
                           'grid transition-[grid-template-rows] duration-300 ease-in-out',
