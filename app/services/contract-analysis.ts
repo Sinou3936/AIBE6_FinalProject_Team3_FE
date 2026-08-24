@@ -6,6 +6,7 @@ import {
   mapContractHistoryItemDto,
 } from '../mappers/contract-analysis';
 import {
+  deleteMockContractHistoryItem,
   getMockContractAnalysisResult,
   getMockContractHistoryClauses,
   getMockContractHistoryPage,
@@ -196,4 +197,14 @@ export async function getContractHistoryClauses(id: number): Promise<ContractCla
 
   const dto = await requestJson<ContractHistoryDetailDto>(`/users/me/contract-history/${id}`);
   return dto.clauses.map(mapContractHistoryClauseDto);
+}
+
+// 하드 삭제(Backend ContractAnalysisHistoryService.deleteMyContractHistory 참고) - 되돌릴 수 없다.
+export async function deleteContractHistory(id: number): Promise<void> {
+  if (useMockData) {
+    deleteMockContractHistoryItem(id);
+    return;
+  }
+
+  await requestJson<void>(`/users/me/contract-history/${id}`, { method: 'DELETE' });
 }

@@ -183,6 +183,9 @@ export type ContractAnalyzeRequestDto = {
 };
 
 export type ContractClauseDto = {
+  // Backend가 AI 응답 스키마에 강제로 포함시키는 5~10자 내외의 짧은 제목. 비어있으면 분석
+  // 자체가 CONTRACT_ANALYSIS_AI_RESPONSE_INVALID로 실패하므로 실제로는 항상 값이 있다.
+  title: string;
   originalText: string;
   riskFlag: boolean;
   explanation: string;
@@ -230,10 +233,12 @@ export type ContractChatResponseDto = {
 
 // GET /users/me/contract-history 응답 목록 원소 하나(PageResponseDto<ContractHistoryItemDto>로 감싸짐).
 // 분석 성공 후에만 생성되는 불변 기록 - status는 Backend에 "COMPLETED" 한 종류뿐이라 FE에서 옮기지
-// 않는다. propertyId는 매물과 연결하지 않고 분석했으면 null.
+// 않는다. propertyId는 매물과 연결하지 않고 분석했으면 null. propertyTitle은 propertyId가 있어도
+// 연결된 매물이 이미 삭제/조회 불가면 null일 수 있다(Backend ContractHistoryResponse 주석 참고).
 export type ContractHistoryItemDto = {
   id: number;
   propertyId: number | null;
+  propertyTitle: string | null;
   inputType: ContractInputType;
   summary: string;
   clauseCount: number;
@@ -242,10 +247,11 @@ export type ContractHistoryItemDto = {
   createdAt: string;
 };
 
-// GET /users/me/contract-history/{id} 응답의 조항 하나. 원문(originalText)은 계약 원문을 DB에
-// 남기지 않는 정책상 애초에 저장되지 않아 이 응답엔 없다 - analyze 응답의 ContractClauseDto와
-// 다른 점(originalText 유무)이 이 타입을 따로 둔 이유다.
+// GET /users/me/contract-history/{id} 응답의 조항 하나. title은 저장되지만(DB nullable=false)
+// 원문(originalText)은 계약 원문을 DB에 남기지 않는 정책상 애초에 저장되지 않아 이 응답엔 없다 -
+// analyze 응답의 ContractClauseDto와 다른 점(originalText 유무)이 이 타입을 따로 둔 이유다.
 export type ContractHistoryClauseDto = {
+  title: string;
   riskFlag: boolean;
   explanation: string;
   question: string;
@@ -258,6 +264,7 @@ export type ContractHistoryClauseDto = {
 export type ContractHistoryDetailDto = {
   id: number;
   propertyId: number | null;
+  propertyTitle: string | null;
   inputType: ContractInputType;
   summary: string;
   clauseCount: number;
