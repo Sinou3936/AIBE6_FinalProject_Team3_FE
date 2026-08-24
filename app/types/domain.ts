@@ -315,13 +315,6 @@ export type NavigationItem = {
   icon: LucideIcon;
 };
 
-export type ActivityHistoryItem = {
-  title: string;
-  type: string;
-  date: string;
-  status: string;
-};
-
 export type UserTransactionType = '전세' | '월세';
 
 export type UserCurrentStage = '자취 처음' | '자취 경험 있음';

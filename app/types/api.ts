@@ -269,13 +269,6 @@ export type ContractHistoryDetailDto = {
   clauses: ContractHistoryClauseDto[];
 };
 
-export type ActivityHistoryItemDto = {
-  title: string;
-  type: string;
-  date: string;
-  status: string;
-};
-
 export type MeResponseDto = {
   userId: number;
   email: string | null;
