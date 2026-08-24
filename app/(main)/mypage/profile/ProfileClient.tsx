@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { sidoNames } from '../../../data/sido';
-import { userCurrentStageOptions, userTransactionTypeOptions } from '../../../data/user';
+import { userTransactionTypeOptions } from '../../../data/user';
 import { buildInterestRegion, type ParsedLocation } from '../../../lib/interestRegion';
 import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import { fetchEupmyeondongOptions, fetchSigunguOptions } from '../../../services/region';
@@ -44,7 +44,6 @@ function toFormValues(profile: UserProfile): ProfileUpdateInput {
     nickname: profile.nickname,
     interestRegion: profile.interestRegion ?? '',
     transactionType: profile.transactionType,
-    currentStage: profile.currentStage,
   };
 }
 
@@ -503,26 +502,6 @@ export function ProfileClient({
                     }`}
                   >
                     {type}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <span className="mb-2 block text-sm font-bold text-slate-700">현재 단계</span>
-              <div className="grid grid-cols-2 gap-2">
-                {userCurrentStageOptions.map((stage) => (
-                  <button
-                    key={stage}
-                    type="button"
-                    onClick={() => setFormValues((prev) => ({ ...prev, currentStage: stage }))}
-                    className={`rounded-xl border py-3 text-sm font-bold transition ${
-                      formValues.currentStage === stage
-                        ? 'border-teal-500 bg-teal-50 text-teal-700'
-                        : 'border-slate-200 bg-white text-slate-600'
-                    }`}
-                  >
-                    {stage}
                   </button>
                 ))}
               </div>

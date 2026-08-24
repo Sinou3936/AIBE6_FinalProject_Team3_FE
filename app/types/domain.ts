@@ -327,16 +327,7 @@ export type NavigationItem = {
   icon: LucideIcon;
 };
 
-export type ActivityHistoryItem = {
-  title: string;
-  type: string;
-  date: string;
-  status: string;
-};
-
 export type UserTransactionType = '전세' | '월세';
-
-export type UserCurrentStage = '자취 처음' | '자취 경험 있음';
 
 export type UserProfile = {
   nickname: string;
@@ -347,7 +338,6 @@ export type UserProfile = {
   profileImageUrl: string | null;
   interestRegion: string | null;
   transactionType: UserTransactionType | null;
-  currentStage: UserCurrentStage | null;
   hasPassword: boolean;
 };
 
@@ -355,7 +345,6 @@ export type ProfileUpdateInput = {
   nickname: string;
   interestRegion: string;
   transactionType: UserTransactionType | null;
-  currentStage: UserCurrentStage | null;
 };
 
 export type HomeSummaryCounts = {

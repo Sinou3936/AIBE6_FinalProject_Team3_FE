@@ -21,7 +21,6 @@ const emptyProfile: UserProfile = {
   profileImageUrl: null,
   interestRegion: null,
   transactionType: null,
-  currentStage: null,
   hasPassword: false,
 };
 

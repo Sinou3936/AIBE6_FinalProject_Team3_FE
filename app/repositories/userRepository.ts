@@ -24,7 +24,6 @@ export function registerMockUserProfile(input: ProfileUpdateInput): UserProfile 
     ...mockUserProfileDto,
     interestRegion: request.interestRegion,
     transactionType: request.transactionType,
-    currentStage: request.currentStage ?? null,
   };
   return mapUserProfileDto(mockUserProfileDto);
 }
@@ -36,7 +35,6 @@ export function updateMockUserProfile(input: ProfileUpdateInput): UserProfile {
     ...(patch.nickname !== undefined && { nickname: patch.nickname }),
     ...(patch.interestRegion !== undefined && { interestRegion: patch.interestRegion }),
     ...(patch.transactionType !== undefined && { transactionType: patch.transactionType }),
-    ...(patch.currentStage !== undefined && { currentStage: patch.currentStage }),
   };
   return mapUserProfileDto(mockUserProfileDto);
 }

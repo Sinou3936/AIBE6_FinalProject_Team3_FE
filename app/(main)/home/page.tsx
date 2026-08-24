@@ -9,13 +9,13 @@ import { computeHomeSummaryCounts } from '../../lib/homeSummary';
 import { getPriorityAction } from '../../lib/priorityAction';
 import { getRiskCheckHref } from '../../lib/riskCheckAction';
 import { classifyProfileLoadError } from '../../lib/sessionErrors';
-import { getActivityHistory } from '../../services/activityHistory';
 import { getChecklistResult, getMyChecklistOverviews } from '../../services/checklist';
+import { getMyContractHistory } from '../../services/contract-analysis';
 import { getProperties } from '../../services/properties';
 import { getMyProfile } from '../../services/user';
 import {
-  type ActivityHistoryItem,
   type ChecklistOverview,
+  type ContractHistoryItem,
   type PropertySummary,
   type UserProfile,
 } from '../../types/domain';
@@ -31,7 +31,6 @@ const emptyProfile: UserProfile = {
   profileImageUrl: null,
   interestRegion: null,
   transactionType: null,
-  currentStage: null,
   hasPassword: false,
 };
 
@@ -49,7 +48,8 @@ type PageData = {
   properties: PropertySummary[];
   propertiesTotalCount: number;
   propertiesLoadFailed: boolean;
-  activityHistory: ActivityHistoryItem[];
+  contractHistoryItems: ContractHistoryItem[];
+  contractHistoryTotalCount: number;
   checklistOverviews: ChecklistOverview[];
   checklistProgressEntries: ChecklistProgressEntry[];
 };
@@ -80,8 +80,8 @@ function HomePageContent() {
     // 넷 다 서로 의존관계가 없는 조회라 병렬로 묶는다 - 예전엔 순차 await라 하나당 왕복 시간이
     // 그대로 누적됐는데(넷의 합만큼 대기), allSettled로 묶으면 개별 실패가 나머지에 영향을 주지
     // 않으면서도 총 대기 시간은 가장 느린 호출 하나 수준으로 줄어든다.
-    const [profileResult, propertiesResult, activityHistoryResult, checklistOverviewsResult] =
-      await Promise.allSettled([
+    const [profileResult, propertiesResult, contractHistoryResult, checklistOverviewsResult] = await Promise.allSettled(
+      [
         getMyProfile(),
         // 백엔드가 허용하는 최대 페이지 크기(100, PropertyController@PageableDefault 검증 로직 참고)만큼
         // 한 번에 가져온다. interestedPropertyCount/hasProperty는 아래에서 totalElements를 쓰므로
@@ -89,9 +89,12 @@ function HomePageContent() {
         // 기반 카운트는 이 items 배열(최대 100개, createdAt DESC)만 보므로 101번째 이후 오래된 매물의
         // 신호는 반영되지 않는다. 실사용 규모상 무시 가능하다고 판단해 별도 페이지 순회는 하지 않는다.
         getProperties(undefined, { size: 100 }),
-        getActivityHistory(),
+        // 최근 20건 안에서만 "확인 필요"(riskCount > 0) 여부를 판정한다 - 매물 신호와 동일한 이유로
+        // 그보다 오래된 건은 이 알림에 반영되지 않지만, 전체 개수(totalElements)는 정확하다.
+        getMyContractHistory({ size: 20 }),
         getMyChecklistOverviews(),
-      ]);
+      ],
+    );
 
     let profile = emptyProfile;
     if (profileResult.status === 'fulfilled') {
@@ -115,12 +118,15 @@ function HomePageContent() {
       loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
     }
 
-    // 백엔드에 이 엔드포인트가 아직 없어, ENABLE_ANALYSIS_HISTORY가 꺼져 있는 동안은
-    // getActivityHistory()가 호출조차 하지 않고 빈 배열을 바로 반환한다(app/services/activityHistory.ts
-    // 참고) - 항상 fulfilled이므로 여기서 배너로 알릴 실패 자체가 없다. 분석한 특약사항 카운트/알림도
-    // 자연히 빈 상태. 엔드포인트가 실제로 생겨 플래그를 켜면, 그때부터는 진짜 실패 시 이 분기에서
-    // loadError를 세팅하도록 고칠 것.
-    const activityHistory = activityHistoryResult.status === 'fulfilled' ? activityHistoryResult.value : [];
+    let contractHistoryItems: ContractHistoryItem[] = [];
+    let contractHistoryTotalCount = 0;
+    if (contractHistoryResult.status === 'fulfilled') {
+      contractHistoryItems = contractHistoryResult.value.items;
+      contractHistoryTotalCount = contractHistoryResult.value.totalElements;
+    } else {
+      // 실패 시 "분석한 특약사항 없음"으로 단정하지 않도록 아래 배너로 실패 사실을 알린다.
+      loadError = '일부 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+    }
 
     let checklistOverviews: ChecklistOverview[] = [];
     if (checklistOverviewsResult.status === 'fulfilled') {
@@ -159,7 +165,8 @@ function HomePageContent() {
       properties,
       propertiesTotalCount,
       propertiesLoadFailed,
-      activityHistory,
+      contractHistoryItems,
+      contractHistoryTotalCount,
       checklistOverviews,
       checklistProgressEntries,
     };
@@ -184,7 +191,6 @@ function HomePageContent() {
   const hasProperty = data.propertiesTotalCount > 0;
 
   const priorityAction = getPriorityAction({
-    currentStage: data.profile.currentStage,
     hasProperty,
     propertiesLoadFailed: data.propertiesLoadFailed,
     checklistOverviews: data.checklistOverviews,
@@ -192,12 +198,14 @@ function HomePageContent() {
   });
 
   const summaryCounts = {
-    ...computeHomeSummaryCounts(data.properties, data.activityHistory, data.checklistOverviews),
+    ...computeHomeSummaryCounts(data.properties, data.contractHistoryTotalCount, data.checklistOverviews),
     // items(최대 100개)가 아니라 totalElements 기준 - 매물이 100개를 넘어도 정확한 값을 보여준다.
     interestedPropertyCount: data.propertiesTotalCount,
   };
   const signalProperties = data.properties.filter((property) => (property.checkSignalCount ?? 0) > 0);
-  const specialTermsAlerts = data.activityHistory.filter((item) => item.type === '특약사항 분석');
+  // 분석 완료 여부가 아니라 riskCount > 0(실제로 확인이 필요한 조항이 있는지)로 판정한다 -
+  // "이상 없음" 분석 결과까지 확인 필요로 잘못 뜨는 걸 막기 위함.
+  const specialTermsAlerts = data.contractHistoryItems.filter((item) => item.riskCount > 0);
   // "위험 신호 확인" 퀵액션 카드만 매물/신호 상태에 따라 동적으로 목적지를 바꾼다(#181,
   // app/lib/riskCheckAction.ts 참고). 나머지 카드는 quickActions의 정적 링크를 그대로 쓴다.
   const riskCheckHref = getRiskCheckHref(hasProperty, signalProperties);
@@ -310,7 +318,7 @@ function HomePageContent() {
           ))}
           {specialTermsAlerts.map((item) => (
             <Link
-              key={`${item.title}-${item.type}`}
+              key={item.id}
               href="/mypage"
               className="flex items-start gap-4 rounded-xl border border-red-100 bg-red-50 p-4 transition hover:bg-red-100/60"
             >
@@ -318,8 +326,10 @@ function HomePageContent() {
                 <FileSearch className="h-5 w-5 text-red-600" />
               </div>
               <div>
-                <p className="mb-1 font-bold text-red-950">{item.title} 특약사항 확인 필요</p>
-                <p className="text-sm leading-relaxed text-red-800">{item.status}</p>
+                <p className="mb-1 font-bold text-red-950">{item.summary}</p>
+                <p className="text-sm leading-relaxed text-red-800">
+                  전체 조항 {item.clauseCount}개 중 확인 필요 {item.riskCount}개
+                </p>
               </div>
             </Link>
           ))}

@@ -4,27 +4,18 @@ import { Lock, LogOut, Pencil, User, UserX } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { ENABLE_ANALYSIS_HISTORY } from '../../config/features';
 import { ApiError } from '../../lib/api/http';
 import { canSetPassword, hasRegisteredProfile } from '../../lib/profile';
 import { useLogout } from '../../lib/useLogout';
 import { logout } from '../../services/auth';
 import { withdraw } from '../../services/user';
-import {
-  type ActivityHistoryItem,
-  type ChecklistProgress,
-  type PropertySummary,
-  type UserProfile,
-} from '../../types/domain';
-import { Badge } from '../../ui/Badge';
+import { type ChecklistProgress, type PropertySummary, type UserProfile } from '../../types/domain';
 import { InfoRow } from '../../ui/InfoRow';
 import { ContractHistorySection } from './ContractHistorySection';
 import { PropertyListSection } from './PropertyListSection';
 import { WithdrawConfirmModal } from './WithdrawConfirmModal';
 
 type MyPageClientProps = {
-  activityHistory: ActivityHistoryItem[];
-  activityHistoryLoadError?: string;
   properties: PropertySummary[];
   propertiesTotalCount: number;
   propertiesLoadError?: string;
@@ -35,8 +26,6 @@ type MyPageClientProps = {
 };
 
 export function MyPageClient({
-  activityHistory,
-  activityHistoryLoadError,
   properties,
   propertiesTotalCount,
   propertiesLoadError,
@@ -107,9 +96,8 @@ export function MyPageClient({
               <div>
                 <div className="mb-1 flex items-center gap-2">
                   <p className="font-bold text-slate-950">{profile.nickname || nickname}</p>
-                  {profile.currentStage && <Badge className="bg-teal-50 text-teal-700">{profile.currentStage}</Badge>}
                 </div>
-                {!profile.currentStage && <p className="text-sm text-slate-500">프로필 정보를 등록해 주세요</p>}
+                {!isRegistered && <p className="text-sm text-slate-500">프로필 정보를 등록해 주세요</p>}
               </div>
             </div>
             <Link
@@ -204,35 +192,6 @@ export function MyPageClient({
       />
 
       <ContractHistorySection />
-
-      {ENABLE_ANALYSIS_HISTORY && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="ansim-card p-6">
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-950">최근 이력</h2>
-              <button className="text-sm font-bold text-teal-700">전체보기</button>
-            </div>
-            <div className="space-y-3">
-              {activityHistoryLoadError ? (
-                <p className="text-sm text-slate-500">이 기능은 준비 중입니다.</p>
-              ) : (
-                activityHistory.map((item) => (
-                  <div key={`${item.title}-${item.type}`} className="rounded-xl border border-slate-100 p-4">
-                    <div className="mb-2 flex items-center justify-between gap-3">
-                      <p className="font-bold text-slate-950">{item.title}</p>
-                      <Badge className="shrink-0 bg-slate-100 text-slate-600">{item.type}</Badge>
-                    </div>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-400">{item.date}</span>
-                      <span className="font-bold text-orange-600">{item.status}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       <WithdrawConfirmModal
         open={isWithdrawModalOpen}
