@@ -1,11 +1,12 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
+import { Info, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getContractAnalysisErrorMessage } from '../../lib/contractAnalysisErrors';
 import { getContractHistoryClauses } from '../../services/contract-analysis';
 import { type ContractClause } from '../../types/domain';
 import { ContractClauseAccordionCard } from '../../ui/ContractClauseAccordionCard';
+import { NoticeBox } from '../../ui/NoticeBox';
 
 type ContractHistoryDetailAccordionProps = {
   historyId: number;
@@ -83,6 +84,10 @@ export function ContractHistoryDetailAccordion({ historyId }: ContractHistoryDet
 
   return (
     <div className="mt-3 space-y-3">
+      <NoticeBox icon={Info} iconClassName="text-teal-600" className="bg-teal-50 text-teal-700">
+        원문은 개인정보 보호를 위해 저장하지 않으며, 아래는 분석 당시의 결과입니다.
+      </NoticeBox>
+
       {clauses.map((clause, index) => (
         <ContractClauseAccordionCard
           key={index}

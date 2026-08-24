@@ -88,11 +88,14 @@ export async function getAdminDashboardStats(params: AdminDashboardStatsParams =
   return requestJson<AdminDashboardStatsDto>(path);
 }
 
-export async function getAdminChecklistItemTemplates(): Promise<AdminChecklistItemTemplateDto[]> {
+export async function getAdminChecklistItemTemplates(
+  // 위 getAdminUsers와 동일한 이유 - admin/checklists/page.tsx만 이 signal 연결이 빠져 있었다.
+  signal?: AbortSignal,
+): Promise<AdminChecklistItemTemplateDto[]> {
   if (useMockData) {
     return getMockAdminChecklistItemTemplates();
   }
-  return requestJson<AdminChecklistItemTemplateDto[]>('/admin/checklist-templates');
+  return requestJson<AdminChecklistItemTemplateDto[]>('/admin/checklist-templates', { signal });
 }
 
 export async function getAdminChecklistTemplateImages(

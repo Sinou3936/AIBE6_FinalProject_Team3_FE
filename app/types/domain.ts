@@ -20,6 +20,9 @@ export type PropertySummary = {
   id: number;
   title: string;
   address: string;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번) - 같은 건물 안 여러 매물을 구분하기 위한 사용자
+  // 입력 텍스트. 없으면 undefined(BE가 null로 내려주는 걸 매퍼가 변환).
+  detailAddress?: string;
   type: PropertyTradeType;
   deposit: string;
   // 정렬 기준(면적 좁은순/넓은순)을 카드에서 눈으로 확인할 수 있도록 전용면적(㎡)을 노출한다(#195).
@@ -54,6 +57,9 @@ export type PropertyDetail = {
   title: string;
   type: PropertyTradeType;
   address: string;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번). roadAddress/jibunAddress와 달리 등록 후에도
+  // 수정 가능한 필드라 수정 폼에서 별도 입력란으로 다룬다.
+  detailAddress?: string;
   deposit: string;
   propertyType?: string;
   // 수정 폼 입력값 프리필용 원시 금액(원 단위). 실제 API는 항상 채워지고, mock은 표시용 문자열만
@@ -227,6 +233,9 @@ export type ChecklistProgress = {
 };
 
 export type ContractClause = {
+  // AI가 생성하는 5~10자 내외 짧은 제목 - 아코디언 헤더에 원문 대신 이걸 표시한다(analyze/이력
+  // 상세 응답 둘 다 항상 값이 있지만, 렌더링 쪽은 방어적으로 빈 값 fallback을 둔다).
+  title: string;
   // 마이페이지 계약분석 이력 상세(ContractHistoryClauseDto)는 원문을 저장하지 않는 정책이라 이
   // 필드가 없다 - 그 경로에서 매핑된 조항은 항상 undefined, 그 외(analyzeContract 응답)엔 항상 값 있음.
   originalText?: string;
@@ -260,12 +269,15 @@ export type ContractTab = {
   label: string;
 };
 
-// 마이페이지 "계약분석 이력" 섹션용. 목록 표시에만 쓰여 propertyId/status는 옮기지 않는다(status는
-// Backend에 "COMPLETED" 한 종류뿐이라 분기할 값 자체가 없음) - 원문을 저장하지 않는 정책이라
-// 클릭해도 상세로 갈 곳이 없어 id도 렌더링용이 아니라 목록 key로만 쓰인다.
+// 마이페이지 "계약분석 이력" 섹션용. id는 목록 key뿐 아니라 항목 클릭 시 상세 조항 조회
+// (getContractHistoryClauses)에도 쓰인다. status는 옮기지 않는다(Backend에 "COMPLETED" 한
+// 종류뿐이라 분기할 값 자체가 없음).
 export type ContractHistoryItem = {
   id: number;
   inputType: 'TEXT' | 'IMAGE';
+  // 매물과 연결하지 않고 분석했으면 null, 연결했지만 그 매물이 이미 삭제/조회 불가여도 null -
+  // 화면에서는 "직접 입력"으로 대체 표시한다.
+  propertyTitle: string | null;
   summary: string;
   clauseCount: number;
   riskCount: number;

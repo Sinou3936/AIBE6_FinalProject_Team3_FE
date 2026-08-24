@@ -183,6 +183,9 @@ export type ContractAnalyzeRequestDto = {
 };
 
 export type ContractClauseDto = {
+  // Backend가 AI 응답 스키마에 강제로 포함시키는 5~10자 내외의 짧은 제목. 비어있으면 분석
+  // 자체가 CONTRACT_ANALYSIS_AI_RESPONSE_INVALID로 실패하므로 실제로는 항상 값이 있다.
+  title: string;
   originalText: string;
   riskFlag: boolean;
   explanation: string;
@@ -230,10 +233,12 @@ export type ContractChatResponseDto = {
 
 // GET /users/me/contract-history 응답 목록 원소 하나(PageResponseDto<ContractHistoryItemDto>로 감싸짐).
 // 분석 성공 후에만 생성되는 불변 기록 - status는 Backend에 "COMPLETED" 한 종류뿐이라 FE에서 옮기지
-// 않는다. propertyId는 매물과 연결하지 않고 분석했으면 null.
+// 않는다. propertyId는 매물과 연결하지 않고 분석했으면 null. propertyTitle은 propertyId가 있어도
+// 연결된 매물이 이미 삭제/조회 불가면 null일 수 있다(Backend ContractHistoryResponse 주석 참고).
 export type ContractHistoryItemDto = {
   id: number;
   propertyId: number | null;
+  propertyTitle: string | null;
   inputType: ContractInputType;
   summary: string;
   clauseCount: number;
@@ -242,10 +247,11 @@ export type ContractHistoryItemDto = {
   createdAt: string;
 };
 
-// GET /users/me/contract-history/{id} 응답의 조항 하나. 원문(originalText)은 계약 원문을 DB에
-// 남기지 않는 정책상 애초에 저장되지 않아 이 응답엔 없다 - analyze 응답의 ContractClauseDto와
-// 다른 점(originalText 유무)이 이 타입을 따로 둔 이유다.
+// GET /users/me/contract-history/{id} 응답의 조항 하나. title은 저장되지만(DB nullable=false)
+// 원문(originalText)은 계약 원문을 DB에 남기지 않는 정책상 애초에 저장되지 않아 이 응답엔 없다 -
+// analyze 응답의 ContractClauseDto와 다른 점(originalText 유무)이 이 타입을 따로 둔 이유다.
 export type ContractHistoryClauseDto = {
+  title: string;
   riskFlag: boolean;
   explanation: string;
   question: string;
@@ -258,6 +264,7 @@ export type ContractHistoryClauseDto = {
 export type ContractHistoryDetailDto = {
   id: number;
   propertyId: number | null;
+  propertyTitle: string | null;
   inputType: ContractInputType;
   summary: string;
   clauseCount: number;
@@ -372,6 +379,9 @@ export type PropertyImageDto = {
 export type CreatePropertyRequestDto = {
   title: string;
   address: string;
+  // 선택 입력 - 동/호수 등 상세주소(5차 멘토링 피드백 3번). address(도로명/지번)와 달리 Kakao
+  // 지오코딩 대상이 아닌 순수 표시·식별용 값이라 형식 검증이 없다.
+  detailAddress?: string | null;
   propertyType: PropertyTypeDto;
   transactionType: PropertyTransactionTypeDto;
   deposit: number;
@@ -415,6 +425,8 @@ export type PropertyAddressDto = {
   jibunAddress: string | null;
   latitude: number;
   longitude: number;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번) - 사용자 입력 텍스트, 없으면 null.
+  detailAddress: string | null;
 };
 
 // 기준가(중앙값) 산출에 실제로 쓰인 개별 실거래 표본 1건(#264/#197, 5차 멘토링 피드백 7-2).
@@ -471,6 +483,9 @@ export type PropertyListItemDto = {
   maintenanceFee: number | null;
   roadAddress: string | null;
   jibunAddress: string | null;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번) - 같은 건물 안 여러 매물을 목록에서도 구분할 수
+  // 있도록 노출된다. 없으면 null.
+  detailAddress: string | null;
   status: PropertyStatusDto;
   createdAt: string;
   // 체크리스트를 아예 시작 안 했으면 null(분모가 없음), 시작했으면 0~100 사이 정수(반올림).
@@ -491,6 +506,8 @@ export type PropertyDetailAddressDto = {
   jibunAddress: string | null;
   latitude: number | null;
   longitude: number | null;
+  // 동/호수 등 상세주소(5차 멘토링 피드백 3번) - 사용자 입력 텍스트, 없으면 null.
+  detailAddress: string | null;
 };
 
 // GET /properties/{id} 응답. 목록과 달리 설명/이미지/전체 주소/시세비교까지 포함한다.
@@ -522,6 +539,9 @@ export type PropertyDetailResponseDto = {
 // 기존 이미지를 전부 지우고 통째로 교체한다 - BE PropertyUpdateRequest 주석 참고.
 export type UpdatePropertyRequestDto = {
   title: string;
+  // 선택 입력 - 등록 때와 동일하게 형식 검증이 없다. roadAddress/jibunAddress와 달리 등록 이후에도
+  // 예외적으로 수정 가능한 필드다(5차 멘토링 피드백 3번, BE PropertyUpdateRequest 주석 참고).
+  detailAddress?: string | null;
   deposit: number;
   monthlyRent?: number | null;
   area: number;

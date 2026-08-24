@@ -15,6 +15,7 @@ function mapClauseLevel(riskFlag: boolean): Pick<ContractClause, 'levelLabel' | 
 
 export function mapContractClauseDto(dto: ContractClauseDto): ContractClause {
   return {
+    title: dto.title,
     originalText: dto.originalText,
     riskFlag: dto.riskFlag,
     explanation: dto.explanation,
@@ -28,6 +29,7 @@ export function mapContractClauseDto(dto: ContractClauseDto): ContractClause {
 // optional인 이유가 이 경로 때문이다.
 export function mapContractHistoryClauseDto(dto: ContractHistoryClauseDto): ContractClause {
   return {
+    title: dto.title,
     riskFlag: dto.riskFlag,
     explanation: dto.explanation,
     question: dto.question,
@@ -49,6 +51,7 @@ export function mapContractHistoryItemDto(dto: ContractHistoryItemDto): Contract
   return {
     id: dto.id,
     inputType: dto.inputType,
+    propertyTitle: dto.propertyTitle,
     summary: dto.summary,
     clauseCount: dto.clauseCount,
     riskCount: dto.riskCount,

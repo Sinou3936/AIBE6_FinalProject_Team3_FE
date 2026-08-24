@@ -7,6 +7,7 @@ import {
 export const initContractAnalysisResultDto: ContractAnalysisResultDto = {
   clauses: [
     {
+      title: '임의 퇴거 요구',
       originalText: '임대인은 개인 사정에 따라 계약 기간 중 목적물 명도를 요청할 수 있다.',
       riskFlag: true,
       explanation:
@@ -15,6 +16,7 @@ export const initContractAnalysisResultDto: ContractAnalysisResultDto = {
       suggestedText: '계약 기간 중 퇴거 요청은 법령 또는 상호 합의에 따른 경우로 제한한다.',
     },
     {
+      title: '보증금 반환 지연',
       originalText: '보증금 반환은 새로운 임차인이 들어온 이후에 지급하기로 한다.',
       riskFlag: true,
       explanation:
@@ -23,6 +25,7 @@ export const initContractAnalysisResultDto: ContractAnalysisResultDto = {
       suggestedText: '임대인은 계약 종료일에 보증금 전액을 즉시 반환한다.',
     },
     {
+      title: '추가 근저당 설정',
       originalText: '임대인은 잔금 지급일까지 근저당권을 설정할 수 있다.',
       riskFlag: true,
       explanation:
@@ -42,6 +45,7 @@ export const initContractHistoryItemDtos: ContractHistoryItemDto[] = [
   {
     id: 7,
     propertyId: 1,
+    propertyTitle: '역삼동 투룸',
     inputType: 'IMAGE',
     summary: '주의가 필요한 특약 3개가 발견되었습니다.',
     clauseCount: 5,
@@ -52,6 +56,7 @@ export const initContractHistoryItemDtos: ContractHistoryItemDto[] = [
   {
     id: 6,
     propertyId: null,
+    propertyTitle: null,
     inputType: 'TEXT',
     summary: '특이사항이 없는 무난한 특약사항입니다.',
     clauseCount: 3,
@@ -62,6 +67,7 @@ export const initContractHistoryItemDtos: ContractHistoryItemDto[] = [
   {
     id: 5,
     propertyId: 2,
+    propertyTitle: '홍대입구 오피스텔',
     inputType: 'IMAGE',
     summary: '보증금 반환 조건 관련 확인이 필요합니다.',
     clauseCount: 4,
@@ -72,6 +78,7 @@ export const initContractHistoryItemDtos: ContractHistoryItemDto[] = [
   {
     id: 4,
     propertyId: null,
+    propertyTitle: null,
     inputType: 'TEXT',
     summary: '근저당 설정 관련 특약을 확인해 주세요.',
     clauseCount: 2,
@@ -82,6 +89,7 @@ export const initContractHistoryItemDtos: ContractHistoryItemDto[] = [
   {
     id: 3,
     propertyId: 1,
+    propertyTitle: '역삼동 투룸',
     inputType: 'IMAGE',
     summary: '퇴거 요구 조건이 임대인에게 유리하게 작성되었습니다.',
     clauseCount: 6,
@@ -92,6 +100,7 @@ export const initContractHistoryItemDtos: ContractHistoryItemDto[] = [
   {
     id: 2,
     propertyId: null,
+    propertyTitle: null,
     inputType: 'TEXT',
     summary: '관리비 부담 주체가 명확하지 않습니다.',
     clauseCount: 3,
@@ -102,6 +111,7 @@ export const initContractHistoryItemDtos: ContractHistoryItemDto[] = [
   {
     id: 1,
     propertyId: null,
+    propertyTitle: null,
     inputType: 'TEXT',
     summary: '특이사항이 없는 무난한 특약사항입니다.',
     clauseCount: 2,
@@ -115,6 +125,7 @@ export const initContractHistoryItemDtos: ContractHistoryItemDto[] = [
 // mock에서는 id와 무관하게 항상 이 배열 하나를 돌려준다(getMockContractAnalysisResult와 동일 패턴).
 export const initContractHistoryClauseDtos: ContractHistoryClauseDto[] = [
   {
+    title: '임의 퇴거 요구',
     riskFlag: true,
     explanation:
       '집주인이 원하면 계약 기간 중에도 집을 비워달라고 할 수 있다는 뜻으로 읽힐 수 있습니다. 임차인의 거주 기간은 법적으로 보호받아야 하며, 임대인의 개인 사정만으로 퇴거를 요구하는 조항은 분쟁 위험이 큽니다.',
@@ -122,6 +133,7 @@ export const initContractHistoryClauseDtos: ContractHistoryClauseDto[] = [
     suggestedText: '계약 기간 중 퇴거 요청은 법령 또는 상호 합의에 따른 경우로 제한한다.',
   },
   {
+    title: '보증금 반환 지연',
     riskFlag: true,
     explanation:
       '다음 세입자가 구해져야 보증금을 돌려받을 수 있다는 뜻입니다. 보증금 반환은 계약 종료와 동시에 이뤄져야 할 핵심 의무이며, 다음 임차인 여부와 묶이면 반환 지연 위험이 큽니다.',
@@ -129,6 +141,7 @@ export const initContractHistoryClauseDtos: ContractHistoryClauseDto[] = [
     suggestedText: '임대인은 계약 종료일에 보증금 전액을 즉시 반환한다.',
   },
   {
+    title: '관리비 항목 명확',
     riskFlag: false,
     explanation: '관리비 총액과 포함 항목이 특약에 명시되어 있어 특별히 확인할 위험은 없습니다.',
     question: '관리비에 포함되지 않는 항목이 있는지 확인해 주세요.',
