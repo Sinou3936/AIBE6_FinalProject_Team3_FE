@@ -6,9 +6,11 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { parsePageParam } from '../../../lib/pageParam';
 import { resolveErrorMessage } from '../../../lib/resolveErrorMessage';
 import { getAdminPropertyReports } from '../../../services/admin';
-import { type AdminPropertyReportListItemDto, type PageResponseDto } from '../../../types/api';
+import { type AdminPropertyReportListItemDto, type PageResponseDto, type PropertyReportReasonDto } from '../../../types/api';
 import { useAdminCurrentUser } from '../AdminCurrentUserContext';
 import { AdminReportsClient } from './AdminReportsClient';
+
+const KNOWN_REASONS: PropertyReportReasonDto[] = ['ALREADY_CONTRACTED', 'PRICE_MISMATCH', 'INFO_MISMATCH', 'DUPLICATE', 'ETC'];
 
 // status 쿼리파라미터가 아예 없는 최초 진입(북마크/새로고침 포함)은 대기중(RECEIVED) 신고를
 // 우선 보여준다. 사용자가 명시적으로 "전체"를 고르면 status=ALL로 남겨 다음 새로고침에서도
@@ -27,7 +29,11 @@ function AdminReportsPageContent() {
   // 어긋나 보인다. ||를 쓰면 빈 문자열도 null/undefined와 동일하게 기본값으로 대체된다.
   const selectedStatus = searchParams.get('status') || 'RECEIVED';
   const apiStatus = selectedStatus === 'ALL' ? undefined : selectedStatus;
-  const reason = searchParams.get('reason') ?? undefined;
+  // role/status와 같은 이유(users/page.tsx 참고) - 오래된 북마크/수동 편집 링크가 알 수 없는
+  // reason 값을 담고 있으면 백엔드로 그대로 전달되는 대신, 드롭다운이 "선택 안 됨"처럼 보이면서
+  // 실제로는 잘못된 필터가 걸려 있는 어긋남을 막기 위해 알려진 값이 아니면 무시한다.
+  const rawReason = searchParams.get('reason');
+  const reason = KNOWN_REASONS.includes(rawReason as PropertyReportReasonDto) ? (rawReason as PropertyReportReasonDto) : undefined;
 
   // 신고 처리(조치완료/반려)로 필터에 맞는 항목이 하나 줄면, 지금 보고 있던 페이지가 더 이상
   // 존재하지 않게 될 수 있다(예: 2페이지에 1건 남아있던 걸 처리 → 2페이지는 빈 목록). 목록

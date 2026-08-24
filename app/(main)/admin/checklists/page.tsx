@@ -19,16 +19,28 @@ export default function AdminChecklistsPage() {
   // requestIdRef: onMutated로 effect 밖에서도 호출되므로, 응답이 왔을 때 그게 여전히 최신 호출인지
   // 확인한 뒤에만 state를 쓴다.
   const requestIdRef = useRef(0);
+  // 컴포넌트가 마운트된 동안 살아있는 하나의 AbortController다 - admin/users, admin/reports와
+  // 동일한 이유(2026-08-20 전수조사에서 지적된 걸 이 화면만 놓치고 있었다) - requestId 체크는
+  // "더 최신 요청이 이미 있었는지"만 보고 "이 컴포넌트가 여전히 마운트돼 있는지"는 못 막는다.
+  const abortControllerRef = useRef<AbortController | null>(null);
+  if (abortControllerRef.current === null) {
+    abortControllerRef.current = new AbortController();
+  }
+  useEffect(() => {
+    return () => abortControllerRef.current?.abort();
+  }, []);
+
   const reloadTemplates = useCallback((options?: { keepDataOnError?: boolean }) => {
     const requestId = ++requestIdRef.current;
-    return getAdminChecklistItemTemplates()
+    const signal = abortControllerRef.current?.signal;
+    return getAdminChecklistItemTemplates(signal)
       .then((result) => {
-        if (requestId !== requestIdRef.current) return;
+        if (requestId !== requestIdRef.current || signal?.aborted) return;
         setData(result);
         setLoadError(undefined);
       })
       .catch((error) => {
-        if (requestId !== requestIdRef.current) return;
+        if (requestId !== requestIdRef.current || signal?.aborted) return;
         const message = resolveErrorMessage(error, '체크리스트 문항을 불러오지 못했습니다.');
         if (options?.keepDataOnError) {
           // 문항 생성/수정/삭제가 서버에서는 이미 성공한 뒤, 그 후속 목록 재조회만 일시적으로
