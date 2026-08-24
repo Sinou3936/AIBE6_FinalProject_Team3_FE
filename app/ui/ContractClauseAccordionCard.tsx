@@ -35,17 +35,30 @@ export function ContractClauseAccordionCard({
   suggestionCopyKey,
   children,
 }: ContractClauseAccordionCardProps) {
-  // 카드를 펼치면 그 카드가 화면 위쪽으로 스크롤되어 펼쳐진 내용이 보일 자리를 확보한다. 처음엔
-  // block:'nearest'를 썼는데, 이 effect가 실행되는 시점엔 grid-rows 트랜지션이 막 시작해 카드
-  // 높이가 아직 접힌 채라 "이미 보인다"고 판단해 스크롤을 안 움직이는 문제가 있었다(펼쳐지면서
-  // 카드 아래쪽이 화면 밖으로 넘어가도 트랜지션 시작 시점 기준으로는 "보임"으로 판정됨) - 'start'는
-  // 그 판단 없이 항상 카드 상단을 뷰포트 상단에 맞춰서 이 문제를 피한다.
+  // 카드를 펼치면 그 카드가 화면 위쪽으로 스크롤되어 펼쳐진 내용이 보일 자리를 확보한다.
+  // isExpanded가 바뀌는 즉시 scrollIntoView를 부르면(block 옵션과 무관하게) grid-rows 트랜지션이
+  // 이제 막 시작해 카드 높이가 계속 바뀌는 도중이라, 브라우저의 smooth 스크롤이 "움직이는 목표"를
+  // 쫓다가 트랜지션과 서로 간섭해 스크롤이 아예 안 움직이거나 중간에 멈추는 문제가 있었다 - 카드
+  // 높이가 최종 값으로 자리잡은 뒤(트랜지션이 끝난 뒤)에 스크롤해야 안정적으로 동작한다.
   const cardRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (isExpanded) {
-      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (!isExpanded) {
+      return;
     }
+    const bodyElement = bodyRef.current;
+    if (!bodyElement) {
+      return;
+    }
+
+    const scrollCardIntoView = (event: TransitionEvent) => {
+      if (event.propertyName === 'grid-template-rows') {
+        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+    bodyElement.addEventListener('transitionend', scrollCardIntoView);
+    return () => bodyElement.removeEventListener('transitionend', scrollCardIntoView);
   }, [isExpanded]);
 
   return (
@@ -73,6 +86,7 @@ export function ContractClauseAccordionCard({
           DOM에 있고(접혀 있을 때는 0fr 트랙이라 높이 0으로 시각적으로만 감춤) 안쪽 overflow-hidden이
           트랜지션 중 넘치는 콘텐츠를 잘라낸다. */}
       <div
+        ref={bodyRef}
         aria-hidden={!isExpanded}
         className={cn(
           'grid transition-[grid-template-rows] duration-300 ease-in-out',
