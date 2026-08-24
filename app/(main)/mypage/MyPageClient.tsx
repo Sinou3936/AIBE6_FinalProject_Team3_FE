@@ -1,6 +1,6 @@
 'use client';
 
-import { Lock, LogOut, Pencil, Plus, User, UserX } from 'lucide-react';
+import { Lock, LogOut, Pencil, User, UserX } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -18,8 +18,8 @@ import {
 } from '../../types/domain';
 import { Badge } from '../../ui/Badge';
 import { InfoRow } from '../../ui/InfoRow';
-import { PropertyListItem } from '../../ui/PropertyListItem';
 import { ContractHistorySection } from './ContractHistorySection';
+import { PropertyListSection } from './PropertyListSection';
 import { WithdrawConfirmModal } from './WithdrawConfirmModal';
 
 type MyPageClientProps = {
@@ -196,45 +196,12 @@ export function MyPageClient({
         </div>
       </div>
 
-      <div className="mb-8">
-        <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-950">등록 매물</h2>
-          <Link
-            href="/properties/register"
-            className="flex items-center gap-1 text-sm font-bold text-teal-700 hover:text-teal-800"
-          >
-            <Plus className="h-4 w-4" /> 매물 등록
-          </Link>
-        </div>
-        <p className="mb-4 text-sm text-slate-500">
-          등록 매물 {propertiesTotalCount}개 · 확인 필요 신호 {signalCount}개
-        </p>
-
-        {propertiesLoadError && (
-          <div className="ansim-card mb-4 border-red-100 bg-red-50 p-4 text-sm text-red-700">{propertiesLoadError}</div>
-        )}
-
-        {!propertiesLoadError && properties.length === 0 && (
-          <div className="ansim-card p-6 text-center text-sm text-slate-500">
-            <p className="mb-4">아직 등록한 매물이 없어요</p>
-            <Link href="/properties/register" className="ansim-button-primary inline-flex w-fit px-5 py-3">
-              <Plus className="h-4 w-4" /> 매물 등록하기
-            </Link>
-          </div>
-        )}
-
-        {properties.length > 0 && (
-          <div className="space-y-4">
-            {properties.map((property) => (
-              <PropertyListItem
-                key={property.id}
-                property={property}
-                checklistProgress={checklistProgressByPropertyId[property.id]}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      <PropertyListSection
+        totalCount={propertiesTotalCount}
+        signalCount={signalCount}
+        countLoadError={propertiesLoadError}
+        checklistProgressByPropertyId={checklistProgressByPropertyId}
+      />
 
       <ContractHistorySection />
 

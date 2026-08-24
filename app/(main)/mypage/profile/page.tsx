@@ -2,6 +2,11 @@
 
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import {
+  EMPTY_RESOLVED_INTEREST_REGION,
+  resolveInterestRegion,
+  type ResolvedInterestRegion,
+} from '../../../lib/interestRegion';
 import { hasRegisteredProfile } from '../../../lib/profile';
 import { classifyProfileLoadError } from '../../../lib/sessionErrors';
 import { getMyProfile, getNicknamePolicy } from '../../../services/user';
@@ -34,12 +39,26 @@ export default function Page() {
   const [profileNotFound, setProfileNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [nicknamePolicy, setNicknamePolicy] = useState<NicknamePolicyDto>(FALLBACK_NICKNAME_POLICY);
+  const [resolvedRegion, setResolvedRegion] = useState<ResolvedInterestRegion>(EMPTY_RESOLVED_INTEREST_REGION);
 
   useEffect(() => {
     let cancelled = false;
     getMyProfile()
-      .then((result) => {
-        if (!cancelled) setProfile(result);
+      .then(async (result) => {
+        if (cancelled) return;
+        setProfile(result);
+        // 시·군·구/읍·면·동 옵션은 이제 온디맨드로 받아오므로(app/api/regions/*), 이미 저장된
+        // interestRegion을 select에 되돌리려면 그 값에 필요한 옵션 목록까지 먼저 받아와야 한다 -
+        // 여기서(이 화면이 이미 갖고 있던 로딩 게이트 안에서) 끝내야 ProfileClient가 마운트된 뒤에
+        // select가 비었다가 나중에 채워지는 깜빡임 없이 바로 올바른 값으로 렌더링된다.
+        try {
+          const resolved = await resolveInterestRegion(result.interestRegion);
+          if (!cancelled) setResolvedRegion(resolved);
+        } catch {
+          // 실패해도 폼 자체는 계속 써야 하므로 빈 상태로 폴백한다 - 사용자가 지역을 다시
+          // 선택하면 되는 정도의 손실이라, 화면 진입 자체를 막지 않는다.
+          if (!cancelled) setResolvedRegion(EMPTY_RESOLVED_INTEREST_REGION);
+        }
       })
       .catch((error) => {
         if (cancelled) return;
@@ -88,7 +107,15 @@ export default function Page() {
   return (
     <>
       {profileNotFound && <AccountUnavailableRedirect />}
-      <ProfileClient profile={profile} mode={mode} loadError={loadError} nicknamePolicy={nicknamePolicy} />
+      <ProfileClient
+        profile={profile}
+        mode={mode}
+        loadError={loadError}
+        nicknamePolicy={nicknamePolicy}
+        initialLocation={resolvedRegion.location}
+        initialSigunguOptions={resolvedRegion.sigunguOptions}
+        initialEupmyeondongOptions={resolvedRegion.eupmyeondongOptions}
+      />
     </>
   );
 }
